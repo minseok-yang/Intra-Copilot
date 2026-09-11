@@ -8,18 +8,25 @@ import {
 	setIcon,
 } from 'obsidian';
 import IntraCopilotPlugin from '../main';
-import { listLlmModels, testLlmConnection } from '../llm/client';
-import { UiLanguage } from '../settings';
+import { DEFAULT_SETTINGS, MIN_CHAT_TIMEOUT_SECONDS, UiLanguage } from '../settings';
 import { t } from '../i18n';
 import { createStatusLight, setStatusLight } from './status-light';
-import { populateModelDropdown } from './model-dropdown';
+import { checkSelectedModel, fetchModelList, fillModelDropdown } from './model-dropdown';
 import { openGuideWindow } from './guide-view';
-import { LICENSE_MD, USER_GUIDE_MD } from '../content/docs';
 
-// 숫자 입력칸 값을 안전하게 정수로 바꿉니다. 비어있거나 이상한 값이면 0(제한 없음)으로 취급합니다.
-function parseNonNegativeInt(value: string): number {
-	const parsed = Number.parseInt(value, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+// 숫자 입력칸 값을 정수로 바꿉니다. 비어 있거나 숫자가 아니거나 음수면 기본값으로 되돌립니다.
+// (예전에는 비우면 0 = "제한 없음"이 되어, 서버 보호 설정이 실수로 풀릴 수 있었습니다.)
+// 0은 사용자가 일부러 입력한 "제한 없음"이므로 그대로 허용합니다.
+function parseLimit(value: string, fallback: number): number {
+	const trimmed = value.trim();
+	if (!trimmed) return fallback;
+	const parsed = Number.parseInt(trimmed, 10);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function parseTimeoutSeconds(value: string): number {
+	const parsed = parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds);
+	return Math.max(MIN_CHAT_TIMEOUT_SECONDS, parsed);
 }
 
 type TabId = 'general' | 'llm';
@@ -35,10 +42,11 @@ interface TabDefinition {
 export class IntraCopilotSettingTab extends PluginSettingTab {
 	plugin: IntraCopilotPlugin;
 	private activeTab: TabId = 'general';
-	private modelDropdown?: DropdownComponent;
 	// 설정 창을 새로 열었을 때만 자동으로 연결을 확인하기 위한 표시입니다.
 	// 내부 탭 전환(일반↔LLM)이나 언어 변경으로 화면을 다시 그릴 때는 재확인하지 않습니다.
 	private autoCheckPending = true;
+	// 모델을 바꿨을 때 할 일(연결 확인 표시등을 "확인 필요"로). LLM 탭을 그릴 때 채워집니다.
+	private onModelSelectedInTab: () => void = () => {};
 
 	// 글자를 칠 때마다 파일에 쓰지 않도록, 입력이 멈춘 뒤 한 번만 저장합니다.
 	private readonly saveSoon = debounce(
@@ -58,6 +66,8 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		// Obsidian이 설정 창을 닫거나 다른 플러그인 탭으로 옮길 때 호출합니다.
 		this.saveSoon.run(); // 아직 저장되지 않은 입력이 있으면 지금 저장합니다.
 		this.autoCheckPending = true;
+		// 서버 주소/키가 바뀌었을 수 있으니, 열려 있는 챗봇 화면이 모델 목록을 다시 확인하게 합니다.
+		this.plugin.notifySettingsChanged();
 		super.hide();
 	}
 
@@ -125,10 +135,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).addButton((button) =>
 			button.setButtonText(licenseStrings.detailButton).onClick(() => {
-				void openGuideWindow(this.plugin, {
-					title: licenseStrings.summaryHeading,
-					markdown: LICENSE_MD,
-				});
+				void openGuideWindow(this.plugin, 'license');
 			}),
 		);
 
@@ -145,6 +152,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.general.language = value as UiLanguage;
 						await this.plugin.saveSettings();
+						this.plugin.notifySettingsChanged(); // 챗봇 화면·리본 툴팁도 새 언어로
 						this.display();
 					}),
 			);
@@ -154,10 +162,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			.setDesc(strings.guideDesc)
 			.addButton((button) =>
 				button.setButtonText(strings.guideButton).onClick(() => {
-					void openGuideWindow(this.plugin, {
-						title: strings.guideName,
-						markdown: USER_GUIDE_MD,
-					});
+					void openGuideWindow(this.plugin, 'guide');
 				}),
 			);
 	}
@@ -169,15 +174,20 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName(strings.heading).setHeading();
 		containerEl.createEl('p', { text: strings.intro });
 
+		// 서버 주소나 키를 고치면 이전 확인 결과(초록불)는 더 이상 믿을 수 없으므로 되돌립니다.
+		// 상태등은 아래에서 만들어지므로, 만들어진 뒤에 실제 동작을 채워 넣습니다.
+		let resetStatuses = () => {};
+
 		new Setting(containerEl)
 			.setName(strings.baseUrlName)
 			.setDesc(strings.baseUrlDesc)
 			.addText((text) =>
 				text
-					.setPlaceholder('http://localhost:1234/v1')
+					.setPlaceholder(strings.baseUrlPlaceholder)
 					.setValue(this.plugin.settings.llm.baseUrl)
 					.onChange((value) => {
 						this.plugin.settings.llm.baseUrl = value.trim();
+						resetStatuses();
 						this.saveSoon();
 					}),
 			);
@@ -191,6 +201,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.llm.apiKey)
 					.onChange((value) => {
 						this.plugin.settings.llm.apiKey = value.trim();
+						resetStatuses();
 						this.saveSoon();
 					});
 				text.inputEl.type = 'password';
@@ -212,11 +223,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const modelStatus = createStatusLight(modelActionRow, strings.statusIdle);
 
 		const modelDropdown = new DropdownComponent(modelSetting.controlEl);
-		this.modelDropdown = modelDropdown;
-		this.applyModelOptions(modelDropdown, []);
+		this.fillDropdown(modelDropdown, []);
 
 		const checkModels = async () => {
-			modelCheckButton.setButtonText(strings.testing).setDisabled(true);
+			modelCheckButton.setButtonText(strings.loadingModels).setDisabled(true);
 			await this.refreshModelList(modelDropdown, modelStatus.dot, modelStatus.text);
 			modelCheckButton.setButtonText(strings.modelCheckButton).setDisabled(false);
 		};
@@ -242,6 +252,18 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		};
 		testButton.onClick(() => void checkConnection());
 
+		resetStatuses = () => {
+			setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
+			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
+			// 챗봇 상단 상태등도 함께 회색(미확인)으로 되돌립니다.
+			this.plugin.connectionStatus.markChanged(strings.statusConnectionChanged);
+		};
+
+		// 모델을 바꾸면 목록 확인 결과는 그대로 유효하지만, 연결 확인은 새 모델로 다시 해야 합니다.
+		this.onModelSelectedInTab = () => {
+			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusModelChanged);
+		};
+
 		// 고급 설정 — 다른 두 버튼과 똑같은 ButtonComponent라서 배경색·글자 크기가 자동으로 맞습니다.
 		// ButtonComponent.setIcon()은 글자를 지워버려서, 아이콘과 글자를 직접 함께 넣습니다.
 		const advancedRow = modelSetting.controlEl.createDiv({ cls: 'intra-copilot-inline-row' });
@@ -263,32 +285,44 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			setIcon(advancedChevron, advancedSection.hidden ? 'chevron-right' : 'chevron-down');
 		});
 
-		new Setting(advancedSection)
-			.setName(strings.maxHistoryName)
-			.setDesc(strings.maxHistoryDesc)
-			.addText((text) => {
-				text
-					.setValue(String(this.plugin.settings.llm.maxHistoryMessages))
-					.onChange((value) => {
-						this.plugin.settings.llm.maxHistoryMessages = parseNonNegativeInt(value);
-						this.saveSoon();
-					});
-				text.inputEl.type = 'number';
-				text.inputEl.min = '0';
-			});
+		const llm = this.plugin.settings.llm;
+		this.addNumberSetting(advancedSection, {
+			name: strings.maxHistoryName,
+			desc: strings.maxHistoryDesc,
+			get: () => llm.maxHistoryMessages,
+			set: (value) => (llm.maxHistoryMessages = value),
+			parse: (raw) => parseLimit(raw, DEFAULT_SETTINGS.llm.maxHistoryMessages),
+			min: 0,
+		});
+		this.addNumberSetting(advancedSection, {
+			name: strings.maxResponseName,
+			desc: strings.maxResponseDesc,
+			get: () => llm.maxResponseTokens,
+			set: (value) => (llm.maxResponseTokens = value),
+			parse: (raw) => parseLimit(raw, DEFAULT_SETTINGS.llm.maxResponseTokens),
+			min: 0,
+		});
+		this.addNumberSetting(advancedSection, {
+			name: strings.chatTimeoutName,
+			desc: strings.chatTimeoutDesc,
+			get: () => llm.chatTimeoutSeconds,
+			set: (value) => (llm.chatTimeoutSeconds = value),
+			parse: parseTimeoutSeconds,
+			min: MIN_CHAT_TIMEOUT_SECONDS,
+		});
 
-		new Setting(advancedSection)
-			.setName(strings.maxResponseName)
-			.setDesc(strings.maxResponseDesc)
-			.addText((text) => {
-				text
-					.setValue(String(this.plugin.settings.llm.maxResponseTokens))
-					.onChange((value) => {
-						this.plugin.settings.llm.maxResponseTokens = parseNonNegativeInt(value);
-						this.saveSoon();
-					});
-				text.inputEl.type = 'number';
-				text.inputEl.min = '0';
+		// 기본 지시문(시스템 프롬프트) — 서버 연결 정보가 아니라 "대화 내용"에 관한 설정이라
+		// 고급 설정 박스 밖에 따로 둡니다.
+		new Setting(containerEl)
+			.setName(strings.systemPromptName)
+			.setDesc(strings.systemPromptDesc)
+			.addTextArea((text) => {
+				text.setValue(llm.systemPrompt).onChange((value) => {
+					llm.systemPrompt = value;
+					this.saveSoon();
+				});
+				text.inputEl.rows = 3;
+				text.inputEl.addClass('intra-copilot-system-prompt');
 			});
 
 		// 설정 창을 새로 연 뒤 이 탭을 처음 그릴 때만 자동으로 확인합니다.
@@ -304,6 +338,35 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		}
 	}
 
+	// 고급 설정의 숫자 입력칸 하나를 만듭니다. 입력칸에서 벗어나면(blur) 실제로 저장된 값을
+	// 다시 보여줘서, 비워둔 칸이 기본값으로 돌아간 것을 사용자가 바로 알 수 있게 합니다.
+	private addNumberSetting(
+		containerEl: HTMLElement,
+		options: {
+			name: string;
+			desc: string;
+			get: () => number;
+			set: (value: number) => void;
+			parse: (raw: string) => number;
+			min: number;
+		},
+	): void {
+		new Setting(containerEl)
+			.setName(options.name)
+			.setDesc(options.desc)
+			.addText((text) => {
+				text.setValue(String(options.get())).onChange((value) => {
+					options.set(options.parse(value));
+					this.saveSoon();
+				});
+				text.inputEl.type = 'number';
+				text.inputEl.min = String(options.min);
+				text.inputEl.addEventListener('blur', () => {
+					text.setValue(String(options.get()));
+				});
+			});
+	}
+
 	// "모델 확인" 버튼 및 탭이 열릴 때 자동으로 실행됩니다. 서버에서 모델 목록을 가져와
 	// 드롭다운을 채웁니다. 연결 테스트(실제 대화 요청)는 하지 않습니다.
 	private async refreshModelList(
@@ -312,29 +375,29 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		statusText: HTMLElement,
 	): Promise<void> {
 		const strings = t(this.plugin.settings.general.language).llm;
-		const { baseUrl } = this.plugin.settings.llm;
-
-		if (!baseUrl) {
-			setStatusLight(statusDot, statusText, 'idle', strings.fillBaseUrlFirst);
-			return;
-		}
-
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
-		const result = await listLlmModels(this.plugin.settings.llm);
 
-		if (!result.ok) {
-			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
-			setStatusLight(statusDot, statusText, 'error', `${strings.fetchFailPrefix}${result.error}`);
-			return;
+		const outcome = await fetchModelList(this.plugin);
+		setStatusLight(statusDot, statusText, outcome.state, outcome.message, outcome.detail);
+		// 주소가 비어 있을 때(idle)는 이전처럼 저장된 모델을 그대로 보여줍니다.
+		if (outcome.state !== 'idle') {
+			this.fillDropdown(modelDropdown, outcome.models, outcome.state);
 		}
-		if (result.models.length === 0) {
-			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
-			setStatusLight(statusDot, statusText, 'error', strings.noModelsFound);
-			return;
-		}
+	}
 
-		setStatusLight(statusDot, statusText, 'ok', strings.fetchOk);
-		this.applyModelOptions(modelDropdown, result.models);
+	private fillDropdown(
+		dropdown: DropdownComponent,
+		models: string[],
+		lastState: 'idle' | 'ok' | 'error' = 'idle',
+	): void {
+		fillModelDropdown(this.plugin, dropdown, models, {
+			lastState,
+			onSelected: () => {
+				this.onModelSelectedInTab();
+				// 여기서 고른 모델이 열려 있는 챗봇 화면의 드롭다운에도 바로 보이게 합니다.
+				this.plugin.notifySettingsChanged();
+			},
+		});
 	}
 
 	// "연결 확인" 버튼 및 탭이 열릴 때(모델이 이미 선택되어 있으면) 자동으로 실행됩니다.
@@ -344,7 +407,8 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		statusText: HTMLElement,
 		connectionStatusEl: HTMLElement,
 	): Promise<void> {
-		const strings = t(this.plugin.settings.general.language).llm;
+		const language = this.plugin.settings.general.language;
+		const strings = t(language).llm;
 		const { baseUrl, model } = this.plugin.settings.llm;
 
 		if (!baseUrl || !model) {
@@ -354,14 +418,16 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		}
 
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
-		const result = await testLlmConnection(this.plugin.settings.llm);
+		// 결과는 checkSelectedModel이 챗봇 상단 상태등에도 기록합니다.
+		const check = await checkSelectedModel(this.plugin);
 
-		if (result.ok) {
+		if (check.state === 'ok') {
+			const reply = check.reply || t(language).chat.emptyReply;
 			setStatusLight(
 				statusDot,
 				statusText,
 				'ok',
-				`${strings.statusOk} · ${strings.statusReplyPrefix}${result.reply}`,
+				`${strings.statusOk} · ${strings.statusReplyPrefix}${reply}`,
 			);
 			this.plugin.settings.llm.lastVerified = {
 				at: new Date().toISOString(),
@@ -370,7 +436,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			};
 			await this.plugin.saveSettings();
 		} else {
-			setStatusLight(statusDot, statusText, 'error', strings.statusError, result.error);
+			// 원인과 해결 방법을 표시등 옆 글자로 바로 보여주고, 서버 원문은 마우스를 올리면 보이게 합니다.
+			const message =
+				check.state === 'error' ? `${strings.statusError}: ${check.message}` : check.message;
+			setStatusLight(statusDot, statusText, check.state, message, check.detail);
 		}
 		connectionStatusEl.setText(this.formatLastVerified(strings));
 	}
@@ -381,23 +450,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			return strings.neverVerified;
 		}
 		const when = new Date(record.at).toLocaleString();
-		return `${strings.lastVerifiedPrefix}${when} · ${record.baseUrl} · ${record.model}`;
-	}
-
-	private applyModelOptions(
-		dropdown: DropdownComponent,
-		models: string[],
-		options: { allowCurrentFallback?: boolean } = {},
-	): void {
-		const strings = t(this.plugin.settings.general.language).llm;
-		populateModelDropdown(dropdown, models, {
-			placeholderText: strings.modelPlaceholder,
-			currentModel: this.plugin.settings.llm.model,
-			allowCurrentFallback: options.allowCurrentFallback,
-			onSelect: async (value) => {
-				this.plugin.settings.llm.model = value;
-				await this.plugin.saveSettings();
-			},
-		});
+		// 연결 확인에 "성공"했을 때만 기록되는 값이라, "확인 시각"이 아니라 "마지막 연결 성공"으로 부릅니다.
+		return `${strings.lastSuccessPrefix}${when} · ${record.model} (${record.baseUrl})`;
 	}
 }

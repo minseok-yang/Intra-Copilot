@@ -37,7 +37,8 @@
 
 .intra-copilot-tab-content .setting-item-control input[type='text'],
 .intra-copilot-tab-content .setting-item-control input[type='password'],
-.intra-copilot-tab-content .setting-item-control select {
+.intra-copilot-tab-content .setting-item-control select,
+.intra-copilot-tab-content .setting-item-control textarea.intra-copilot-system-prompt {
 	width: 100%;
 }
 
@@ -207,17 +208,108 @@
 }
 
 /* 답변을 마크다운으로 렌더링한 말풍선. pre-wrap을 끄지 않으면 문단 사이에
-   빈 줄이 두 배로 벌어집니다. 첫/마지막 요소의 바깥 여백도 없앱니다. */
+   빈 줄이 두 배로 벌어집니다. 답변 본문의 첫/마지막 요소 바깥 여백도 없앱니다. */
 .intra-copilot-chat-bubble.is-markdown {
 	white-space: normal;
 }
 
-.intra-copilot-chat-bubble.is-markdown > :first-child {
+.intra-copilot-chat-answer > :first-child {
 	margin-top: 0;
 }
 
-.intra-copilot-chat-bubble.is-markdown > :last-child {
+.intra-copilot-chat-answer > :last-child {
 	margin-bottom: 0;
+}
+
+/* 추론형 모델의 생각 과정 — 기본은 접혀 있고, 눌러야 펼쳐집니다. */
+.intra-copilot-chat-reasoning {
+	margin-bottom: 6px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-chat-reasoning summary {
+	cursor: pointer;
+}
+
+.intra-copilot-chat-reasoning-body {
+	white-space: pre-wrap;
+	margin-top: 4px;
+	padding-left: 8px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+/* "길이 제한에 걸려 잘렸습니다" 안내 */
+.intra-copilot-chat-notice {
+	margin-top: 6px;
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+/* 답변 아래 작은 버튼 줄(복사). 평소엔 흐리게, 말풍선에 마우스를 올리면 진하게. */
+.intra-copilot-chat-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 2px;
+	opacity: 0.4;
+}
+
+.intra-copilot-chat-bubble:hover .intra-copilot-chat-actions {
+	opacity: 1;
+}
+
+/* 전송에 실패한 질문 — 흐리게 + 빨간 점선 테두리 + 아래에 "전송 실패" 안내.
+   (흐리게만 하면 강조색 말풍선에서는 차이가 잘 안 보였습니다.) */
+.intra-copilot-chat-bubble.is-failed {
+	opacity: 0.6;
+	outline: 1px dashed var(--text-error);
+	outline-offset: 2px;
+}
+
+.intra-copilot-chat-failed-label {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+}
+
+/* 답변을 기다리는 동안 잠긴 새 대화/지난 대화 버튼 */
+.intra-copilot-chat-header .intra-copilot-is-busy {
+	opacity: 0.3;
+	cursor: not-allowed;
+}
+
+.intra-copilot-chat-retry {
+	margin-top: 6px;
+	font-size: var(--font-ui-smaller);
+}
+
+/* 오류 말풍선의 "자세한 내용(서버 응답 원문)" — 기본은 접혀 있습니다. */
+.intra-copilot-chat-error-detail {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-chat-error-detail summary {
+	cursor: pointer;
+}
+
+.intra-copilot-chat-error-detail-body {
+	margin-top: 4px;
+	white-space: pre-wrap;
+	word-break: break-all;
+	font-family: var(--font-monospace);
+	opacity: 0.85;
+}
+
+/* 새로고침(↻)으로 확인하는 동안 아이콘이 돕니다. */
+@keyframes intra-copilot-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.intra-copilot-chat-header .intra-copilot-is-checking svg {
+	animation: intra-copilot-spin 1s linear infinite;
 }
 
 /* 좁은 사이드바에서 코드블록이 말풍선을 밀어내지 않도록 가로 스크롤을 줍니다. */

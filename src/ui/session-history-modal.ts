@@ -3,15 +3,20 @@ import IntraCopilotPlugin from '../main';
 import { deleteSession, listSessions } from '../chat/session-store';
 import { t } from '../i18n';
 
+interface SessionHistoryCallbacks {
+	onSelect: (id: string) => void; // [불러오기]를 눌렀을 때
+	onDelete: (id: string) => void; // 삭제가 끝났을 때(지금 열린 대화인지 챗봇 화면이 판단)
+}
+
 // 저장된 대화 목록을 보여주고, 고르면 콜백으로 그 id를 넘깁니다.
 export class SessionHistoryModal extends Modal {
 	private plugin: IntraCopilotPlugin;
-	private onSelect: (id: string) => void;
+	private callbacks: SessionHistoryCallbacks;
 
-	constructor(app: App, plugin: IntraCopilotPlugin, onSelect: (id: string) => void) {
+	constructor(app: App, plugin: IntraCopilotPlugin, callbacks: SessionHistoryCallbacks) {
 		super(app);
 		this.plugin = plugin;
-		this.onSelect = onSelect;
+		this.callbacks = callbacks;
 	}
 
 	async onOpen(): Promise<void> {
@@ -40,7 +45,7 @@ export class SessionHistoryModal extends Modal {
 				.setDesc(when)
 				.addButton((button) =>
 					button.setButtonText(strings.historyLoadButton).onClick(() => {
-						this.onSelect(session.id);
+						this.callbacks.onSelect(session.id);
 						this.close();
 					}),
 				)
@@ -50,6 +55,7 @@ export class SessionHistoryModal extends Modal {
 						.setTooltip(strings.historyDeleteTooltip)
 						.onClick(async () => {
 							await deleteSession(this.plugin, session.id);
+							this.callbacks.onDelete(session.id);
 							await this.renderList();
 						}),
 				);

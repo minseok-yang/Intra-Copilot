@@ -1,12 +1,19 @@
 import IntraCopilotPlugin from '../main';
 import { ChatMessage } from '../llm/client';
 
+// 파일에 저장되는 메시지입니다. 서버로 보내는 모양(ChatMessage)에 화면 표시용 정보를 더했습니다.
+// 서버로 보낼 때는 buildRequestMessages()가 role/content만 골라내므로 이 추가 정보는 전송되지 않습니다.
+export interface StoredMessage extends ChatMessage {
+	reasoning?: string; // 추론형 모델의 생각 과정
+	truncated?: boolean; // 길이 제한에 걸려 잘린 답변인지
+}
+
 export interface ChatSession {
 	id: string;
 	title: string;
 	createdAt: string; // ISO 날짜 문자열
 	updatedAt: string;
-	messages: ChatMessage[];
+	messages: StoredMessage[];
 }
 
 export interface ChatSessionSummary {
@@ -17,8 +24,11 @@ export interface ChatSessionSummary {
 
 // manifest.dir는 볼트 기준 상대 경로입니다(예: .obsidian/plugins/intra-copilot).
 // 이 폴더 안에 저장하면 노트가 아니라서 일반 파일 탐색기/검색에는 나타나지 않습니다.
+// 주의: 플러그인 폴더를 통째로 지우고 다시 넣으면 대화 기록도 함께 사라집니다.
 function sessionsDir(plugin: IntraCopilotPlugin): string {
-	return `${plugin.manifest.dir}/conversations`;
+	const pluginDir =
+		plugin.manifest.dir ?? `${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}`;
+	return `${pluginDir}/conversations`;
 }
 
 function sessionPath(plugin: IntraCopilotPlugin, id: string): string {
@@ -37,9 +47,9 @@ export function newSessionId(): string {
 }
 
 // 첫 사용자 메시지를 짧게 잘라 목록에 보일 제목으로 씁니다.
-export function deriveSessionTitle(messages: ChatMessage[]): string {
+export function deriveSessionTitle(messages: ChatMessage[], emptyTitle: string): string {
 	const firstUser = messages.find((message) => message.role === 'user');
-	if (!firstUser) return '(빈 대화)';
+	if (!firstUser) return emptyTitle;
 	const oneLine = firstUser.content.replace(/\s+/g, ' ').trim();
 	return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
 }
@@ -61,7 +71,8 @@ export async function loadSession(
 ): Promise<ChatSession | null> {
 	try {
 		const raw = await plugin.app.vault.adapter.read(sessionPath(plugin, id));
-		return JSON.parse(raw) as ChatSession;
+		const session = JSON.parse(raw) as ChatSession;
+		return Array.isArray(session.messages) ? session : null;
 	} catch {
 		return null;
 	}
