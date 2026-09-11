@@ -4,7 +4,7 @@
 	"description": "Intra Copilot plugin scaffold for Obsidian.",
 	"main": "main.js",
 	"type": "module",
-	"author": "minseok-yang <intoin121@gmail.com>",
+	"author": "Minseok Yang <intoin121@gmail.com>",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
