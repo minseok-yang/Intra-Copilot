@@ -2,7 +2,7 @@ import { DropdownComponent, ExtraButtonComponent, ItemView, WorkspaceLeaf } from
 import IntraCopilotPlugin from '../main';
 import { ChatMessage, listLlmModels, sendChatMessage } from '../llm/client';
 import { t } from '../i18n';
-import { createStatusDot, setStatusDot } from './status-light';
+import { createStatusDot, setStatusDot, StatusState } from './status-light';
 import { populateModelDropdown } from './model-dropdown';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
@@ -36,6 +36,7 @@ export class ChatView extends ItemView {
 	private sendButtonEl!: HTMLButtonElement;
 	private modelDropdown!: DropdownComponent;
 	private modelStatusDot!: HTMLElement;
+	private modelStatusCheckedAt: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: IntraCopilotPlugin) {
 		super(leaf);
@@ -116,7 +117,7 @@ export class ChatView extends ItemView {
 		const { baseUrl } = this.plugin.settings.llm;
 
 		if (!baseUrl) {
-			setStatusDot(this.modelStatusDot, 'error', strings.fillBaseUrlFirst);
+			this.setModelStatus('error', strings.fillBaseUrlFirst);
 			return;
 		}
 
@@ -127,17 +128,30 @@ export class ChatView extends ItemView {
 
 		if (!result.ok) {
 			this.applyModelOptions([], { allowCurrentFallback: false });
-			setStatusDot(this.modelStatusDot, 'error', `${strings.fetchFailPrefix}${result.error}`);
+			this.setModelStatus('error', `${strings.fetchFailPrefix}${result.error}`);
 			return;
 		}
 		if (result.models.length === 0) {
 			this.applyModelOptions([], { allowCurrentFallback: false });
-			setStatusDot(this.modelStatusDot, 'error', strings.noModelsFound);
+			this.setModelStatus('error', strings.noModelsFound);
 			return;
 		}
 
-		setStatusDot(this.modelStatusDot, 'ok', strings.fetchOk);
+		this.setModelStatus('ok', strings.fetchOk);
 		this.applyModelOptions(result.models);
+	}
+
+	// 점 위에 마우스를 올리면 상태 문구와 마지막으로 확인된 시각을 함께 보여줍니다.
+	// 확인 중(idle)일 때는 아직 결과가 없으니 시각을 갱신하지 않습니다.
+	private setModelStatus(state: StatusState, message: string): void {
+		const strings = t(this.plugin.settings.general.language).llm;
+		if (state !== 'idle') {
+			this.modelStatusCheckedAt = new Date().toLocaleString();
+		}
+		const tooltip = this.modelStatusCheckedAt
+			? `${message} · ${strings.lastVerifiedPrefix}${this.modelStatusCheckedAt}`
+			: message;
+		setStatusDot(this.modelStatusDot, state, tooltip);
 	}
 
 	private applyModelOptions(
