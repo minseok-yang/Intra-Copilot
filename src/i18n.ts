@@ -8,6 +8,7 @@ import type { LlmErrorKind } from './llm/client';
 // 용어 기준(문구를 추가할 때 지켜주세요)
 // - 답변: 모델이 사용자에게 한 말. "응답"은 서버의 기술적인 응답(HTTP 등)에만 씁니다.
 // - 확인: 연결/모델 점검. "검증"과 섞어 쓰지 않습니다.
+// - 지정: @로 고른 폴더·노트(대화 대상). / 선택: /로 고른 스킬. 둘을 바꿔 쓰지 않습니다.
 // - 버튼·설정 이름은 실제 동작 그대로 부르고, 설명문에서 그 이름을 [대괄호]나 "따옴표"로 똑같이 인용합니다.
 const ko = {
 	tabs: {
@@ -132,6 +133,7 @@ const ko = {
 		skillPickerNoMatch: '일치하는 스킬이 없습니다 — 설정 → 스킬 탭에서 추가할 수 있습니다',
 		pickerHint: '↑↓ 이동 · Enter 선택 · Esc 닫기',
 		targetRemoveTooltip: '지정 해제',
+		skillRemoveTooltip: '스킬 선택 해제',
 		targetMissing: '볼트에서 찾을 수 없어 지정을 해제했습니다: {names} — 확인한 뒤 다시 보내세요.',
 		contextReadFailed: '지정한 노트를 읽지 못했습니다. 다시 시도하세요.',
 		attachedInfo: '노트 {count}개 · {chars}자 첨부',
@@ -352,6 +354,7 @@ const en: Dictionary = {
 		skillPickerNoMatch: 'No matching skills — add them in Settings → Skills',
 		pickerHint: '↑↓ move · Enter select · Esc close',
 		targetRemoveTooltip: 'Remove',
+		skillRemoveTooltip: 'Clear skill',
 		targetMissing: 'Removed because it no longer exists in the vault: {names} — check and send again.',
 		contextReadFailed: 'Could not read the selected notes. Try again.',
 		attachedInfo: '{count} notes · {chars} chars attached',

@@ -33,7 +33,16 @@ function resolveDoc(plugin: IntraCopilotPlugin, docId: GuideDocId): { title: str
 
 // 사용자 가이드/라이선스 상세 같은 정적 문서를, Obsidian 자체의 새 창(팝아웃)에서
 // Obsidian의 마크다운 렌더러 그대로 보여줍니다.
+// 같은 문서가 이미 열려 있으면 새 창을 만들지 않고 그 창을 앞으로 가져옵니다.
 export async function openGuideWindow(plugin: IntraCopilotPlugin, docId: GuideDocId): Promise<void> {
+	const opened = plugin.app.workspace
+		.getLeavesOfType(GUIDE_VIEW_TYPE)
+		.find((leaf) => leaf.view instanceof GuideView && leaf.view.getState().docId === docId);
+	if (opened) {
+		await plugin.app.workspace.revealLeaf(opened);
+		return;
+	}
+
 	const leaf = plugin.app.workspace.openPopoutLeaf();
 	const state: GuideViewState = { docId };
 	await leaf.setViewState({ type: GUIDE_VIEW_TYPE, active: true, state });

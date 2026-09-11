@@ -73,6 +73,8 @@ export class InlinePicker {
 
 		this.popupEl = anchorEl.createDiv({ cls: 'intra-copilot-picker' });
 		this.popupEl.hidden = true;
+		// 화면 낭독기가 "고르는 목록"으로 읽도록 역할을 알려줍니다.
+		this.popupEl.setAttribute('role', 'listbox');
 		// 목록을 누르는 순간 입력칸의 포커스가 빠지면(blur) 목록이 먼저 닫혀서 클릭이 안 먹힙니다.
 		this.popupEl.addEventListener('mousedown', (evt) => evt.preventDefault());
 
@@ -185,6 +187,8 @@ export class InlinePicker {
 
 		this.results.forEach(({ item, matches }, index) => {
 			const row = this.popupEl.createDiv({ cls: 'intra-copilot-picker-item' });
+			row.setAttribute('role', 'option');
+			row.setAttribute('aria-selected', String(index === this.activeIndex));
 			row.toggleClass('is-active', index === this.activeIndex);
 			setIcon(row.createSpan({ cls: 'intra-copilot-picker-item-icon' }), item.icon);
 			const text = row.createDiv({ cls: 'intra-copilot-picker-item-text' });
@@ -219,10 +223,13 @@ export class InlinePicker {
 
 	private setActive(index: number): void {
 		const rows = this.popupEl.querySelectorAll('.intra-copilot-picker-item');
-		rows[this.activeIndex]?.removeClass('is-active');
+		const previous = rows[this.activeIndex];
+		previous?.removeClass('is-active');
+		previous?.setAttribute('aria-selected', 'false');
 		this.activeIndex = index;
 		const row = rows[index];
 		row?.addClass('is-active');
+		row?.setAttribute('aria-selected', 'true');
 		row?.scrollIntoView({ block: 'nearest' });
 	}
 

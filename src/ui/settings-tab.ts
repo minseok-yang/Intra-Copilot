@@ -28,9 +28,7 @@ import {
 import { openGuideWindow } from './guide-view';
 import { deleteSkill, listSkills, Skill, skillsDir } from '../skills/skill-store';
 import { SkillEditModal } from './skill-edit-modal';
-
-// 휴지통을 한 번 누른 뒤 이 시간 안에 다시 눌러야 삭제됩니다(지난 대화 창과 같은 방식).
-const DELETE_CONFIRM_MS = 4000;
+import { addDeleteConfirmButton } from './delete-confirm';
 
 // 숫자 입력칸 값을 정수로 바꿉니다. 비어 있거나 숫자가 아니거나 음수면 기본값으로 되돌립니다.
 // (예전에는 비우면 0 = "제한 없음"이 되어, 서버 보호 설정이 실수로 풀릴 수 있었습니다.)
@@ -446,34 +444,24 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					.onClick(() => this.openSkillEditor(skill)),
 			);
 
-			// 삭제는 되돌릴 수 없으므로 두 번 눌러야 합니다. 첫 번째 누름에서는 경고 문구만 보여줍니다.
-			let confirmTimer: number | null = null;
-			row.addExtraButton((button) => {
-				const reset = () => {
-					confirmTimer = null;
-					button.setIcon('trash-2').setTooltip(strings.deleteTooltip);
-					button.extraSettingsEl.removeClass('intra-copilot-delete-armed');
-					row.setDesc(desc);
-				};
-				reset();
-				button.onClick(async () => {
-					if (confirmTimer === null) {
-						button.setIcon('alert-triangle').setTooltip(strings.deleteConfirmTooltip);
-						button.extraSettingsEl.addClass('intra-copilot-delete-armed');
-						row.setDesc(strings.deleteConfirm);
-						confirmTimer = window.setTimeout(reset, DELETE_CONFIRM_MS);
-						return;
-					}
-					window.clearTimeout(confirmTimer);
-					confirmTimer = null;
+			// 삭제는 되돌릴 수 없으므로 두 번 눌러야 합니다(delete-confirm.ts).
+			addDeleteConfirmButton(
+				row,
+				desc,
+				{
+					deleteTooltip: strings.deleteTooltip,
+					confirmTooltip: strings.deleteConfirmTooltip,
+					confirmDesc: strings.deleteConfirm,
+				},
+				async () => {
 					try {
 						await deleteSkill(this.plugin, skill.id);
 					} catch {
 						new Notice(strings.deleteFailed);
 					}
 					this.display();
-				});
-			});
+				},
+			);
 		}
 	}
 

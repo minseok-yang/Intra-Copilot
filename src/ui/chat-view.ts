@@ -133,7 +133,8 @@ export class ChatView extends ItemView {
 	private editBannerEl!: HTMLElement;
 
 	private messagesEl!: HTMLElement;
-	private targetChipsEl!: HTMLElement;
+	// 입력칸 위의 칩 줄 — 스킬 칩과 @ 대상 칩이 함께 들어갑니다.
+	private chipsEl!: HTMLElement;
 	private picker!: InlinePicker;
 	private inputEl!: HTMLTextAreaElement;
 	private sendButtonEl!: HTMLButtonElement;
@@ -194,7 +195,7 @@ export class ChatView extends ItemView {
 		}
 		// 설정 화면의 연결 확인 등 어디서든 연결 상태가 바뀌면 상태등을 다시 그립니다.
 		// register()에 넣어두면 패널이 닫힐 때 자동으로 등록이 풀립니다.
-		this.register(this.plugin.connectionStatus.subscribe(() => this.renderStatusDot()));
+		this.register(this.plugin.connectionStatus.subscribe(() => this.renderConnectionStatus()));
 		// @로 지정한 폴더·노트의 이름이 바뀌거나 지워지면 칩도 따라 바꿉니다.
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => this.handleVaultRename(oldPath, file.path)),
@@ -291,7 +292,7 @@ export class ChatView extends ItemView {
 		this.modelStatusEl = connectionGroup.createSpan({ cls: 'intra-copilot-chat-status' });
 		this.modelStatusDot = createStatusDot(this.modelStatusEl);
 		this.modelStatusLabel = this.modelStatusEl.createSpan({ cls: 'intra-copilot-chat-status-label' });
-		this.renderStatusDot();
+		this.renderConnectionStatus();
 
 		this.messagesEl = container.createDiv({ cls: 'intra-copilot-chat-messages' });
 
@@ -299,7 +300,7 @@ export class ChatView extends ItemView {
 		const composer = container.createDiv({ cls: 'intra-copilot-chat-composer' });
 		this.editBannerEl = composer.createDiv({ cls: 'intra-copilot-edit-banner' });
 		this.renderEditBanner();
-		this.targetChipsEl = composer.createDiv({ cls: 'intra-copilot-target-chips' });
+		this.chipsEl = composer.createDiv({ cls: 'intra-copilot-target-chips' });
 		const inputRow = composer.createDiv({ cls: 'intra-copilot-chat-input-row' });
 		this.inputEl = inputRow.createEl('textarea', {
 			cls: 'intra-copilot-chat-input',
@@ -611,7 +612,7 @@ export class ChatView extends ItemView {
 		this.checking = checking;
 		this.checkButton.setDisabled(checking);
 		this.checkButton.buttonEl.toggleClass('intra-copilot-is-checking', checking);
-		this.renderStatusDot();
+		this.renderConnectionStatus();
 	}
 
 	private fillDropdown(): void {
@@ -622,7 +623,7 @@ export class ChatView extends ItemView {
 
 	// 상태등과 옆의 상태 글자를 plugin.connectionStatus 값대로 그립니다. 마우스를 올리면
 	// 자세한 상태 문구와 마지막으로 확인된 시각을 함께 보여줍니다.
-	private renderStatusDot(): void {
+	private renderConnectionStatus(): void {
 		const strings = this.strings();
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 		const { state, message, checkedAt } = this.plugin.connectionStatus.get();
@@ -630,8 +631,8 @@ export class ChatView extends ItemView {
 		const tooltip = checkedAt
 			? `${text} · ${llmStrings.lastVerifiedPrefix}${checkedAt.toLocaleString()}`
 			: text;
-		setStatusDot(this.modelStatusDot, state, tooltip);
-		this.modelStatusEl.setAttribute('title', tooltip);
+		setStatusDot(this.modelStatusDot, state);
+		setTooltip(this.modelStatusEl, tooltip);
 
 		// 확인하는 동안에는 이전 결과 대신 "확인 중"을 보여줍니다(상태등 색은 이전 결과 그대로).
 		const label = this.checking
@@ -791,6 +792,8 @@ export class ChatView extends ItemView {
 			this.rebuildAfterReply = false;
 			await this.rebuild();
 		}
+		// [다시 시도]로 대화가 늘거나 줄었으면, 수정 안내에 적힌 개수를 다시 계산합니다.
+		if (this.editingIndex !== null) this.renderEditBanner();
 		this.inputEl.focus();
 	}
 
@@ -895,6 +898,11 @@ export class ChatView extends ItemView {
 		this.editingIndex = index;
 		this.inputEl.value = message.content;
 		this.setTargets(message.targets ?? []);
+		// 스킬을 찾기 전에 먼저 표시합니다(폴더를 읽는 동안 수정 중인지 알 수 없으면 안 되므로).
+		this.renderEditBanner();
+		this.applyEditHighlight();
+		this.inputEl.focus();
+		this.inputEl.setSelectionRange(this.inputEl.value.length, this.inputEl.value.length);
 
 		// 대화 파일에는 스킬 이름만 있으므로, 지금 스킬 폴더에서 같은 스킬을 다시 찾습니다.
 		let skill: Skill | null = null;
@@ -910,11 +918,6 @@ export class ChatView extends ItemView {
 		// 스킬을 찾는 사이 수정을 취소했거나 다른 메시지를 골랐으면 여기서 멈춥니다.
 		if (this.editingIndex !== index) return;
 		this.setSkill(skill);
-
-		this.renderEditBanner();
-		this.applyEditHighlight();
-		this.inputEl.focus();
-		this.inputEl.setSelectionRange(this.inputEl.value.length, this.inputEl.value.length);
 	}
 
 	// 수정 취소: 대화는 그대로 두고, 입력칸을 수정 시작 전으로 되돌립니다.
@@ -996,11 +999,11 @@ export class ChatView extends ItemView {
 	// 입력칸 위의 칩 줄: [스킬(보라색)] [폴더·노트(강조색)…]
 	private renderComposerChips(): void {
 		const strings = this.strings();
-		this.targetChipsEl.empty();
-		this.targetChipsEl.hidden = this.targets.length === 0 && !this.selectedSkill;
+		this.chipsEl.empty();
+		this.chipsEl.hidden = this.targets.length === 0 && !this.selectedSkill;
 		if (this.selectedSkill) {
-			createSkillChip(this.targetChipsEl, this.selectedSkill, {
-				removeTooltip: strings.targetRemoveTooltip,
+			createSkillChip(this.chipsEl, this.selectedSkill, {
+				removeTooltip: strings.skillRemoveTooltip,
 				onRemove: () => {
 					this.setSkill(null);
 					this.inputEl.focus();
@@ -1008,7 +1011,7 @@ export class ChatView extends ItemView {
 			});
 		}
 		for (const target of this.targets) {
-			createTargetChip(this.targetChipsEl, target, {
+			createTargetChip(this.chipsEl, target, {
 				wholeVaultLabel: strings.pickerWholeVault,
 				removeTooltip: strings.targetRemoveTooltip,
 				onRemove: () => {
