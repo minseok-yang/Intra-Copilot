@@ -45,13 +45,12 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	margin-top: -8px;
-	margin-bottom: 1em;
+	margin-left: 10px;
 }
 
 .intra-copilot-status-dot {
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
 	border-radius: 50%;
 	background: var(--text-faint);
 	flex-shrink: 0;
@@ -59,10 +58,26 @@
 
 .intra-copilot-status-dot.is-ok {
 	background: var(--color-green);
+	color: var(--color-green);
+	animation: intra-copilot-glow 1.4s ease-in-out infinite;
 }
 
 .intra-copilot-status-dot.is-error {
 	background: var(--color-red);
+	color: var(--color-red);
+	animation: intra-copilot-glow 1.4s ease-in-out infinite;
+}
+
+/* 네온 사인처럼 빛이 커졌다 작아졌다 하는 효과. currentColor를 써서
+   is-ok/is-error에서 정한 색을 그대로 빛 색으로 씁니다. */
+@keyframes intra-copilot-glow {
+	0%,
+	100% {
+		box-shadow: 0 0 4px 1px currentColor;
+	}
+	50% {
+		box-shadow: 0 0 10px 4px currentColor;
+	}
 }
 
 .intra-copilot-status-text {

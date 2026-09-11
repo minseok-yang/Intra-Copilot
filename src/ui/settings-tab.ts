@@ -126,22 +126,12 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.type = 'password';
 			});
 
-		const statusEl = containerEl.createDiv({ cls: 'intra-copilot-status' });
-		const statusDot = statusEl.createSpan({ cls: 'intra-copilot-status-dot' });
-		const statusText = statusEl.createSpan({
-			cls: 'intra-copilot-status-text',
-			text: strings.statusIdle,
-		});
-		// 위치는 코드 순서가 아니라 DOM에 넣는 순서를 따르므로, 이 div는 실제로는
-		// 아래 "연결 테스트" 버튼 바로 아래에 두기 위해 그 항목을 만든 다음에 옮깁니다.
+		let statusDot!: HTMLElement;
+		let statusText!: HTMLElement;
 
 		new Setting(containerEl)
 			.setName(strings.modelName)
 			.setDesc(strings.modelDesc)
-			.addDropdown((dropdown) => {
-				this.modelDropdown = dropdown;
-				this.refreshModelOptions(dropdown, []);
-			})
 			.addButton((button) =>
 				button.setButtonText(strings.fetchModelsButton).onClick(async () => {
 					const { baseUrl } = this.plugin.settings.llm;
@@ -171,9 +161,13 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 						this.refreshModelOptions(this.modelDropdown, result.models);
 					}
 				}),
-			);
+			)
+			.addDropdown((dropdown) => {
+				this.modelDropdown = dropdown;
+				this.refreshModelOptions(dropdown, []);
+			});
 
-		new Setting(containerEl)
+		const testSetting = new Setting(containerEl)
 			.setName(strings.testName)
 			.setDesc(strings.testDesc)
 			.addButton((button) =>
@@ -208,7 +202,14 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		containerEl.appendChild(statusEl);
+		// 상태등을 "연결 테스트" 항목의 컨트롤 영역 안에 넣어서, 같은 블록 안에
+		// 있는 것처럼 보이게 합니다(따로 떨어진 영역이면 별개 기능처럼 보임).
+		const statusEl = testSetting.controlEl.createDiv({ cls: 'intra-copilot-status' });
+		statusDot = statusEl.createSpan({ cls: 'intra-copilot-status-dot' });
+		statusText = statusEl.createSpan({
+			cls: 'intra-copilot-status-text',
+			text: strings.statusIdle,
+		});
 	}
 
 	// dropdown을 비우고 다시 채웁니다. models가 비어 있으면 이미 저장된 모델 값만(있다면) 보여줍니다.
