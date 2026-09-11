@@ -224,6 +224,8 @@
 
 .intra-copilot-chat-messages {
 	flex: 1 1 auto;
+	/* 이게 없으면 내용이 길어질 때 이 영역 대신 챗봇 패널 전체가 늘어나 스크롤될 수 있습니다. */
+	min-height: 0;
 	overflow-y: auto;
 	display: flex;
 	flex-direction: column;

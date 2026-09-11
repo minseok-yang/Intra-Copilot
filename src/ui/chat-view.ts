@@ -43,6 +43,11 @@ import { buildSkillItems, buildTargetItems, createSkillChip, createTargetChip } 
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
+// 맨 아래에서 이만큼(px) 안쪽을 보고 있으면 "맨 아래를 보는 중"으로 봅니다.
+const NEAR_BOTTOM_PX = 80;
+// 긴 답변의 시작 부분으로 옮길 때 위쪽에 남겨 둘 여백(px)
+const ANSWER_TOP_MARGIN_PX = 8;
+
 // 리본 아이콘 클릭 등에서 호출합니다. 이미 열려 있으면 그 탭을 보여주고,
 // 없으면 오른쪽 사이드바에 새로 엽니다.
 export async function revealChatView(plugin: IntraCopilotPlugin): Promise<void> {
@@ -748,7 +753,10 @@ export class ChatView extends ItemView {
 			this.persistSession(sessionId, createdAt, conversation);
 			this.plugin.reportConnection('chat', snapshot, 'ok', llmStrings.chatOk);
 			if (stillOnScreen) {
+				// 그리기 전에 재야 합니다 — 그린 뒤엔 말풍선이 길어져 항상 "위를 보는 중"으로 보입니다.
+				const follow = this.isNearBottom();
 				await this.renderAssistantBubble(pending, reply);
+				if (follow) this.revealAnswer(pending);
 			}
 		} else {
 			// 실패하거나 중지한 질문은 대화에서 되돌립니다. 남겨두면 다음 요청에 user 메시지가 두 번
@@ -773,7 +781,9 @@ export class ChatView extends ItemView {
 				this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);
 			}
 			if (stillOnScreen) {
+				const follow = this.isNearBottom();
 				this.showFailure(userBubble, pending, { text, skill }, summary, detail);
+				if (follow) this.revealAnswer(pending);
 			}
 		}
 
@@ -1053,5 +1063,24 @@ export class ChatView extends ItemView {
 
 	private scrollToBottom(): void {
 		this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight });
+	}
+
+	// 맨 아래 근처를 보고 있는지. 위로 올려 예전 대화를 읽는 중이면 답변이 와도 끌어내리지 않습니다.
+	private isNearBottom(): boolean {
+		const el = this.messagesEl;
+		return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+	}
+
+	// 도착한 답변(또는 오류)을 보여줍니다. 화면보다 짧으면 맨 아래로, 길면 답변의 시작 부분이
+	// 보이게 옮깁니다(맨 끝으로 가면 다시 위로 올려 읽어야 하므로).
+	private revealAnswer(bubble: HTMLElement): void {
+		const el = this.messagesEl;
+		const fitsOnScreen = bubble.offsetHeight <= el.clientHeight - ANSWER_TOP_MARGIN_PX;
+		const answerTop =
+			el.scrollTop +
+			bubble.getBoundingClientRect().top -
+			el.getBoundingClientRect().top -
+			ANSWER_TOP_MARGIN_PX;
+		el.scrollTo({ top: fitsOnScreen ? el.scrollHeight : answerTop, behavior: 'smooth' });
 	}
 }
