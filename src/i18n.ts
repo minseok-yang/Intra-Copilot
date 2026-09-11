@@ -31,10 +31,12 @@ const ko = {
 		maxResponseName: '응답 길이 제한 (max_tokens)',
 		maxResponseDesc:
 			'답변이 너무 길어지지 않도록 서버에 요청하는 최대 길이입니다. 0이면 제한 없음(서버 기본값 사용). 사내 공용 서버 부담을 줄이는 데 도움이 됩니다.',
-		connectionHeading: '연결',
-		connectionDesc:
-			'모델을 선택하고 서버 연결 상태를 확인합니다. 이 탭을 열 때마다 자동으로 다시 확인합니다.',
+		advancedName: '고급 설정',
+		modelCheckHeading: '모델 확인',
+		modelCheckDesc: '연결된 서버에서 사용 가능한 모델 목록을 가져옵니다.',
+		modelCheckButton: '모델 확인',
 		modelPlaceholder: '모델을 선택하세요',
+		testDesc: '선택한 모델로 실제 대화 요청을 보내 서버 연결을 확인합니다.',
 		testButton: '연결 확인',
 		testing: '확인 중...',
 		statusIdle: '아직 확인 안 됨',
@@ -112,10 +114,12 @@ const en: Dictionary = {
 		maxResponseName: 'Response length limit (max_tokens)',
 		maxResponseDesc:
 			'The maximum response length requested from the server, so replies don\'t run on forever. 0 means no limit (server default). Helps reduce load on a shared internal server.',
-		connectionHeading: 'Connection',
-		connectionDesc:
-			'Pick a model and check the server connection. This refreshes automatically every time you open this tab.',
+		advancedName: 'Advanced settings',
+		modelCheckHeading: 'Model check',
+		modelCheckDesc: 'Fetch the list of models available from the connected server.',
+		modelCheckButton: 'Check models',
 		modelPlaceholder: 'Choose a model',
+		testDesc: 'Sends an actual chat request with the selected model to verify the server connection.',
 		testButton: 'Check connection',
 		testing: 'Checking...',
 		statusIdle: 'Not verified yet',

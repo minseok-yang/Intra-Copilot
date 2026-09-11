@@ -5,6 +5,7 @@ import {
 	PluginSettingTab,
 	Setting,
 	debounce,
+	setIcon,
 } from 'obsidian';
 import IntraCopilotPlugin from '../main';
 import { listLlmModels, testLlmConnection } from '../llm/client';
@@ -195,8 +196,71 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.type = 'password';
 			});
 
-		// 사내 공용 서버에 부담을 주지 않기 위한 두 가지 제한값입니다.
-		new Setting(containerEl)
+		// 모델 확인 + 연결 확인 + 고급 설정을 한 박스 안에 모았습니다. 위에서부터
+		// [모델 확인] 버튼 → 드롭다운 → [연결 확인] 버튼 → 연결 상태 → 고급 설정(접힘) 순서입니다.
+		const modelSetting = new Setting(containerEl)
+			.setName(strings.modelCheckHeading)
+			.setDesc(strings.modelCheckDesc);
+		modelSetting.controlEl.addClass('intra-copilot-stacked-control');
+
+		const modelActionRow = modelSetting.controlEl.createDiv({
+			cls: 'intra-copilot-inline-row',
+		});
+		const modelCheckButton = new ButtonComponent(modelActionRow).setButtonText(
+			strings.modelCheckButton,
+		);
+		const modelStatus = createStatusLight(modelActionRow, strings.statusIdle);
+
+		const modelDropdown = new DropdownComponent(modelSetting.controlEl);
+		this.modelDropdown = modelDropdown;
+		this.applyModelOptions(modelDropdown, []);
+
+		const checkModels = async () => {
+			modelCheckButton.setButtonText(strings.testing).setDisabled(true);
+			await this.refreshModelList(modelDropdown, modelStatus.dot, modelStatus.text);
+			modelCheckButton.setButtonText(strings.modelCheckButton).setDisabled(false);
+		};
+		modelCheckButton.onClick(() => void checkModels());
+
+		const testActionRow = modelSetting.controlEl.createDiv({
+			cls: 'intra-copilot-inline-row',
+		});
+		const testButton = new ButtonComponent(testActionRow)
+			.setButtonText(strings.testButton)
+			.setTooltip(strings.testDesc);
+		const testStatus = createStatusLight(testActionRow, strings.statusIdle);
+
+		const connectionStatusText = modelSetting.controlEl.createEl('p', {
+			cls: 'intra-copilot-connection-status-text',
+			text: this.formatLastVerified(strings),
+		});
+
+		const checkConnection = async () => {
+			testButton.setButtonText(strings.testing).setDisabled(true);
+			await this.runConnectionTest(testStatus.dot, testStatus.text, connectionStatusText);
+			testButton.setButtonText(strings.testButton).setDisabled(false);
+		};
+		testButton.onClick(() => void checkConnection());
+
+		// 고급 설정 — "고급 설정" 글자 자체가 버튼이고, 옆 화살표 아이콘이 펼침/접힘을 보여줍니다.
+		const advancedToggle = modelSetting.controlEl.createDiv({
+			cls: 'intra-copilot-advanced-toggle',
+		});
+		const advancedChevron = advancedToggle.createSpan({ cls: 'intra-copilot-advanced-chevron' });
+		setIcon(advancedChevron, 'chevron-right');
+		advancedToggle.createSpan({ text: strings.advancedName });
+
+		const advancedSection = modelSetting.controlEl.createDiv({
+			cls: 'intra-copilot-advanced-section',
+		});
+		advancedSection.hidden = true;
+
+		advancedToggle.onclick = () => {
+			advancedSection.hidden = !advancedSection.hidden;
+			setIcon(advancedChevron, advancedSection.hidden ? 'chevron-right' : 'chevron-down');
+		};
+
+		new Setting(advancedSection)
 			.setName(strings.maxHistoryName)
 			.setDesc(strings.maxHistoryDesc)
 			.addText((text) => {
@@ -210,7 +274,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.min = '0';
 			});
 
-		new Setting(containerEl)
+		new Setting(advancedSection)
 			.setName(strings.maxResponseName)
 			.setDesc(strings.maxResponseDesc)
 			.addText((text) => {
@@ -224,90 +288,71 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.min = '0';
 			});
 
-		// "연결" 블록 하나에 모델 선택 + 연결 확인 + 상태를 모았습니다.
-		// 탭을 열 때(또는 다시 그릴 때)마다 자동으로 한 번 새로 확인해서, 닫았다 열어도
-		// 예전 상태가 그대로 멈춰 있지 않게 합니다.
-		const connectionSetting = new Setting(containerEl)
-			.setName(strings.connectionHeading)
-			.setDesc(strings.connectionDesc);
-		connectionSetting.controlEl.addClass('intra-copilot-stacked-control');
-
-		const modelDropdown = new DropdownComponent(connectionSetting.controlEl);
-		this.modelDropdown = modelDropdown;
-		this.applyModelOptions(modelDropdown, []);
-
-		const actionRow = connectionSetting.controlEl.createDiv({
-			cls: 'intra-copilot-inline-row',
-		});
-		const checkButton = new ButtonComponent(actionRow).setButtonText(strings.testButton);
-		const status = createStatusLight(actionRow, strings.statusIdle);
-
-		const connectionStatusText = connectionSetting.controlEl.createEl('p', {
-			cls: 'intra-copilot-connection-status-text',
-			text: this.formatLastVerified(strings),
-		});
-
-		const refresh = async () => {
-			checkButton.setButtonText(strings.testing).setDisabled(true);
-			await this.refreshConnection(modelDropdown, status.dot, status.text, connectionStatusText);
-			checkButton.setButtonText(strings.testButton).setDisabled(false);
-		};
-		checkButton.onClick(() => void refresh());
-
 		// 설정 창을 새로 연 뒤 이 탭을 처음 그릴 때만 자동으로 확인합니다.
+		// 순서대로: 먼저 모델 확인 → 이미 선택된 모델이 있으면 이어서 연결 확인.
 		if (this.autoCheckPending) {
 			this.autoCheckPending = false;
-			void refresh();
+			void (async () => {
+				await checkModels();
+				if (this.plugin.settings.llm.model) {
+					await checkConnection();
+				}
+			})();
 		}
 	}
 
-	// "연결 확인" 버튼 및 탭이 열릴 때 자동으로 실행되는 로직입니다.
-	// 모델 목록을 다시 불러오고, 모델이 선택되어 있으면 실제로 대화 요청까지 보내 확인합니다.
-	private async refreshConnection(
+	// "모델 확인" 버튼 및 탭이 열릴 때 자동으로 실행됩니다. 서버에서 모델 목록을 가져와
+	// 드롭다운을 채웁니다. 연결 테스트(실제 대화 요청)는 하지 않습니다.
+	private async refreshModelList(
 		modelDropdown: DropdownComponent,
 		statusDot: HTMLElement,
 		statusText: HTMLElement,
-		connectionStatusEl: HTMLElement,
 	): Promise<void> {
 		const strings = t(this.plugin.settings.general.language).llm;
 		const { baseUrl } = this.plugin.settings.llm;
 
 		if (!baseUrl) {
 			setStatusLight(statusDot, statusText, 'idle', strings.fillBaseUrlFirst);
-			connectionStatusEl.setText(this.formatLastVerified(strings));
 			return;
 		}
 
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
+		const result = await listLlmModels(this.plugin.settings.llm);
 
-		const modelsResult = await listLlmModels(this.plugin.settings.llm);
-		if (!modelsResult.ok) {
+		if (!result.ok) {
 			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
-			setStatusLight(
-				statusDot,
-				statusText,
-				'error',
-				`${strings.fetchFailPrefix}${modelsResult.error}`,
-			);
-			connectionStatusEl.setText(this.formatLastVerified(strings));
+			setStatusLight(statusDot, statusText, 'error', `${strings.fetchFailPrefix}${result.error}`);
 			return;
 		}
-		if (modelsResult.models.length === 0) {
+		if (result.models.length === 0) {
 			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
 			setStatusLight(statusDot, statusText, 'error', strings.noModelsFound);
-			connectionStatusEl.setText(this.formatLastVerified(strings));
 			return;
 		}
-		this.applyModelOptions(modelDropdown, modelsResult.models);
 
-		const currentModel = this.plugin.settings.llm.model;
-		if (!currentModel) {
+		setStatusLight(statusDot, statusText, 'ok', strings.fetchOk);
+		this.applyModelOptions(modelDropdown, result.models);
+	}
+
+	// "연결 확인" 버튼 및 탭이 열릴 때(모델이 이미 선택되어 있으면) 자동으로 실행됩니다.
+	// 선택된 모델로 실제 대화 요청을 보내 서버가 정상 응답하는지 확인합니다.
+	private async runConnectionTest(
+		statusDot: HTMLElement,
+		statusText: HTMLElement,
+		connectionStatusEl: HTMLElement,
+	): Promise<void> {
+		const strings = t(this.plugin.settings.general.language).llm;
+		const { baseUrl, model } = this.plugin.settings.llm;
+
+		if (!baseUrl || !model) {
 			setStatusLight(statusDot, statusText, 'idle', strings.statusMissing);
 			connectionStatusEl.setText(this.formatLastVerified(strings));
 			return;
 		}
 
+		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
 		const result = await testLlmConnection(this.plugin.settings.llm);
+
 		if (result.ok) {
 			setStatusLight(
 				statusDot,
@@ -318,7 +363,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			this.plugin.settings.llm.lastVerified = {
 				at: new Date().toISOString(),
 				baseUrl,
-				model: currentModel,
+				model,
 			};
 			await this.plugin.saveSettings();
 		} else {
