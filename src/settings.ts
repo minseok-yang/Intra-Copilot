@@ -48,3 +48,11 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 
 // 타임아웃이 너무 짧으면 거의 모든 답변이 실패하므로 최소값을 둡니다.
 export const MIN_CHAT_TIMEOUT_SECONDS = 10;
+// 브라우저 타이머는 약 24.8일(2,147,483초)을 넘으면 오히려 즉시 끝나버립니다.
+// 그래서 "넉넉하게" 큰 값을 넣으면 모든 답변이 바로 시간 초과로 실패했습니다. 1시간이면 충분합니다.
+export const MAX_CHAT_TIMEOUT_SECONDS = 3600;
+
+// 저장 파일을 손으로 고쳤거나 입력칸에 이상한 값을 넣어도 항상 최소~최대 사이로 맞춥니다.
+export function clampChatTimeout(seconds: number): number {
+	return Math.min(MAX_CHAT_TIMEOUT_SECONDS, Math.max(MIN_CHAT_TIMEOUT_SECONDS, seconds));
+}

@@ -1,5 +1,5 @@
 import { requestUrl } from 'obsidian';
-import { DEFAULT_SETTINGS, LlmSettings, MIN_CHAT_TIMEOUT_SECONDS } from '../settings';
+import { clampChatTimeout, LlmSettings } from '../settings';
 
 // 서버가 응답을 주지 않고 매달려 있으면 버튼이 "확인 중..."에서, 챗봇은 입력창이
 // 잠긴 채로 영원히 멈춥니다. 그래서 정해진 시간이 지나면 실패로 처리합니다.
@@ -353,15 +353,11 @@ export async function sendChatMessage(
 	conversation: readonly ChatMessage[],
 ): Promise<ChatCompletionResult> {
 	const maxTokens = settings.maxResponseTokens > 0 ? settings.maxResponseTokens : undefined;
-	const timeoutSeconds =
-		settings.chatTimeoutSeconds >= MIN_CHAT_TIMEOUT_SECONDS
-			? settings.chatTimeoutSeconds
-			: DEFAULT_SETTINGS.llm.chatTimeoutSeconds;
 	return postChatCompletion(
 		settings,
 		buildRequestMessages(settings, conversation),
 		maxTokens,
-		timeoutSeconds,
+		clampChatTimeout(settings.chatTimeoutSeconds),
 	);
 }
 

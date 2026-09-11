@@ -4,10 +4,12 @@ import {
 	ItemView,
 	MarkdownRenderer,
 	Notice,
+	setTooltip,
+	ViewStateResult,
 	WorkspaceLeaf,
 } from 'obsidian';
 import IntraCopilotPlugin from '../main';
-import { sendChatMessage } from '../llm/client';
+import { ChatCompletionResult, sendChatMessage } from '../llm/client';
 import { describeLlmError, t } from '../i18n';
 import { UiLanguage } from '../settings';
 import { createStatusDot, setStatusDot, StatusState } from './status-light';
@@ -20,7 +22,7 @@ import {
 	saveSession,
 	StoredMessage,
 } from '../chat/session-store';
-import { neutralizeRemoteContent, removeRemoteMedia } from '../chat/safe-markdown';
+import { finalizeRenderedAnswer, neutralizeRemoteContent } from '../chat/safe-markdown';
 import { SessionHistoryModal } from './session-history-modal';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
@@ -56,18 +58,32 @@ export function refreshChatViews(plugin: IntraCopilotPlugin): void {
 	}
 }
 
+// Obsidian이 창 배치(workspace.json)에 저장해 둔 값에서 대화 id를 꺼냅니다.
+function readSessionId(state: unknown): string | null {
+	if (state && typeof state === 'object' && 'sessionId' in state) {
+		const { sessionId } = state;
+		return typeof sessionId === 'string' && sessionId ? sessionId : null;
+	}
+	return null;
+}
+
 export class ChatView extends ItemView {
 	plugin: IntraCopilotPlugin;
 	private conversation: StoredMessage[] = [];
 	// 지금 진행 중인 대화를 conversations/ 폴더의 어느 파일에 저장할지입니다.
 	// null이면 아직 아무것도 주고받지 않은, 저장할 필요 없는 새 대화입니다.
+	// 이 값은 Obsidian 창 배치에도 기억되어서, Obsidian을 다시 켜면 보던 대화가 다시 열립니다.
 	private currentSessionId: string | null = null;
 	private currentSessionCreatedAt: string | null = null;
+	// 화면이 아직 만들어지기 전에 복원할 대화 id가 먼저 도착하면 여기 잠시 보관합니다.
+	private pendingRestoreId: string | null = null;
+	private layoutBuilt = false;
 
 	// 답변을 기다리는 중인지. 이 동안에는 새 대화/지난 대화 버튼을 잠가서,
-	// 도착한 답변이 엉뚱한 대화에 섞이지 않게 합니다.
+	// 도착한 답변이 엉뚱한 대화에 섞이지 않게 합니다. 입력칸은 열어 두어 다음 질문을 미리 쓸 수 있습니다.
 	private busy = false;
-	private pendingBubble: HTMLElement | null = null;
+	// [중지]를 누르면 부르는 함수. 답변을 기다리는 동안에만 채워집니다.
+	private cancelWaiting: (() => void) | null = null;
 	// 기다리는 동안 언어가 바뀌면 화면을 다시 그리는 걸 답변이 온 뒤로 미룹니다.
 	private rebuildAfterReply = false;
 	// 파일 저장을 순서대로 하나씩 처리합니다(나중 저장이 먼저 끝나 옛 내용으로 덮어쓰는 일 방지).
@@ -78,6 +94,9 @@ export class ChatView extends ItemView {
 	private lastModelState: StatusState = 'idle';
 	// 마지막으로 모델 목록을 확인한 서버 주소+키. 설정에서 이게 바뀌면 목록을 다시 불러옵니다.
 	private checkedConnectionKey: string | null = null;
+	// 모델 목록 확인의 번호표. 확인이 겹쳤을 때(예: 옛 주소 확인이 30초 매달린 사이 주소를 고침)
+	// 늦게 도착한 옛 결과가 새 결과를 덮어쓰지 않도록, 가장 최근 번호의 결과만 반영합니다.
+	private modelCheckSeq = 0;
 	private renderedLanguage: UiLanguage | null = null;
 
 	private messagesEl!: HTMLElement;
@@ -106,9 +125,34 @@ export class ChatView extends ItemView {
 		return 'bot';
 	}
 
+	getState(): Record<string, unknown> {
+		const state = super.getState();
+		if (this.currentSessionId) state.sessionId = this.currentSessionId;
+		return state;
+	}
+
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
+		const id = readSessionId(state);
+		if (id && id !== this.currentSessionId) {
+			if (!this.layoutBuilt) {
+				this.pendingRestoreId = id;
+			} else if (!this.busy) {
+				await this.loadSessionById(id, { silent: true });
+			}
+		}
+		await super.setState(state, result);
+	}
+
 	async onOpen(): Promise<void> {
 		this.buildLayout();
+		this.layoutBuilt = true;
 		this.showEmptyState();
+		if (this.pendingRestoreId) {
+			const id = this.pendingRestoreId;
+			this.pendingRestoreId = null;
+			// 파일이 지워졌다면 조용히 빈 대화로 시작합니다.
+			await this.loadSessionById(id, { silent: true });
+		}
 		// 설정 화면의 연결 확인 등 어디서든 연결 상태가 바뀌면 상태등을 다시 그립니다.
 		// register()에 넣어두면 패널이 닫힐 때 자동으로 등록이 풀립니다.
 		this.register(this.plugin.connectionStatus.subscribe(() => this.renderStatusDot()));
@@ -131,7 +175,7 @@ export class ChatView extends ItemView {
 			// 언어만 바뀐 경우 서버에는 다시 묻지 않습니다(상태 문구는 다음 확인 때 새 언어로 바뀜).
 			return;
 		}
-		if (this.connectionKey() !== this.checkedConnectionKey) {
+		if (this.plugin.serverSnapshot() !== this.checkedConnectionKey) {
 			void this.refreshModels();
 			return;
 		}
@@ -141,11 +185,6 @@ export class ChatView extends ItemView {
 
 	private strings() {
 		return t(this.plugin.settings.general.language).chat;
-	}
-
-	private connectionKey(): string {
-		const { baseUrl, apiKey } = this.plugin.settings.llm;
-		return `${baseUrl}\n${apiKey}`;
 	}
 
 	// 머리줄(버튼들) + 메시지 영역 + 입력줄을 새로 만듭니다. 언어가 바뀌면 다시 호출됩니다.
@@ -202,13 +241,15 @@ export class ChatView extends ItemView {
 			attr: { placeholder: strings.inputPlaceholder, rows: '2' },
 		});
 		this.inputEl.value = draft;
-		this.sendButtonEl = inputRow.createEl('button', {
-			cls: 'intra-copilot-chat-send',
-			text: strings.sendButton,
-		});
+		this.sendButtonEl = inputRow.createEl('button', { cls: 'intra-copilot-chat-send' });
 
+		// 기다리는 동안에는 같은 버튼이 [중지]가 됩니다.
 		this.sendButtonEl.onclick = () => {
-			void this.handleSend();
+			if (this.busy) {
+				this.cancelWaiting?.();
+			} else {
+				void this.handleSend();
+			}
 		};
 		this.inputEl.addEventListener('keydown', (evt) => {
 			// 한글처럼 조합해서 입력하는 언어(IME)에서는 글자를 확정할 때도 Enter가 눌립니다.
@@ -216,6 +257,8 @@ export class ChatView extends ItemView {
 			if (evt.isComposing) return;
 			if (evt.key === 'Enter' && !evt.shiftKey) {
 				evt.preventDefault();
+				// 기다리는 중에는 써 둔 글을 그대로 두고 안내만 합니다.
+				if (this.warnIfBusy()) return;
 				void this.handleSend();
 			}
 		});
@@ -240,8 +283,10 @@ export class ChatView extends ItemView {
 	}
 
 	private applyBusyState(): void {
-		this.inputEl.disabled = this.busy;
-		this.sendButtonEl.disabled = this.busy;
+		const strings = this.strings();
+		this.sendButtonEl.setText(this.busy ? strings.stopButton : strings.sendButton);
+		this.sendButtonEl.toggleClass('mod-warning', this.busy);
+		setTooltip(this.sendButtonEl, this.busy ? strings.stopTooltip : '');
 		this.newChatButton.setDisabled(this.busy);
 		this.historyButton.setDisabled(this.busy);
 		// 잠긴 버튼이 눈에 띄게 흐려지도록 전용 클래스를 붙입니다(styles.css).
@@ -249,12 +294,19 @@ export class ChatView extends ItemView {
 		this.historyButton.extraSettingsEl.toggleClass('intra-copilot-is-busy', this.busy);
 	}
 
+	// 지금 대화가 어느 파일인지 바꿀 때는 항상 여기를 거칩니다. Obsidian이 창 배치를 저장할 때
+	// 이 값도 함께 기억하도록 알려서, 다시 켰을 때 같은 대화가 열리게 합니다.
+	private setCurrentSession(id: string | null, createdAt: string | null): void {
+		this.currentSessionId = id;
+		this.currentSessionCreatedAt = createdAt;
+		this.app.workspace.requestSaveLayout();
+	}
+
 	// 대화 기록을 지우고 빈 상태로 되돌립니다. 오간 대화가 있었다면 이미 conversations/
 	// 폴더에 저장되어 있으므로(handleSend에서 매번 저장) 지난 대화 목록에서 다시 찾을 수 있습니다.
 	private startNewConversation(): void {
 		this.conversation = [];
-		this.currentSessionId = null;
-		this.currentSessionCreatedAt = null;
+		this.setCurrentSession(null, null);
 		this.showEmptyState();
 	}
 
@@ -274,17 +326,17 @@ export class ChatView extends ItemView {
 		new Notice(this.strings().historyCurrentDeleted);
 	}
 
-	// "지난 대화" 목록에서 하나를 골랐을 때 그 내용을 불러와 이어서 볼 수 있게 합니다.
-	private async loadSessionById(id: string): Promise<void> {
-		if (this.warnIfBusy()) return;
+	// "지난 대화" 목록에서 하나를 골랐을 때(또는 Obsidian을 다시 켜서 복원할 때) 그 내용을 불러옵니다.
+	// silent이면 불러오지 못해도 알림을 띄우지 않습니다(복원할 파일이 지워진 경우 등).
+	private async loadSessionById(id: string, options: { silent?: boolean } = {}): Promise<void> {
+		if (options.silent ? this.busy : this.warnIfBusy()) return;
 		const session = await loadSession(this.plugin, id);
 		if (!session) {
-			new Notice(this.strings().historyLoadFailed);
+			if (!options.silent) new Notice(this.strings().historyLoadFailed);
 			return;
 		}
 
-		this.currentSessionId = session.id;
-		this.currentSessionCreatedAt = session.createdAt;
+		this.setCurrentSession(session.id, session.createdAt);
 		this.conversation = session.messages;
 		await this.renderConversation();
 	}
@@ -320,7 +372,7 @@ export class ChatView extends ItemView {
 		}
 
 		// LLM은 보통 마크다운(목록, 굵게, 코드블록)으로 답하므로 그대로 렌더링합니다.
-		// 단, 외부 이미지처럼 저절로 외부 요청을 보내는 요소는 먼저 링크로 바꿉니다(safe-markdown.ts).
+		// 단, 외부 요청을 만들거나 다른 플러그인이 실행할 수 있는 문법은 먼저 무력화합니다(safe-markdown.ts).
 		const answerEl = bubble.createDiv({ cls: 'intra-copilot-chat-answer' });
 		const content = message.content || strings.emptyReply;
 		await MarkdownRenderer.render(
@@ -330,7 +382,7 @@ export class ChatView extends ItemView {
 			'',
 			this,
 		);
-		removeRemoteMedia(answerEl);
+		finalizeRenderedAnswer(answerEl);
 
 		if (message.truncated) {
 			bubble.createDiv({ cls: 'intra-copilot-chat-notice', text: strings.truncatedNotice });
@@ -386,10 +438,12 @@ export class ChatView extends ItemView {
 	// ②까지 성공해야 상태등이 녹색이 됩니다. 확인하는 동안에는 새로고침 아이콘이 돕니다.
 	// (두 결과 모두 fetchModelList/checkSelectedModel이 상태등에 직접 기록합니다.)
 	private async refreshModels(): Promise<void> {
-		this.checkedConnectionKey = this.connectionKey();
+		const seq = ++this.modelCheckSeq;
+		this.checkedConnectionKey = this.plugin.serverSnapshot();
 		this.setChecking(true);
 		try {
 			const outcome = await fetchModelList(this.plugin);
+			if (seq !== this.modelCheckSeq) return; // 그 사이 더 새로운 확인이 시작됨
 			this.availableModels = outcome.models;
 			this.lastModelState = outcome.state;
 			this.fillDropdown();
@@ -397,7 +451,8 @@ export class ChatView extends ItemView {
 				await checkSelectedModel(this.plugin, outcome.models);
 			}
 		} finally {
-			this.setChecking(false);
+			// 옛 확인이 끝났다고 아이콘을 멈추면, 아직 진행 중인 새 확인이 끝난 것처럼 보입니다.
+			if (seq === this.modelCheckSeq) this.setChecking(false);
 		}
 	}
 
@@ -424,10 +479,11 @@ export class ChatView extends ItemView {
 		setStatusDot(this.modelStatusDot, state, tooltip);
 	}
 
-	private async handleSend(): Promise<void> {
+	// retryText를 주면 입력칸 대신 그 글을 보냅니다([다시 시도] 버튼). 입력칸에 새로 써 둔 글은 건드리지 않습니다.
+	private async handleSend(retryText?: string): Promise<void> {
 		if (this.busy) return;
 		const strings = this.strings();
-		const text = this.inputEl.value.trim();
+		const text = (retryText ?? this.inputEl.value).trim();
 		if (!text) return;
 
 		if (this.conversation.length === 0) {
@@ -440,19 +496,18 @@ export class ChatView extends ItemView {
 			return;
 		}
 
-		this.inputEl.value = '';
+		if (retryText === undefined) this.inputEl.value = '';
 		this.setBusy(true);
 
 		if (!this.currentSessionId || !this.currentSessionCreatedAt) {
-			this.currentSessionId = newSessionId();
-			this.currentSessionCreatedAt = new Date().toISOString();
+			this.setCurrentSession(newSessionId(), new Date().toISOString());
 		}
 
 		// 이 요청이 어느 대화에 속하는지 기억해 둡니다. 답이 올 때까지 무슨 일이 있어도
 		// 답은 이 대화(이 배열, 이 파일)에만 들어갑니다.
 		const conversation = this.conversation;
-		const sessionId = this.currentSessionId;
-		const createdAt = this.currentSessionCreatedAt;
+		const sessionId = this.currentSessionId!;
+		const createdAt = this.currentSessionCreatedAt!;
 
 		const userMessage: StoredMessage = { role: 'user', content: text };
 		conversation.push(userMessage);
@@ -460,18 +515,25 @@ export class ChatView extends ItemView {
 		this.persistSession(sessionId, createdAt, conversation);
 
 		const pending = this.appendBubble('assistant', strings.thinking, { isPending: true });
-		this.pendingBubble = pending;
 
 		const snapshot = this.plugin.connectionSnapshot();
-		const result = await sendChatMessage(this.plugin.settings.llm, conversation);
+		// [중지]는 요청 자체를 취소하지는 못하고(서버는 계속 만듭니다), 기다리는 것만 그만둡니다.
+		// 그래서 답변 요청과 "중지 버튼" 중 먼저 끝나는 쪽을 씁니다. null이면 중지한 것입니다.
+		const stopped = new Promise<null>((resolve) => {
+			this.cancelWaiting = () => resolve(null);
+		});
+		const result: ChatCompletionResult | null = await Promise.race([
+			sendChatMessage(this.plugin.settings.llm, conversation),
+			stopped,
+		]);
+		this.cancelWaiting = null;
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 
-		this.pendingBubble = null;
 		this.setBusy(false);
 		// 버튼을 잠가두므로 보통은 항상 true지만, 만약을 위해 화면 갱신 여부만 이걸로 판단합니다.
 		const stillOnScreen = this.conversation === conversation;
 
-		if (result.ok) {
+		if (result?.ok) {
 			const reply: StoredMessage = {
 				role: 'assistant',
 				content: result.reply,
@@ -485,19 +547,27 @@ export class ChatView extends ItemView {
 				await this.renderAssistantBubble(pending, reply);
 			}
 		} else {
-			// 실패한 질문은 대화에서 되돌립니다. 남겨두면 다음 요청에 user 메시지가 두 번 연속으로
-			// 들어가서, 역할 교대 규칙이 엄격한 모델에서는 이후 요청이 전부 실패합니다.
+			// 실패하거나 중지한 질문은 대화에서 되돌립니다. 남겨두면 다음 요청에 user 메시지가 두 번
+			// 연속으로 들어가서, 역할 교대 규칙이 엄격한 모델에서는 이후 요청이 전부 실패합니다.
 			if (conversation[conversation.length - 1] === userMessage) {
 				conversation.pop();
 			}
 			this.persistSession(sessionId, createdAt, conversation);
-			const described = describeLlmError(this.plugin.settings.general.language, result);
-			// "답변 대기 시간" 설정은 챗봇 답변에만 적용되므로, 그 안내는 여기서만 덧붙입니다.
-			const summary =
-				result.kind === 'timeout' ? `${described.summary} ${strings.timeoutHint}` : described.summary;
-			const { detail } = described;
-			// 실패하면 상태등도 빨간색으로 — 말풍선만 빨갛고 상태등은 녹색이면 헷갈립니다.
-			this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);
+
+			let summary: string;
+			let detail = '';
+			if (result === null) {
+				// 사용자가 멈춘 것이라 서버 상태는 알 수 없으므로 상태등은 건드리지 않습니다.
+				summary = strings.cancelledNotice;
+			} else {
+				const described = describeLlmError(this.plugin.settings.general.language, result);
+				// "답변 대기 시간" 설정은 챗봇 답변에만 적용되므로, 그 안내는 여기서만 덧붙입니다.
+				summary =
+					result.kind === 'timeout' ? `${described.summary} ${strings.timeoutHint}` : described.summary;
+				detail = described.detail;
+				// 실패하면 상태등도 빨간색으로 — 말풍선만 빨갛고 상태등은 녹색이면 헷갈립니다.
+				this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);
+			}
 			if (stillOnScreen) {
 				this.showFailure(userBubble, pending, text, summary, detail);
 			}
@@ -511,7 +581,7 @@ export class ChatView extends ItemView {
 	}
 
 	// 실패 표시: 보낸 질문은 흐리게, 오류 말풍선에는 [다시 시도] 버튼.
-	// 입력칸에도 질문을 되돌려 놓아서, 고쳐서 다시 보낼 수도 있게 합니다.
+	// 입력칸이 비어 있으면 질문을 되돌려 놓아서, 고쳐서 다시 보낼 수도 있게 합니다.
 	private showFailure(
 		userBubble: HTMLElement,
 		errorBubble: HTMLElement,
@@ -538,11 +608,12 @@ export class ChatView extends ItemView {
 			text: strings.retryButton,
 		});
 		retryButton.onclick = () => {
-			if (this.busy) return;
+			if (this.warnIfBusy()) return;
 			userBubble.remove();
 			errorBubble.remove();
-			this.inputEl.value = text;
-			void this.handleSend();
+			// 실패할 때 입력칸에 되돌려 둔 같은 글이 그대로 있으면 비웁니다(두 번 보내는 것처럼 보이지 않게).
+			if (this.inputEl.value.trim() === text) this.inputEl.value = '';
+			void this.handleSend(text);
 		};
 
 		if (!this.inputEl.value) {

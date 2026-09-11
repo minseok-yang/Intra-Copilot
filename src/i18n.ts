@@ -44,7 +44,7 @@ const ko = {
 		chatTimeoutName: '답변 대기 시간 (초)',
 		chatTimeoutDesc:
 			'챗봇 답변을 최대 몇 초까지 기다릴지 정합니다. 시간 초과로 실패하는 일이 잦으면 늘려보세요. ' +
-			'10보다 작게 입력하면 10초로 저장되고, 비워두면 기본값(120초)으로 돌아갑니다. ' +
+			'10~3600초 사이로 저장되고(범위를 벗어나면 가까운 끝값으로), 비워두면 기본값(120초)으로 돌아갑니다. ' +
 			'[모델 목록 불러오기]와 [연결 확인]은 이 값과 상관없이 30초까지 기다립니다.',
 		systemPromptName: '기본 지시문 (시스템 프롬프트)',
 		systemPromptDesc:
@@ -124,7 +124,10 @@ const ko = {
 		copied: '답변을 클립보드에 복사했습니다.',
 		copyFailed: '클립보드에 복사하지 못했습니다.',
 		saveFailed: '대화를 파일에 저장하지 못했습니다.',
-		busyNotice: '답변을 기다리는 중입니다. 답변이 온 뒤에 다시 시도하세요.',
+		busyNotice: '답변을 기다리는 중입니다. 답변이 온 뒤에 다시 시도하거나 [중지]를 누르세요.',
+		stopButton: '중지',
+		stopTooltip: '답변 기다리기를 멈춥니다. (서버는 이미 받은 질문의 답변을 끝까지 만들 수 있습니다.)',
+		cancelledNotice: '답변 기다리기를 중지했습니다.',
 		refreshModelsTooltip: '모델 목록 새로고침 및 연결 확인',
 		newChatTooltip: '새 대화 시작 (지금 대화는 지난 대화 목록에 남습니다)',
 		historyTooltip: '지난 대화 보기',
@@ -132,6 +135,8 @@ const ko = {
 		historyEmpty: '저장된 대화가 없습니다.',
 		historyLoadButton: '불러오기',
 		historyDeleteTooltip: '이 대화 삭제',
+		historyDeleteConfirm: '⚠ 한 번 더 누르면 이 대화가 영구 삭제됩니다.',
+		historyDeleteConfirmTooltip: '한 번 더 눌러 삭제',
 		historyLoadFailed: '대화를 불러오지 못했습니다.',
 		historyCurrentDeleted: '보고 있던 대화가 삭제되어 새 대화로 전환했습니다.',
 		failedLabel: '⚠ 답변을 받지 못해 이 질문은 대화 기록에 포함되지 않았습니다',
@@ -189,7 +194,7 @@ const en: Dictionary = {
 		chatTimeoutName: 'Answer timeout (seconds)',
 		chatTimeoutDesc:
 			'How long to wait for a chatbot answer. Increase it if answers often fail with a timeout. ' +
-			'Values below 10 are saved as 10; leave empty to restore the default (120 seconds). ' +
+			'Saved between 10 and 3600 seconds (values outside are moved to the nearest end); leave empty to restore the default (120 seconds). ' +
 			'[Load model list] and [Check connection] always wait up to 30 seconds regardless of this value.',
 		systemPromptName: 'Default instructions (system prompt)',
 		systemPromptDesc:
@@ -266,7 +271,10 @@ const en: Dictionary = {
 		copied: 'Copied the answer to the clipboard.',
 		copyFailed: 'Could not copy to the clipboard.',
 		saveFailed: 'Could not save the conversation to a file.',
-		busyNotice: 'Waiting for an answer. Try again after it arrives.',
+		busyNotice: 'Waiting for an answer. Try again after it arrives, or press [Stop].',
+		stopButton: 'Stop',
+		stopTooltip: 'Stop waiting for the answer. (The server may still finish generating it.)',
+		cancelledNotice: 'Stopped waiting for the answer.',
 		refreshModelsTooltip: 'Refresh model list and check connection',
 		newChatTooltip: 'Start a new conversation (the current one stays in past conversations)',
 		historyTooltip: 'View past conversations',
@@ -274,6 +282,8 @@ const en: Dictionary = {
 		historyEmpty: 'No saved conversations yet.',
 		historyLoadButton: 'Load',
 		historyDeleteTooltip: 'Delete this conversation',
+		historyDeleteConfirm: '⚠ Click again to permanently delete this conversation.',
+		historyDeleteConfirmTooltip: 'Click again to delete',
 		historyLoadFailed: 'Could not load the conversation.',
 		historyCurrentDeleted: 'The conversation you were viewing was deleted, so a new one was started.',
 		failedLabel: '⚠ No answer received — this question is not part of the conversation history',

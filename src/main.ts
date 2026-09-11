@@ -1,9 +1,5 @@
 import { Plugin, setTooltip } from 'obsidian';
-import {
-	DEFAULT_SETTINGS,
-	IntraCopilotSettings,
-	MIN_CHAT_TIMEOUT_SECONDS,
-} from './settings';
+import { clampChatTimeout, DEFAULT_SETTINGS, IntraCopilotSettings } from './settings';
 import { IntraCopilotSettingTab } from './ui/settings-tab';
 import { CHAT_VIEW_TYPE, ChatView, refreshChatViews, revealChatView } from './ui/chat-view';
 import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
@@ -35,6 +31,15 @@ export default class IntraCopilotPlugin extends Plugin {
 				void revealChatView(this);
 			},
 		);
+		// 명령 팔레트(Ctrl+P)에서 열 수 있고, 설정 → 단축키에서 원하는 키를 지정할 수도 있습니다.
+		// 명령 이름은 플러그인을 켤 때의 언어로 정해집니다(언어를 바꾸면 다음 실행부터 반영).
+		this.addCommand({
+			id: 'open-chat',
+			name: t(this.settings.general.language).chat.ribbonTooltip,
+			callback: () => {
+				void revealChatView(this);
+			},
+		});
 	}
 
 	onunload() {}
@@ -46,6 +51,13 @@ export default class IntraCopilotPlugin extends Plugin {
 			setTooltip(this.ribbonIconEl, t(this.settings.general.language).chat.ribbonTooltip);
 		}
 		refreshChatViews(this);
+	}
+
+	// 서버 주소·키만 묶은 값입니다. 모델 목록은 모델 선택과 상관없으므로, 목록 확인 결과가
+	// 아직 유효한지 판단할 때는 이 값을 씁니다.
+	serverSnapshot(): string {
+		const { baseUrl, apiKey } = this.settings.llm;
+		return `${baseUrl}\n${apiKey}`;
 	}
 
 	// 확인을 시작할 때의 서버 주소·키·모델을 한 줄로 묶은 값입니다.
@@ -81,11 +93,13 @@ export default class IntraCopilotPlugin extends Plugin {
 		if (general.language !== 'ko' && general.language !== 'en') {
 			general.language = DEFAULT_SETTINGS.general.language;
 		}
-		if (typeof llm.systemPrompt !== 'string') llm.systemPrompt = defaults.systemPrompt;
+		// 글자여야 하는 값에 숫자·null 등이 들어 있으면 요청 주소나 드롭다운이 이상해지므로 되돌립니다.
+		for (const key of ['baseUrl', 'apiKey', 'model', 'systemPrompt'] as const) {
+			if (typeof llm[key] !== 'string') llm[key] = defaults[key];
+		}
 		llm.maxHistoryMessages = nonNegativeInt(llm.maxHistoryMessages, defaults.maxHistoryMessages);
 		llm.maxResponseTokens = nonNegativeInt(llm.maxResponseTokens, defaults.maxResponseTokens);
-		llm.chatTimeoutSeconds = Math.max(
-			MIN_CHAT_TIMEOUT_SECONDS,
+		llm.chatTimeoutSeconds = clampChatTimeout(
 			nonNegativeInt(llm.chatTimeoutSeconds, defaults.chatTimeoutSeconds),
 		);
 	}

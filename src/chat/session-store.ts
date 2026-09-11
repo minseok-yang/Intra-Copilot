@@ -18,8 +18,8 @@ export interface ChatSession {
 
 export interface ChatSessionSummary {
 	id: string;
-	title: string;
-	updatedAt: string;
+	title: string; // ''이면 제목이 없는 대화(화면에서 "(빈 대화)"로 표시)
+	updatedAt: string; // ''이면 시각을 알 수 없음
 }
 
 // manifest.dir는 볼트 기준 상대 경로입니다(예: .obsidian/plugins/intra-copilot).
@@ -54,6 +54,42 @@ export function deriveSessionTitle(messages: ChatMessage[], emptyTitle: string):
 	return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
 }
 
+function isStoredMessage(value: unknown): value is StoredMessage {
+	if (!value || typeof value !== 'object') return false;
+	const { role, content } = value as Record<string, unknown>;
+	return (role === 'user' || role === 'assistant' || role === 'system') && typeof content === 'string';
+}
+
+function stringOr(value: unknown, fallback: string): string {
+	return typeof value === 'string' ? value : fallback;
+}
+
+// 파일 내용을 대화로 읽어 들입니다. 손으로 고쳤거나 일부가 깨진 파일이라도 읽을 수 있는 만큼 읽고,
+// 빠진 칸은 안전한 값으로 채웁니다(예전에는 칸 하나가 빠지면 지난 대화 목록 전체가 안 떴습니다).
+// id는 파일 안의 값이 아니라 **파일 이름**을 씁니다. 대화 파일을 복사해 두었을 때 복사본을 이어
+// 쓰다가 원본 파일을 덮어쓰는 일을 막기 위해서입니다.
+function parseSession(raw: string, id: string): ChatSession | null {
+	let data: unknown;
+	try {
+		data = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	if (!data || typeof data !== 'object') return null;
+	const fields = data as Record<string, unknown>;
+	if (!Array.isArray(fields.messages)) return null;
+
+	const updatedAt = stringOr(fields.updatedAt, stringOr(fields.createdAt, ''));
+	return {
+		id,
+		title: stringOr(fields.title, ''),
+		// 만든 시각이 없으면 지금 시각으로 — 비어 있으면 챗봇 화면이 새 대화로 착각합니다.
+		createdAt: stringOr(fields.createdAt, '') || updatedAt || new Date().toISOString(),
+		updatedAt,
+		messages: fields.messages.filter(isStoredMessage),
+	};
+}
+
 export async function saveSession(
 	plugin: IntraCopilotPlugin,
 	session: ChatSession,
@@ -70,11 +106,9 @@ export async function loadSession(
 	id: string,
 ): Promise<ChatSession | null> {
 	try {
-		const raw = await plugin.app.vault.adapter.read(sessionPath(plugin, id));
-		const session = JSON.parse(raw) as ChatSession;
-		return Array.isArray(session.messages) ? session : null;
+		return parseSession(await plugin.app.vault.adapter.read(sessionPath(plugin, id)), id);
 	} catch {
-		return null;
+		return null; // 파일이 없거나 읽을 수 없음
 	}
 }
 
@@ -87,12 +121,14 @@ export async function listSessions(plugin: IntraCopilotPlugin): Promise<ChatSess
 	const summaries: ChatSessionSummary[] = [];
 	for (const file of files) {
 		if (!file.endsWith('.json')) continue;
+		const id = file.slice(file.lastIndexOf('/') + 1, -'.json'.length);
 		try {
-			const raw = await plugin.app.vault.adapter.read(file);
-			const session = JSON.parse(raw) as ChatSession;
-			summaries.push({ id: session.id, title: session.title, updatedAt: session.updatedAt });
+			const session = parseSession(await plugin.app.vault.adapter.read(file), id);
+			if (session) {
+				summaries.push({ id, title: session.title, updatedAt: session.updatedAt });
+			}
 		} catch {
-			// 손상된 파일은 목록에서 조용히 건너뜁니다.
+			// 읽을 수 없는 파일은 목록에서 조용히 건너뜁니다.
 		}
 	}
 	summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

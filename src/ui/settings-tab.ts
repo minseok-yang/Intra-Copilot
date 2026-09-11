@@ -8,10 +8,22 @@ import {
 	setIcon,
 } from 'obsidian';
 import IntraCopilotPlugin from '../main';
-import { DEFAULT_SETTINGS, MIN_CHAT_TIMEOUT_SECONDS, UiLanguage } from '../settings';
+import {
+	clampChatTimeout,
+	DEFAULT_SETTINGS,
+	MAX_CHAT_TIMEOUT_SECONDS,
+	MIN_CHAT_TIMEOUT_SECONDS,
+	UiLanguage,
+} from '../settings';
 import { t } from '../i18n';
-import { createStatusLight, setStatusLight } from './status-light';
-import { checkSelectedModel, fetchModelList, fillModelDropdown } from './model-dropdown';
+import { createStatusLight, setStatusLight, StatusState } from './status-light';
+import {
+	checkSelectedModel,
+	CheckOutcome,
+	fetchModelList,
+	fillModelDropdown,
+	ModelListOutcome,
+} from './model-dropdown';
 import { openGuideWindow } from './guide-view';
 
 // 숫자 입력칸 값을 정수로 바꿉니다. 비어 있거나 숫자가 아니거나 음수면 기본값으로 되돌립니다.
@@ -25,8 +37,7 @@ function parseLimit(value: string, fallback: number): number {
 }
 
 function parseTimeoutSeconds(value: string): number {
-	const parsed = parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds);
-	return Math.max(MIN_CHAT_TIMEOUT_SECONDS, parsed);
+	return clampChatTimeout(parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds));
 }
 
 type TabId = 'general' | 'llm';
@@ -47,6 +58,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 	private autoCheckPending = true;
 	// 모델을 바꿨을 때 할 일(연결 확인 표시등을 "확인 필요"로). LLM 탭을 그릴 때 채워집니다.
 	private onModelSelectedInTab: () => void = () => {};
+	// 마지막 확인 결과. 일반↔LLM 탭을 오가거나 언어를 바꿔 화면을 다시 그려도, 불러온 모델 목록과
+	// 표시등을 그대로 다시 보여주기 위해 기억해 둡니다(서버 주소·키가 바뀌거나 설정 창을 닫으면 지움).
+	private lastModelList: ModelListOutcome | null = null;
+	private lastTest: CheckOutcome | null = null;
 
 	// 글자를 칠 때마다 파일에 쓰지 않도록, 입력이 멈춘 뒤 한 번만 저장합니다.
 	private readonly saveSoon = debounce(
@@ -66,6 +81,9 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		// Obsidian이 설정 창을 닫거나 다른 플러그인 탭으로 옮길 때 호출합니다.
 		this.saveSoon.run(); // 아직 저장되지 않은 입력이 있으면 지금 저장합니다.
 		this.autoCheckPending = true;
+		// 다시 열면 자동으로 새로 확인하므로, 지난 결과는 버립니다.
+		this.lastModelList = null;
+		this.lastTest = null;
 		// 서버 주소/키가 바뀌었을 수 있으니, 열려 있는 챗봇 화면이 모델 목록을 다시 확인하게 합니다.
 		this.plugin.notifySettingsChanged();
 		super.hide();
@@ -223,7 +241,17 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const modelStatus = createStatusLight(modelActionRow, strings.statusIdle);
 
 		const modelDropdown = new DropdownComponent(modelSetting.controlEl);
-		this.fillDropdown(modelDropdown, []);
+		const cachedList = this.lastModelList;
+		if (cachedList) {
+			setStatusLight(
+				modelStatus.dot,
+				modelStatus.text,
+				cachedList.state,
+				cachedList.message,
+				cachedList.detail,
+			);
+		}
+		this.fillDropdown(modelDropdown, cachedList?.models ?? [], cachedList?.state ?? 'idle');
 
 		const checkModels = async () => {
 			modelCheckButton.setButtonText(strings.loadingModels).setDisabled(true);
@@ -239,6 +267,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			.setButtonText(strings.testButton)
 			.setTooltip(strings.testDesc);
 		const testStatus = createStatusLight(testActionRow, strings.statusIdle);
+		if (this.lastTest) {
+			const { state, message, detail } = this.lastTest;
+			setStatusLight(testStatus.dot, testStatus.text, state, message, detail);
+		}
 
 		const connectionStatusText = modelSetting.controlEl.createEl('p', {
 			cls: 'intra-copilot-connection-status-text',
@@ -253,6 +285,8 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		testButton.onClick(() => void checkConnection());
 
 		resetStatuses = () => {
+			this.lastModelList = null;
+			this.lastTest = null;
 			setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
 			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
 			// 챗봇 상단 상태등도 함께 회색(미확인)으로 되돌립니다.
@@ -261,6 +295,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 
 		// 모델을 바꾸면 목록 확인 결과는 그대로 유효하지만, 연결 확인은 새 모델로 다시 해야 합니다.
 		this.onModelSelectedInTab = () => {
+			this.lastTest = { state: 'idle', message: strings.statusModelChanged };
 			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusModelChanged);
 		};
 
@@ -309,6 +344,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			set: (value) => (llm.chatTimeoutSeconds = value),
 			parse: parseTimeoutSeconds,
 			min: MIN_CHAT_TIMEOUT_SECONDS,
+			max: MAX_CHAT_TIMEOUT_SECONDS,
 		});
 
 		// 기본 지시문(시스템 프롬프트) — 서버 연결 정보가 아니라 "대화 내용"에 관한 설정이라
@@ -349,6 +385,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			set: (value: number) => void;
 			parse: (raw: string) => number;
 			min: number;
+			max?: number;
 		},
 	): void {
 		new Setting(containerEl)
@@ -361,6 +398,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				});
 				text.inputEl.type = 'number';
 				text.inputEl.min = String(options.min);
+				if (options.max !== undefined) text.inputEl.max = String(options.max);
 				text.inputEl.addEventListener('blur', () => {
 					text.setValue(String(options.get()));
 				});
@@ -377,7 +415,12 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const strings = t(this.plugin.settings.general.language).llm;
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
 
+		const server = this.plugin.serverSnapshot();
 		const outcome = await fetchModelList(this.plugin);
+		// 기다리는 사이 서버 주소·키가 바뀌었다면 옛 주소의 결과이므로 보여주지 않습니다
+		// (표시등은 주소를 고칠 때 이미 "아직 확인하지 않음"으로 되돌아가 있습니다).
+		if (server !== this.plugin.serverSnapshot()) return;
+		this.lastModelList = outcome;
 		setStatusLight(statusDot, statusText, outcome.state, outcome.message, outcome.detail);
 		// 주소가 비어 있을 때(idle)는 이전처럼 저장된 모델을 그대로 보여줍니다.
 		if (outcome.state !== 'idle') {
@@ -412,18 +455,21 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const { baseUrl, model } = this.plugin.settings.llm;
 
 		if (!baseUrl || !model) {
-			setStatusLight(statusDot, statusText, 'idle', strings.statusMissing);
+			this.showTestResult(statusDot, statusText, 'idle', strings.statusMissing);
 			connectionStatusEl.setText(this.formatLastVerified(strings));
 			return;
 		}
 
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
 		// 결과는 checkSelectedModel이 챗봇 상단 상태등에도 기록합니다.
+		const snapshot = this.plugin.connectionSnapshot();
 		const check = await checkSelectedModel(this.plugin);
+		// 기다리는 사이 서버 주소·키·모델이 바뀌었다면 옛 설정의 결과이므로 보여주지 않습니다.
+		if (snapshot !== this.plugin.connectionSnapshot()) return;
 
 		if (check.state === 'ok') {
 			const reply = check.reply || t(language).chat.emptyReply;
-			setStatusLight(
+			this.showTestResult(
 				statusDot,
 				statusText,
 				'ok',
@@ -439,9 +485,21 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			// 원인과 해결 방법을 표시등 옆 글자로 바로 보여주고, 서버 원문은 마우스를 올리면 보이게 합니다.
 			const message =
 				check.state === 'error' ? `${strings.statusError}: ${check.message}` : check.message;
-			setStatusLight(statusDot, statusText, check.state, message, check.detail);
+			this.showTestResult(statusDot, statusText, check.state, message, check.detail);
 		}
 		connectionStatusEl.setText(this.formatLastVerified(strings));
+	}
+
+	// 연결 확인 표시등을 그리고, 탭을 다시 그릴 때 복원할 수 있게 기억해 둡니다.
+	private showTestResult(
+		statusDot: HTMLElement,
+		statusText: HTMLElement,
+		state: StatusState,
+		message: string,
+		detail?: string,
+	): void {
+		this.lastTest = { state, message, detail };
+		setStatusLight(statusDot, statusText, state, message, detail);
 	}
 
 	private formatLastVerified(strings: ReturnType<typeof t>['llm']): string {
