@@ -362,15 +362,11 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			});
 
 		// 설정 창을 새로 연 뒤 이 탭을 처음 그릴 때만 자동으로 확인합니다.
-		// 순서대로: 먼저 모델 확인 → 이미 선택된 모델이 있으면 이어서 연결 확인.
+		// 가벼운 모델 목록 조회만 하고, 테스트 대화(연결 확인)는 버튼을 눌렀을 때만 보냅니다.
+		// 설정 창을 열 때마다 공용 서버 GPU를 쓰지 않기 위해서입니다.
 		if (this.autoCheckPending) {
 			this.autoCheckPending = false;
-			void (async () => {
-				await checkModels();
-				if (this.plugin.settings.llm.model) {
-					await checkConnection();
-				}
-			})();
+			void checkModels();
 		}
 	}
 
@@ -443,7 +439,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		});
 	}
 
-	// "연결 확인" 버튼 및 탭이 열릴 때(모델이 이미 선택되어 있으면) 자동으로 실행됩니다.
+	// "연결 확인" 버튼을 누르면 실행됩니다(자동으로는 실행하지 않음 — 공용 서버 부담).
 	// 선택된 모델로 실제 대화 요청을 보내 서버가 정상 응답하는지 확인합니다.
 	private async runConnectionTest(
 		statusDot: HTMLElement,

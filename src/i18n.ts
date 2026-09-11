@@ -29,7 +29,8 @@ const ko = {
 			'챗봇이 사용할 LLM 서버를 설정합니다. OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
 		baseUrlName: '서버 주소',
-		baseUrlDesc: 'LLM 서버의 API 주소입니다. 보통 /v1로 끝납니다. 예: http://서버주소:8000/v1',
+		baseUrlDesc:
+			'LLM 서버의 API 주소입니다. 보통 /v1로 끝납니다. 예: http://서버주소:8000/v1 — 보안 정책상 사내(사설) 주소로만 연결됩니다.',
 		baseUrlPlaceholder: 'http://서버주소:8000/v1',
 		apiKeyName: 'API 키',
 		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 키가 필요 없는 서버라면 비워두세요.',
@@ -69,6 +70,7 @@ const ko = {
 		fetchOk: '모델 목록을 불러왔습니다 ({count}개)',
 		fetchFailPrefix: '모델 목록을 불러오지 못했습니다: ',
 		noModelsFound: '서버에 쓸 수 있는 모델이 없습니다(빈 목록).',
+		modelsOkHint: '연결은 첫 대화나 [연결 확인] 버튼으로 확인됩니다',
 		lastVerifiedPrefix: '확인 시각: ',
 		lastSuccessPrefix: '마지막 연결 성공: ',
 		neverVerified: '아직 연결에 성공한 기록이 없습니다.',
@@ -102,6 +104,11 @@ const ko = {
 			'invalid-response':
 				'서버가 LLM API 형식이 아닌 응답을 보냈습니다. 서버 주소가 웹페이지 주소가 아니라 API 주소(보통 /v1로 끝남)인지 확인하세요.',
 			unknown: '알 수 없는 이유로 요청에 실패했습니다. 오류 원문을 확인하세요.',
+			'blocked-host':
+				'보안 정책상 사내(사설) 주소로만 연결할 수 있어서, 이 서버 주소로는 요청을 보내지 않았습니다. 사내 LLM 서버 주소가 맞는지 확인하세요. (허용 범위는 플러그인을 빌드할 때 정해집니다.)',
+			redirect:
+				'서버가 요청을 다른 주소로 넘기려 해서(리다이렉트) 따라가지 않았습니다. 보안을 위해 넘겨진 주소로는 연결하지 않습니다. 서버 주소를 정확한 API 주소(보통 /v1로 끝남)로 입력하세요.',
+			cancelled: '답변 기다리기를 중지했습니다.',
 		},
 	},
 	chat: {
@@ -127,8 +134,13 @@ const ko = {
 		busyNotice: '답변을 기다리는 중입니다. 답변이 온 뒤에 다시 시도하거나 [중지]를 누르세요.',
 		stopButton: '중지',
 		stopTooltip: '답변 기다리기를 멈춥니다. (서버는 이미 받은 질문의 답변을 끝까지 만들 수 있습니다.)',
-		cancelledNotice: '답변 기다리기를 중지했습니다.',
-		refreshModelsTooltip: '모델 목록 새로고침 및 연결 확인',
+		sendTooltip: '보내기 (Enter)',
+		linkBlockedNotice: '보안 정책상 답변 속 링크는 열 수 없습니다. 주소를 클립보드에 복사했습니다.',
+		newChatButton: '새 대화',
+		historyButton: '지난 대화',
+		checkConnectionButton: '연결 확인',
+		checkConnectionTooltip:
+			'서버의 모델 목록을 다시 불러오고, 선택한 모델이 실제로 답하는지 짧은 테스트 문장으로 확인합니다',
 		newChatTooltip: '새 대화 시작 (지금 대화는 지난 대화 목록에 남습니다)',
 		historyTooltip: '지난 대화 보기',
 		historyTitle: '지난 대화',
@@ -179,7 +191,8 @@ const en: Dictionary = {
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +
 			'note content — only a fixed test sentence.',
 		baseUrlName: 'Server address',
-		baseUrlDesc: 'The API address of the LLM server, usually ending in /v1. e.g. http://server:8000/v1',
+		baseUrlDesc:
+			'The API address of the LLM server, usually ending in /v1. e.g. http://server:8000/v1 — for security, only internal (private) addresses are allowed.',
 		baseUrlPlaceholder: 'http://server:8000/v1',
 		apiKeyName: 'API key',
 		apiKeyDesc: 'The key used to authenticate with the server. Leave empty if the server does not require one.',
@@ -219,6 +232,7 @@ const en: Dictionary = {
 		fetchOk: 'Loaded the model list ({count} models)',
 		fetchFailPrefix: 'Could not load the model list: ',
 		noModelsFound: 'The server has no models available (empty list).',
+		modelsOkHint: 'the connection is confirmed by the first chat or the [Check] button',
 		lastVerifiedPrefix: 'Checked at: ',
 		lastSuccessPrefix: 'Last successful connection: ',
 		neverVerified: 'No successful connection yet.',
@@ -250,6 +264,11 @@ const en: Dictionary = {
 			'invalid-response':
 				'The server replied with something that is not an LLM API response. Make sure the address is the API address (usually ending in /v1), not a web page.',
 			unknown: 'The request failed for an unknown reason. Check the raw error message.',
+			'blocked-host':
+				'For security, the plugin only connects to internal (private) addresses, so no request was sent to this server address. Check that it is the internal LLM server. (The allowed range is set when the plugin is built.)',
+			redirect:
+				'The server tried to send the request to a different address (redirect), which was not followed for security. Enter the exact API address (usually ending in /v1).',
+			cancelled: 'Stopped waiting for the answer.',
 		},
 	},
 	chat: {
@@ -274,8 +293,13 @@ const en: Dictionary = {
 		busyNotice: 'Waiting for an answer. Try again after it arrives, or press [Stop].',
 		stopButton: 'Stop',
 		stopTooltip: 'Stop waiting for the answer. (The server may still finish generating it.)',
-		cancelledNotice: 'Stopped waiting for the answer.',
-		refreshModelsTooltip: 'Refresh model list and check connection',
+		sendTooltip: 'Send (Enter)',
+		linkBlockedNotice: 'For security, links in answers cannot be opened. The address was copied to the clipboard.',
+		newChatButton: 'New chat',
+		historyButton: 'History',
+		checkConnectionButton: 'Check',
+		checkConnectionTooltip:
+			'Reload the server’s model list and send a short test sentence to confirm the selected model actually answers',
 		newChatTooltip: 'Start a new conversation (the current one stays in past conversations)',
 		historyTooltip: 'View past conversations',
 		historyTitle: 'Past conversations',

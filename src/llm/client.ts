@@ -1,5 +1,8 @@
+import { Buffer } from 'buffer';
+import * as http from 'http';
 import { requestUrl } from 'obsidian';
 import { clampChatTimeout, LlmSettings } from '../settings';
+import { BlockedHostError, ResolvedHost, resolveAllowedHost } from './network-policy';
 
 // 서버가 응답을 주지 않고 매달려 있으면 버튼이 "확인 중..."에서, 챗봇은 입력창이
 // 잠긴 채로 영원히 멈춥니다. 그래서 정해진 시간이 지나면 실패로 처리합니다.
@@ -13,23 +16,133 @@ class RequestTimeoutError extends Error {
 	}
 }
 
-// requestUrl에는 타임아웃 옵션이 없어서, 타이머와 경쟁시켜 먼저 끝나는 쪽을 씁니다.
-// 주의: 실제 요청 자체를 취소하지는 못하고(서버는 끝까지 답을 만듭니다), UI가 계속
-// 기다리지 않게만 해줍니다. 그래서 챗봇 쪽 대기 시간은 넉넉하게 잡습니다.
-async function withTimeout<T>(request: Promise<T>, seconds: number): Promise<T> {
-	let timer: number | undefined;
-	try {
-		return await Promise.race([
-			request,
-			new Promise<never>((_resolve, reject) => {
-				timer = window.setTimeout(
-					() => reject(new RequestTimeoutError(seconds)),
-					seconds * 1000,
+class RequestCancelledError extends Error {
+	constructor() {
+		super('Cancelled by the user');
+		this.name = 'RequestCancelledError';
+	}
+}
+
+// ─── 요청을 보내는 유일한 통로 ─────────────────────────────────────────
+// 이 파일 밖에서는 네트워크 요청을 보내지 않습니다. 모든 요청이 sendHttp()를 거치고,
+// sendHttp()는 보내기 전에 network-policy.ts로 목적지가 사내 주소인지 먼저 확인합니다.
+//
+// http://와 https://를 다르게 보냅니다.
+// - http://  → Node 내장 http 모듈. ① 서버가 다른 주소로 넘겨도(리다이렉트) 따라가지 않고,
+//              ② 확인한 바로 그 IP로만 접속하며, ③ [중지]·시간 초과 때 연결을 실제로 끊습니다
+//              (서버가 연결 끊김을 감지하면 답변 생성을 멈출 수 있음 — vLLM 버전에 따라 확인 필요).
+// - https:// → Obsidian의 requestUrl. 회사 자체 인증서를 Windows 인증서 저장소에서 읽어 신뢰하기
+//              때문입니다(Node는 이 저장소를 읽지 못할 수 있음). 대신 리다이렉트를 막을 방법이 없고
+//              [중지]해도 요청이 끝까지 진행됩니다. 목적지 IP 확인은 똑같이 합니다.
+
+interface HttpInit {
+	method: 'GET' | 'POST';
+	headers: Record<string, string>;
+	body?: string;
+}
+
+interface HttpResult {
+	status: number;
+	text: string;
+	location?: string; // 리다이렉트 응답일 때 서버가 넘기려던 주소
+}
+
+// 작업이 끝나거나, signal이 중단되는 것 중 먼저 오는 쪽으로 끝납니다(중단 사유로 실패).
+function untilAborted<T>(signal: AbortSignal, work: Promise<T>): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const onAbort = () => {
+			const reason: unknown = signal.reason;
+			reject(reason instanceof Error ? reason : new Error(String(reason)));
+		};
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		signal.addEventListener('abort', onAbort, { once: true });
+		void work.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+	});
+}
+
+function nodeHttpRequest(
+	target: URL,
+	resolved: ResolvedHost,
+	init: HttpInit,
+	signal: AbortSignal,
+): Promise<HttpResult> {
+	return new Promise<HttpResult>((resolve, reject) => {
+		const body = init.body === undefined ? undefined : Buffer.from(init.body, 'utf8');
+		const request = http.request(
+			{
+				// 이름 대신 확인한 IP로 바로 접속합니다(확인 뒤에 DNS 답이 바뀌는 속임수 방지).
+				host: resolved.address,
+				family: resolved.family,
+				port: target.port || 80,
+				path: `${target.pathname}${target.search}`,
+				method: init.method,
+				headers: {
+					...init.headers,
+					Host: target.host,
+					...(body ? { 'Content-Length': String(body.length) } : {}),
+				},
+				signal,
+			},
+			(response) => {
+				const chunks: Buffer[] = [];
+				response.on('data', (chunk: Buffer) => chunks.push(chunk));
+				response.on('end', () =>
+					resolve({
+						status: response.statusCode ?? 0,
+						text: Buffer.concat(chunks).toString('utf8'),
+						location: response.headers.location,
+					}),
 				);
-			}),
-		]);
+				response.on('error', reject);
+			},
+		);
+		request.on('error', reject);
+		request.end(body);
+	});
+}
+
+async function sendHttp(
+	url: string,
+	init: HttpInit,
+	timeoutSeconds: number,
+	cancelSignal?: AbortSignal,
+): Promise<HttpResult> {
+	const controller = new AbortController();
+	const timer = window.setTimeout(
+		() => controller.abort(new RequestTimeoutError(timeoutSeconds)),
+		timeoutSeconds * 1000,
+	);
+	const onCancel = () => controller.abort(new RequestCancelledError());
+	if (cancelSignal?.aborted) onCancel();
+	cancelSignal?.addEventListener('abort', onCancel, { once: true });
+
+	try {
+		return await untilAborted(
+			controller.signal,
+			(async () => {
+				const target = new URL(url);
+				const resolved = await resolveAllowedHost(target.hostname);
+				// 주소를 확인하는 사이 [중지]를 눌렀다면 보내지 않습니다.
+				if (controller.signal.aborted) throw controller.signal.reason;
+				if (target.protocol === 'http:') {
+					return nodeHttpRequest(target, resolved, init, controller.signal);
+				}
+				const response = await requestUrl({
+					url,
+					method: init.method,
+					headers: init.headers,
+					body: init.body,
+					throw: false,
+				});
+				return { status: response.status, text: response.text };
+			})(),
+		);
 	} finally {
-		if (timer !== undefined) window.clearTimeout(timer);
+		window.clearTimeout(timer);
+		cancelSignal?.removeEventListener('abort', onCancel);
 	}
 }
 
@@ -39,7 +152,10 @@ async function withTimeout<T>(request: Promise<T>, seconds: number): Promise<T> 
 // 원인마다 "무엇이 문제이고 어떻게 고치는지" 안내문을 보여줍니다. 원문은 detail에 남깁니다.
 export type LlmErrorKind =
 	| 'invalid-url' // 서버 주소 형식이 틀림(http:// 누락 등)
+	| 'blocked-host' // 사내(사설) 주소가 아니라서 보안 정책상 보내지 않음
+	| 'redirect' // 서버가 다른 주소로 넘기려 해서 따라가지 않음
 	| 'timeout' // 정해진 시간 안에 응답 없음
+	| 'cancelled' // 사용자가 [중지]를 누름
 	| 'network' // 서버에 아예 닿지 않음(주소 오타, 서버 꺼짐, 사내망 밖)
 	| 'certificate' // https 인증서를 신뢰할 수 없음
 	| 'auth' // API 키 없음/틀림 (401, 403)
@@ -91,6 +207,7 @@ function extractServerMessage(text: string): string {
 }
 
 export function classifyHttpError(status: number, body: string): LlmErrorKind {
+	if (status >= 300 && status < 400) return 'redirect';
 	const text = body.toLowerCase();
 	if (/maximum context length|context_length_exceeded|reduce the length|too many tokens/.test(text)) {
 		return 'context-length';
@@ -114,6 +231,8 @@ export function classifyHttpError(status: number, body: string): LlmErrorKind {
 
 export function classifyException(error: unknown): LlmErrorKind {
 	if (error instanceof RequestTimeoutError) return 'timeout';
+	if (error instanceof RequestCancelledError) return 'cancelled';
+	if (error instanceof BlockedHostError) return 'blocked-host';
 	const message = error instanceof Error ? error.message : String(error);
 	// "net::ERR_CERT_..."도 net::으로 시작하므로 인증서를 먼저 봅니다.
 	if (/cert|ssl|tls/i.test(message)) return 'certificate';
@@ -128,11 +247,13 @@ export function classifyException(error: unknown): LlmErrorKind {
 	return 'unknown';
 }
 
-function httpFailure(status: number, body: string): LlmFailure {
+function httpFailure({ status, text, location }: HttpResult): LlmFailure {
 	return {
 		ok: false,
-		kind: classifyHttpError(status, body),
-		detail: `HTTP ${status}: ${extractServerMessage(body)}`,
+		kind: classifyHttpError(status, text),
+		detail: location
+			? `HTTP ${status} → ${location}`
+			: `HTTP ${status}: ${extractServerMessage(text)}`,
 	};
 }
 
@@ -268,14 +389,15 @@ async function postChatCompletion(
 	messages: ChatMessage[],
 	maxTokens: number | undefined,
 	timeoutSeconds: number,
+	cancelSignal?: AbortSignal,
 ): Promise<ChatCompletionResult> {
 	const invalidUrl = validateBaseUrl(settings.baseUrl);
 	if (invalidUrl) return invalidUrl;
 
 	try {
-		const response = await withTimeout(
-			requestUrl({
-				url: joinUrl(settings.baseUrl, '/chat/completions'),
+		const response = await sendHttp(
+			joinUrl(settings.baseUrl, '/chat/completions'),
+			{
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -286,13 +408,13 @@ async function postChatCompletion(
 					messages,
 					...(maxTokens ? { max_tokens: maxTokens } : {}),
 				}),
-				throw: false,
-			}),
+			},
 			timeoutSeconds,
+			cancelSignal,
 		);
 
 		if (response.status < 200 || response.status >= 300) {
-			return httpFailure(response.status, response.text);
+			return httpFailure(response);
 		}
 
 		const data = parseJson(response.text) as ChatCompletionResponse | undefined;
@@ -347,10 +469,11 @@ export async function testLlmConnection(
 // 챗봇 사이드바에서 실제 대화를 보낼 때 씁니다. conversation은 지금까지의 대화 전체입니다.
 // 노트 내용은 자동으로 포함되지 않습니다 — 사용자가 채팅창에 입력한 것만 전송됩니다.
 // 사내 공용 서버 부담을 줄이기 위해 최근 대화만 보내고(buildRequestMessages 참고),
-// 응답 길이도 설정된 만큼으로 제한합니다.
+// 응답 길이도 설정된 만큼으로 제한합니다. cancelSignal을 중단하면 [중지]로 처리됩니다.
 export async function sendChatMessage(
 	settings: LlmSettings,
 	conversation: readonly ChatMessage[],
+	cancelSignal?: AbortSignal,
 ): Promise<ChatCompletionResult> {
 	const maxTokens = settings.maxResponseTokens > 0 ? settings.maxResponseTokens : undefined;
 	return postChatCompletion(
@@ -358,6 +481,7 @@ export async function sendChatMessage(
 		buildRequestMessages(settings, conversation),
 		maxTokens,
 		clampChatTimeout(settings.chatTimeoutSeconds),
+		cancelSignal,
 	);
 }
 
@@ -369,18 +493,14 @@ export async function listLlmModels(
 	if (invalidUrl) return invalidUrl;
 
 	try {
-		const response = await withTimeout(
-			requestUrl({
-				url: joinUrl(settings.baseUrl, '/models'),
-				method: 'GET',
-				headers: authHeader(settings.apiKey),
-				throw: false,
-			}),
+		const response = await sendHttp(
+			joinUrl(settings.baseUrl, '/models'),
+			{ method: 'GET', headers: authHeader(settings.apiKey) },
 			CHECK_TIMEOUT_SECONDS,
 		);
 
 		if (response.status < 200 || response.status >= 300) {
-			return httpFailure(response.status, response.text);
+			return httpFailure(response);
 		}
 
 		const data = parseJson(response.text) as ModelsListResponse | undefined;

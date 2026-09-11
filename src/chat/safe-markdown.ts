@@ -91,7 +91,14 @@ export function neutralizeRemoteContent(markdown: string): string {
 //    (글자만 바꾸는 것이라 이미 그려진 결과가 다시 해석되지는 않습니다.)
 // 3) 혹시 위의 전처리가 놓친 형태가 있더라도 외부 주소를 가진 미디어 요소는 지웁니다
 //    (볼트 안 파일은 app:// 주소라서 남습니다).
-export function finalizeRenderedAnswer(el: HTMLElement): void {
+// 4) 링크를 클릭해도 아무 데도 연결되지 않는 글자로 바꿉니다. 원칙이 "외부로 연결을 시도하는 일
+//    자체가 없어야 한다"이므로, 클릭 한 번으로 브라우저(웹)·파일 공유(file://다른PC)·다른 앱
+//    (obsidian://, mailto:)이 열리는 것도 막습니다. 볼트 안 노트 링크·태그·각주(#…)만 그대로 둡니다.
+//    주소는 옆에 글자로 보여주고, 누르면 onBlockedLinkClick으로 알려서 복사할 수 있게 합니다.
+export function finalizeRenderedAnswer(
+	el: HTMLElement,
+	options: { onBlockedLinkClick?: (href: string) => void } = {},
+): void {
 	const walker = el.doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 	const textNodes: Text[] = [];
 	while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
@@ -104,6 +111,24 @@ export function finalizeRenderedAnswer(el: HTMLElement): void {
 		}
 		node.data = node.data.split(BREAK).join('');
 	}
+
+	el.querySelectorAll('a').forEach((link) => {
+		const href = link.getAttribute('href') ?? '';
+		const hasScheme = /^[a-z][a-z0-9+.-]*:|^[\\/]{2}/i.test(href.trim()); // https:, file:, //서버, \\서버
+		const isVaultLink =
+			link.hasClass('internal-link') || link.hasClass('tag') || href.startsWith('#');
+		if (isVaultLink && !hasScheme) return;
+
+		const text = link.textContent ?? '';
+		const inert = link.doc.createElement('span');
+		inert.addClass('intra-copilot-inert-link');
+		inert.setText(text);
+		if (href && href !== text) {
+			inert.createSpan({ cls: 'intra-copilot-inert-link-url', text: ` (${href})` });
+		}
+		inert.addEventListener('click', () => options.onBlockedLinkClick?.(href));
+		link.replaceWith(inert);
+	});
 
 	el.querySelectorAll('img, iframe, video, audio, source, object, embed').forEach((node) => {
 		const src = node.getAttribute('src') ?? node.getAttribute('data') ?? '';

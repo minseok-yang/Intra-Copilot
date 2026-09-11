@@ -39,7 +39,12 @@ export class ConnectionStatusStore {
 	}
 
 	record(source: ConnectionSource, state: StatusState, message: string): void {
-		if (source === 'models' && state === 'ok') return; // 위 설명 참고
+		if (source === 'models' && state === 'ok') {
+			// 목록 조회 성공만으로는 녹색을 켜지 않습니다(위 설명 참고). 이미 대화로 녹색이 됐다면
+			// 그대로 두고, 아니면 "목록은 확인됨, 연결 확인은 아직" 상태를 회색으로 알려줍니다.
+			if (this.status.source === 'chat' && this.status.state === 'ok') return;
+			state = 'idle';
+		}
 		this.update({
 			state,
 			message,

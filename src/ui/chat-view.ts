@@ -1,15 +1,17 @@
 import {
+	ButtonComponent,
 	DropdownComponent,
 	ExtraButtonComponent,
 	ItemView,
 	MarkdownRenderer,
 	Notice,
+	setIcon,
 	setTooltip,
 	ViewStateResult,
 	WorkspaceLeaf,
 } from 'obsidian';
 import IntraCopilotPlugin from '../main';
-import { ChatCompletionResult, sendChatMessage } from '../llm/client';
+import { sendChatMessage } from '../llm/client';
 import { describeLlmError, t } from '../i18n';
 import { UiLanguage } from '../settings';
 import { createStatusDot, setStatusDot, StatusState } from './status-light';
@@ -82,8 +84,8 @@ export class ChatView extends ItemView {
 	// 답변을 기다리는 중인지. 이 동안에는 새 대화/지난 대화 버튼을 잠가서,
 	// 도착한 답변이 엉뚱한 대화에 섞이지 않게 합니다. 입력칸은 열어 두어 다음 질문을 미리 쓸 수 있습니다.
 	private busy = false;
-	// [중지]를 누르면 부르는 함수. 답변을 기다리는 동안에만 채워집니다.
-	private cancelWaiting: (() => void) | null = null;
+	// [중지]를 누르면 중단시키는 컨트롤러. 답변을 기다리는 동안에만 채워집니다.
+	private abortController: AbortController | null = null;
 	// 기다리는 동안 언어가 바뀌면 화면을 다시 그리는 걸 답변이 온 뒤로 미룹니다.
 	private rebuildAfterReply = false;
 	// 파일 저장을 순서대로 하나씩 처리합니다(나중 저장이 먼저 끝나 옛 내용으로 덮어쓰는 일 방지).
@@ -102,9 +104,9 @@ export class ChatView extends ItemView {
 	private messagesEl!: HTMLElement;
 	private inputEl!: HTMLTextAreaElement;
 	private sendButtonEl!: HTMLButtonElement;
-	private newChatButton!: ExtraButtonComponent;
-	private historyButton!: ExtraButtonComponent;
-	private refreshButton!: ExtraButtonComponent;
+	private newChatButton!: ButtonComponent;
+	private historyButton!: ButtonComponent;
+	private checkButton!: ButtonComponent;
 	private modelDropdown!: DropdownComponent;
 	private modelStatusDot!: HTMLElement;
 
@@ -156,8 +158,9 @@ export class ChatView extends ItemView {
 		// 설정 화면의 연결 확인 등 어디서든 연결 상태가 바뀌면 상태등을 다시 그립니다.
 		// register()에 넣어두면 패널이 닫힐 때 자동으로 등록이 풀립니다.
 		this.register(this.plugin.connectionStatus.subscribe(() => this.renderStatusDot()));
-		// 패널을 열면 바로 한 번 모델 목록을 불러와 봅니다(설정이 안 돼 있으면 조용히 실패).
-		void this.refreshModels();
+		// 패널을 열면(= Obsidian을 켤 때마다) 가벼운 모델 목록 조회만 한 번 합니다.
+		// 테스트 대화는 보내지 않습니다 — 사용자 수 × 실행 횟수만큼 공용 서버 GPU를 쓰기 때문입니다.
+		void this.refreshModels({ testModel: false });
 	}
 
 	async onClose(): Promise<void> {
@@ -176,7 +179,7 @@ export class ChatView extends ItemView {
 			return;
 		}
 		if (this.plugin.serverSnapshot() !== this.checkedConnectionKey) {
-			void this.refreshModels();
+			void this.refreshModels({ testModel: false });
 			return;
 		}
 		// 모델 선택만 바뀐 경우: 서버에 묻지 않고 드롭다운 선택값만 맞춥니다.
@@ -197,40 +200,52 @@ export class ChatView extends ItemView {
 		container.empty();
 		container.addClass('intra-copilot-chat-view');
 
-		// 우측 상단: 새 대화 + 지난 대화 + 모델 선택 드롭다운 + 새로고침 + 상태등. 모델 선택은 설정 화면과
-		// 완전히 같은 값(settings.llm.model)을 공유합니다 — 여기서 바꾸면 설정에도 반영됩니다.
+		// 머리줄: 왼쪽은 대화에 관한 버튼([새 대화] [지난 대화]), 오른쪽은 서버 연결에 관한 것
+		// (모델 선택 · [연결 확인] · 상태등). 모델 선택은 설정 화면과 완전히 같은 값(settings.llm.model)을
+		// 공유합니다 — 여기서 바꾸면 설정에도 반영됩니다. 사이드바가 좁으면 오른쪽 묶음이 아래 줄로 내려갑니다.
 		const header = container.createDiv({ cls: 'intra-copilot-chat-header' });
+		const conversationGroup = header.createDiv({ cls: 'intra-copilot-chat-header-group' });
+		const connectionGroup = header.createDiv({
+			cls: 'intra-copilot-chat-header-group is-connection',
+		});
 
-		this.newChatButton = new ExtraButtonComponent(header)
-			.setIcon('plus')
-			.setTooltip(strings.newChatTooltip)
-			.onClick(() => {
+		this.newChatButton = this.createHeaderButton(
+			conversationGroup,
+			'plus',
+			strings.newChatButton,
+			strings.newChatTooltip,
+			() => {
 				if (this.warnIfBusy()) return;
 				this.startNewConversation();
-			});
+			},
+		);
 
-		this.historyButton = new ExtraButtonComponent(header)
-			.setIcon('history')
-			.setTooltip(strings.historyTooltip)
-			.onClick(() => {
+		this.historyButton = this.createHeaderButton(
+			conversationGroup,
+			'history',
+			strings.historyButton,
+			strings.historyTooltip,
+			() => {
 				if (this.warnIfBusy()) return;
 				new SessionHistoryModal(this.plugin.app, this.plugin, {
 					onSelect: (id) => void this.loadSessionById(id),
 					onDelete: (id) => this.handleSessionDeleted(id),
 				}).open();
-			});
+			},
+		);
 
-		this.modelDropdown = new DropdownComponent(header);
+		this.modelDropdown = new DropdownComponent(connectionGroup);
 		this.fillDropdown();
 
-		this.refreshButton = new ExtraButtonComponent(header)
-			.setIcon('refresh-cw')
-			.setTooltip(strings.refreshModelsTooltip)
-			.onClick(() => {
-				void this.refreshModels();
-			});
+		this.checkButton = this.createHeaderButton(
+			connectionGroup,
+			'refresh-cw',
+			strings.checkConnectionButton,
+			strings.checkConnectionTooltip,
+			() => void this.refreshModels({ testModel: true }),
+		);
 
-		this.modelStatusDot = createStatusDot(header);
+		this.modelStatusDot = createStatusDot(connectionGroup);
 		this.renderStatusDot();
 
 		this.messagesEl = container.createDiv({ cls: 'intra-copilot-chat-messages' });
@@ -246,7 +261,7 @@ export class ChatView extends ItemView {
 		// 기다리는 동안에는 같은 버튼이 [중지]가 됩니다.
 		this.sendButtonEl.onclick = () => {
 			if (this.busy) {
-				this.cancelWaiting?.();
+				this.abortController?.abort();
 			} else {
 				void this.handleSend();
 			}
@@ -266,6 +281,23 @@ export class ChatView extends ItemView {
 		this.applyBusyState();
 	}
 
+	// 머리줄 버튼: 아이콘 + 글자. ButtonComponent.setIcon()은 글자를 지워버려서 둘을 직접 넣습니다
+	// (설정 화면의 [고급 설정] 버튼과 같은 방식).
+	private createHeaderButton(
+		parent: HTMLElement,
+		icon: string,
+		label: string,
+		tooltip: string,
+		onClick: () => void,
+	): ButtonComponent {
+		const button = new ButtonComponent(parent).setTooltip(tooltip).onClick(onClick);
+		button.buttonEl.empty();
+		button.buttonEl.addClass('intra-copilot-header-button');
+		setIcon(button.buttonEl.createSpan({ cls: 'intra-copilot-header-button-icon' }), icon);
+		button.buttonEl.createSpan({ text: label });
+		return button;
+	}
+
 	// 언어가 바뀌었을 때: 틀을 새로 만들고 지금 대화를 다시 그립니다.
 	private async rebuild(): Promise<void> {
 		this.buildLayout();
@@ -277,6 +309,11 @@ export class ChatView extends ItemView {
 		return this.busy;
 	}
 
+	private isConfigured(): boolean {
+		const { baseUrl, model } = this.plugin.settings.llm;
+		return Boolean(baseUrl && model);
+	}
+
 	private setBusy(busy: boolean): void {
 		this.busy = busy;
 		this.applyBusyState();
@@ -286,12 +323,12 @@ export class ChatView extends ItemView {
 		const strings = this.strings();
 		this.sendButtonEl.setText(this.busy ? strings.stopButton : strings.sendButton);
 		this.sendButtonEl.toggleClass('mod-warning', this.busy);
-		setTooltip(this.sendButtonEl, this.busy ? strings.stopTooltip : '');
+		setTooltip(this.sendButtonEl, this.busy ? strings.stopTooltip : strings.sendTooltip);
 		this.newChatButton.setDisabled(this.busy);
 		this.historyButton.setDisabled(this.busy);
 		// 잠긴 버튼이 눈에 띄게 흐려지도록 전용 클래스를 붙입니다(styles.css).
-		this.newChatButton.extraSettingsEl.toggleClass('intra-copilot-is-busy', this.busy);
-		this.historyButton.extraSettingsEl.toggleClass('intra-copilot-is-busy', this.busy);
+		this.newChatButton.buttonEl.toggleClass('intra-copilot-is-busy', this.busy);
+		this.historyButton.buttonEl.toggleClass('intra-copilot-is-busy', this.busy);
 	}
 
 	// 지금 대화가 어느 파일인지 바꿀 때는 항상 여기를 거칩니다. Obsidian이 창 배치를 저장할 때
@@ -382,7 +419,9 @@ export class ChatView extends ItemView {
 			'',
 			this,
 		);
-		finalizeRenderedAnswer(answerEl);
+		finalizeRenderedAnswer(answerEl, {
+			onBlockedLinkClick: (href) => void this.copyToClipboard(href, strings.linkBlockedNotice),
+		});
 
 		if (message.truncated) {
 			bubble.createDiv({ cls: 'intra-copilot-chat-notice', text: strings.truncatedNotice });
@@ -397,11 +436,11 @@ export class ChatView extends ItemView {
 		}
 	}
 
-	private async copyToClipboard(text: string): Promise<void> {
+	private async copyToClipboard(text: string, successNotice?: string): Promise<void> {
 		const strings = this.strings();
 		try {
 			await navigator.clipboard.writeText(text);
-			new Notice(strings.copied);
+			new Notice(successNotice ?? strings.copied);
 		} catch {
 			new Notice(strings.copyFailed);
 		}
@@ -433,11 +472,11 @@ export class ChatView extends ItemView {
 			});
 	}
 
-	// 새로고침(↻): ① 모델 목록을 다시 불러오고 ② 선택한 모델에 짧은 테스트 문장을 보내
-	// 실제로 답하는지 확인합니다. 목록에 이름이 있어도 대화가 안 되는 모델(음성·임베딩 등)이 있어서,
-	// ②까지 성공해야 상태등이 녹색이 됩니다. 확인하는 동안에는 새로고침 아이콘이 돕니다.
+	// ① 모델 목록을 다시 불러오고, testModel이면([연결 확인] 버튼) ② 선택한 모델에 짧은 테스트 문장을 보내
+	// 실제로 답하는지까지 확인합니다. 목록에 이름이 있어도 대화가 안 되는 모델(음성·임베딩 등)이 있어서,
+	// ②나 실제 대화가 성공해야 상태등이 녹색이 됩니다. 확인하는 동안에는 [연결 확인] 버튼의 아이콘이 돕니다.
 	// (두 결과 모두 fetchModelList/checkSelectedModel이 상태등에 직접 기록합니다.)
-	private async refreshModels(): Promise<void> {
+	private async refreshModels(options: { testModel: boolean }): Promise<void> {
 		const seq = ++this.modelCheckSeq;
 		this.checkedConnectionKey = this.plugin.serverSnapshot();
 		this.setChecking(true);
@@ -447,7 +486,7 @@ export class ChatView extends ItemView {
 			this.availableModels = outcome.models;
 			this.lastModelState = outcome.state;
 			this.fillDropdown();
-			if (outcome.state === 'ok') {
+			if (options.testModel && outcome.state === 'ok') {
 				await checkSelectedModel(this.plugin, outcome.models);
 			}
 		} finally {
@@ -457,8 +496,8 @@ export class ChatView extends ItemView {
 	}
 
 	private setChecking(checking: boolean): void {
-		this.refreshButton.setDisabled(checking);
-		this.refreshButton.extraSettingsEl.toggleClass('intra-copilot-is-checking', checking);
+		this.checkButton.setDisabled(checking);
+		this.checkButton.buttonEl.toggleClass('intra-copilot-is-checking', checking);
 	}
 
 	private fillDropdown(): void {
@@ -490,8 +529,7 @@ export class ChatView extends ItemView {
 			this.messagesEl.empty(); // "아직 대화가 없습니다" 문구를 지웁니다.
 		}
 
-		const { baseUrl, model } = this.plugin.settings.llm;
-		if (!baseUrl || !model) {
+		if (!this.isConfigured()) {
 			this.appendBubble('assistant', strings.notConfigured, { isError: true });
 			return;
 		}
@@ -517,23 +555,19 @@ export class ChatView extends ItemView {
 		const pending = this.appendBubble('assistant', strings.thinking, { isPending: true });
 
 		const snapshot = this.plugin.connectionSnapshot();
-		// [중지]는 요청 자체를 취소하지는 못하고(서버는 계속 만듭니다), 기다리는 것만 그만둡니다.
-		// 그래서 답변 요청과 "중지 버튼" 중 먼저 끝나는 쪽을 씁니다. null이면 중지한 것입니다.
-		const stopped = new Promise<null>((resolve) => {
-			this.cancelWaiting = () => resolve(null);
-		});
-		const result: ChatCompletionResult | null = await Promise.race([
-			sendChatMessage(this.plugin.settings.llm, conversation),
-			stopped,
-		]);
-		this.cancelWaiting = null;
+		// [중지]를 누르면 이 컨트롤러를 중단합니다. http 서버라면 연결이 실제로 끊기고,
+		// https 서버라면 기다리는 것만 그만둡니다(client.ts의 sendHttp 참고).
+		const controller = new AbortController();
+		this.abortController = controller;
+		const result = await sendChatMessage(this.plugin.settings.llm, conversation, controller.signal);
+		this.abortController = null;
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 
 		this.setBusy(false);
 		// 버튼을 잠가두므로 보통은 항상 true지만, 만약을 위해 화면 갱신 여부만 이걸로 판단합니다.
 		const stillOnScreen = this.conversation === conversation;
 
-		if (result?.ok) {
+		if (result.ok) {
 			const reply: StoredMessage = {
 				role: 'assistant',
 				content: result.reply,
@@ -556,9 +590,9 @@ export class ChatView extends ItemView {
 
 			let summary: string;
 			let detail = '';
-			if (result === null) {
+			if (result.kind === 'cancelled') {
 				// 사용자가 멈춘 것이라 서버 상태는 알 수 없으므로 상태등은 건드리지 않습니다.
-				summary = strings.cancelledNotice;
+				summary = describeLlmError(this.plugin.settings.general.language, result).summary;
 			} else {
 				const described = describeLlmError(this.plugin.settings.general.language, result);
 				// "답변 대기 시간" 설정은 챗봇 답변에만 적용되므로, 그 안내는 여기서만 덧붙입니다.
@@ -609,6 +643,11 @@ export class ChatView extends ItemView {
 		});
 		retryButton.onclick = () => {
 			if (this.warnIfBusy()) return;
+			// 그 사이 서버 설정을 지웠다면, 말풍선을 지우기 전에 알려서 질문 글이 사라지지 않게 합니다.
+			if (!this.isConfigured()) {
+				new Notice(strings.notConfigured);
+				return;
+			}
 			userBubble.remove();
 			errorBubble.remove();
 			// 실패할 때 입력칸에 되돌려 둔 같은 글이 그대로 있으면 비웁니다(두 번 보내는 것처럼 보이지 않게).

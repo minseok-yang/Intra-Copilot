@@ -82,12 +82,15 @@ export async function fetchModelList(plugin: IntraCopilotPlugin): Promise<ModelL
 		}
 	}
 
-	plugin.reportConnection('models', snapshot, outcome.state, outcome.message);
+	// 챗봇 상태등에는 "연결은 첫 대화나 [연결 확인]으로 확인된다"는 안내를 덧붙입니다(목록 조회만으로는 녹색이 안 되므로).
+	const statusMessage =
+		outcome.state === 'ok' ? `${outcome.message} · ${strings.modelsOkHint}` : outcome.message;
+	plugin.reportConnection('models', snapshot, outcome.state, statusMessage);
 	return outcome;
 }
 
 // 선택된 모델에 짧은 테스트 문장을 보내 "실제로 답하는지" 확인하고, 결과를 챗봇 상태등에
-// 기록합니다. 설정 화면의 [연결 확인]과 챗봇의 새로고침(↻)이 함께 씁니다.
+// 기록합니다. 설정 화면과 챗봇 머리줄의 [연결 확인] 버튼이 함께 씁니다.
 // availableModels를 주면, 선택한 모델이 서버 목록에 없을 때 요청을 보내지 않고 바로 알려줍니다.
 export async function checkSelectedModel(
 	plugin: IntraCopilotPlugin,
