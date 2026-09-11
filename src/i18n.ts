@@ -122,6 +122,10 @@ const ko = {
 		emptyState:
 			'아직 대화가 없습니다. 아래에 메시지를 입력해보세요. @를 입력하면 볼트의 폴더·노트를 골라, 그 내용을 두고 대화할 수 있습니다. ' +
 			'/를 입력하면 저장해 둔 스킬(자주 쓰는 작업 지시)을 불러옵니다.',
+		editTooltip: '수정해서 다시 보내기 (이 메시지부터 아래 대화가 바뀝니다)',
+		editBanner: '메시지 수정 중 — 보내면 이 메시지부터 아래 대화 {count}개가 새 내용으로 바뀝니다. (Esc: 취소)',
+		editCancel: '취소',
+		editSkillMissing: '이 메시지에 썼던 스킬을 찾을 수 없어 스킬 없이 수정합니다.',
 		pickerWholeVault: '볼트 전체',
 		pickerCurrentNote: '현재 노트',
 		pickerNoMatch: '일치하는 폴더·노트가 없습니다',
@@ -338,6 +342,10 @@ const en: Dictionary = {
 		emptyState:
 			'No messages yet. Type something below to start. Type @ to pick folders or notes from your vault and chat about their content. ' +
 			'Type / to use a saved skill (a reusable task instruction).',
+		editTooltip: 'Edit and resend (replaces the conversation from this message on)',
+		editBanner: 'Editing a message — sending replaces this message and the {count} messages from here on. (Esc: cancel)',
+		editCancel: 'Cancel',
+		editSkillMissing: 'The skill used in this message was not found, so it is edited without a skill.',
 		pickerWholeVault: 'Whole vault',
 		pickerCurrentNote: 'Current note',
 		pickerNoMatch: 'No matching folders or notes',
