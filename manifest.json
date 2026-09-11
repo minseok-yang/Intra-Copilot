@@ -3,7 +3,7 @@
 	"name": "Intra Copilot",
 	"version": "1.0.0",
 	"minAppVersion": "1.7.2",
-	"description": "Intra Copilot plugin scaffold for Obsidian.",
+	"description": "사내 폐쇄망 환경에서 쓰는 Obsidian 챗봇·노트 도우미입니다.",
 	"author": "Minseok Yang",
 	"isDesktopOnly": true
 }

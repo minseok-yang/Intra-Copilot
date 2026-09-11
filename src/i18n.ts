@@ -25,6 +25,12 @@ const ko = {
 			'예: http://사내서버주소/v1 (집에서 테스트할 때는 임시로 다른 서버 주소를 넣어도 됩니다)',
 		apiKeyName: 'API 키',
 		apiKeyDesc: '키가 필요 없는 서버라면 비워두세요.',
+		maxHistoryName: '대화 기록 길이 제한',
+		maxHistoryDesc:
+			'서버로 보낼 때 포함할 최근 메시지 개수입니다. 화면에는 전체 대화가 남지만, 오래된 부분은 서버로 보내지 않습니다. 0이면 제한 없음(전체 전송).',
+		maxResponseName: '응답 길이 제한 (max_tokens)',
+		maxResponseDesc:
+			'답변이 너무 길어지지 않도록 서버에 요청하는 최대 길이입니다. 0이면 제한 없음(서버 기본값 사용). 사내 공용 서버 부담을 줄이는 데 도움이 됩니다.',
 		connectionHeading: '연결',
 		connectionDesc:
 			'모델을 선택하고 서버 연결 상태를 확인합니다. 이 탭을 열 때마다 자동으로 다시 확인합니다.',
@@ -54,6 +60,13 @@ const ko = {
 		notConfigured: 'LLM 연결 탭에서 서버 주소와 모델을 먼저 설정하세요.',
 		errorPrefix: '오류: ',
 		refreshModelsTooltip: '모델 목록 새로고침',
+		newChatTooltip: '새 대화 시작 (지금까지의 대화를 지웁니다)',
+		historyTooltip: '지난 대화 보기',
+		historyTitle: '지난 대화',
+		historyEmpty: '저장된 대화가 없습니다.',
+		historyLoadButton: '불러오기',
+		historyDeleteTooltip: '이 대화 삭제',
+		historyLoadFailed: '대화를 불러오지 못했습니다.',
 	},
 	license: {
 		summaryHeading: '라이선스 및 정책',
@@ -93,6 +106,12 @@ const en: Dictionary = {
 			'e.g. http://your-internal-server/v1 (feel free to use a different address temporarily while testing at home)',
 		apiKeyName: 'API key',
 		apiKeyDesc: 'Leave empty if the server does not require one.',
+		maxHistoryName: 'Conversation history limit',
+		maxHistoryDesc:
+			'How many recent messages to include when sending to the server. The full conversation stays on screen, but older parts are not sent. 0 means no limit (send everything).',
+		maxResponseName: 'Response length limit (max_tokens)',
+		maxResponseDesc:
+			'The maximum response length requested from the server, so replies don\'t run on forever. 0 means no limit (server default). Helps reduce load on a shared internal server.',
 		connectionHeading: 'Connection',
 		connectionDesc:
 			'Pick a model and check the server connection. This refreshes automatically every time you open this tab.',
@@ -122,6 +141,13 @@ const en: Dictionary = {
 		notConfigured: 'Set the server address and model in the LLM connection tab first.',
 		errorPrefix: 'Error: ',
 		refreshModelsTooltip: 'Refresh model list',
+		newChatTooltip: 'Start a new conversation (clears the current one)',
+		historyTooltip: 'View past conversations',
+		historyTitle: 'Past conversations',
+		historyEmpty: 'No saved conversations yet.',
+		historyLoadButton: 'Load',
+		historyDeleteTooltip: 'Delete this conversation',
+		historyLoadFailed: 'Could not load the conversation.',
 	},
 	license: {
 		summaryHeading: 'License & policy',

@@ -101,6 +101,7 @@
 
 .intra-copilot-chat-header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 6px;
@@ -157,6 +158,26 @@
 	align-self: flex-start;
 	background: var(--background-secondary);
 	color: var(--text-normal);
+}
+
+/* 답변을 마크다운으로 렌더링한 말풍선. pre-wrap을 끄지 않으면 문단 사이에
+   빈 줄이 두 배로 벌어집니다. 첫/마지막 요소의 바깥 여백도 없앱니다. */
+.intra-copilot-chat-bubble.is-markdown {
+	white-space: normal;
+}
+
+.intra-copilot-chat-bubble.is-markdown > :first-child {
+	margin-top: 0;
+}
+
+.intra-copilot-chat-bubble.is-markdown > :last-child {
+	margin-bottom: 0;
+}
+
+/* 좁은 사이드바에서 코드블록이 말풍선을 밀어내지 않도록 가로 스크롤을 줍니다. */
+.intra-copilot-chat-bubble.is-markdown pre {
+	overflow-x: auto;
+	max-width: 100%;
 }
 
 .intra-copilot-chat-bubble.is-pending {
