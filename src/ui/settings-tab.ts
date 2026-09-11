@@ -242,23 +242,26 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		};
 		testButton.onClick(() => void checkConnection());
 
-		// 고급 설정 — "고급 설정" 글자 자체가 버튼이고, 옆 화살표 아이콘이 펼침/접힘을 보여줍니다.
-		const advancedToggle = modelSetting.controlEl.createDiv({
-			cls: 'intra-copilot-advanced-toggle',
+		// 고급 설정 — 다른 두 버튼과 똑같은 ButtonComponent라서 배경색·글자 크기가 자동으로 맞습니다.
+		// ButtonComponent.setIcon()은 글자를 지워버려서, 아이콘과 글자를 직접 함께 넣습니다.
+		const advancedRow = modelSetting.controlEl.createDiv({ cls: 'intra-copilot-inline-row' });
+		const advancedButton = new ButtonComponent(advancedRow);
+		advancedButton.buttonEl.empty();
+		const advancedChevron = advancedButton.buttonEl.createSpan({
+			cls: 'intra-copilot-advanced-icon',
 		});
-		const advancedChevron = advancedToggle.createSpan({ cls: 'intra-copilot-advanced-chevron' });
 		setIcon(advancedChevron, 'chevron-right');
-		advancedToggle.createSpan({ text: strings.advancedName });
+		advancedButton.buttonEl.createSpan({ text: strings.advancedName });
 
 		const advancedSection = modelSetting.controlEl.createDiv({
 			cls: 'intra-copilot-advanced-section',
 		});
 		advancedSection.hidden = true;
 
-		advancedToggle.onclick = () => {
+		advancedButton.onClick(() => {
 			advancedSection.hidden = !advancedSection.hidden;
 			setIcon(advancedChevron, advancedSection.hidden ? 'chevron-right' : 'chevron-down');
-		};
+		});
 
 		new Setting(advancedSection)
 			.setName(strings.maxHistoryName)
