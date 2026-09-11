@@ -1,5 +1,6 @@
 import {
 	App,
+	ButtonComponent,
 	DropdownComponent,
 	PluginSettingTab,
 	Setting,
@@ -126,90 +127,146 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.type = 'password';
 			});
 
-		let statusDot!: HTMLElement;
-		let statusText!: HTMLElement;
-
-		new Setting(containerEl)
+		// "모델 이름" 항목: 위 줄은 [불러오기 버튼 + 상태등], 아래 줄은 드롭다운.
+		const modelSetting = new Setting(containerEl)
 			.setName(strings.modelName)
-			.setDesc(strings.modelDesc)
-			.addButton((button) =>
-				button.setButtonText(strings.fetchModelsButton).onClick(async () => {
-					const { baseUrl } = this.plugin.settings.llm;
-					if (!baseUrl) {
-						this.setStatus(statusDot, statusText, 'error', strings.fillBaseUrlFirst);
-						return;
-					}
+			.setDesc(strings.modelDesc);
+		modelSetting.controlEl.addClass('intra-copilot-stacked-control');
 
-					button.setButtonText(strings.fetching).setDisabled(true);
-					const result = await listLlmModels(this.plugin.settings.llm);
-					button.setButtonText(strings.fetchModelsButton).setDisabled(false);
+		const fetchRow = modelSetting.controlEl.createDiv({
+			cls: 'intra-copilot-inline-row',
+		});
+		const fetchButton = new ButtonComponent(fetchRow).setButtonText(
+			strings.fetchModelsButton,
+		);
+		const fetchStatusEl = fetchRow.createDiv({ cls: 'intra-copilot-status' });
+		const fetchStatusDot = fetchStatusEl.createSpan({
+			cls: 'intra-copilot-status-dot',
+		});
+		const fetchStatusText = fetchStatusEl.createSpan({
+			cls: 'intra-copilot-status-text',
+			text: strings.statusIdle,
+		});
 
-					if (!result.ok) {
-						this.setStatus(
-							statusDot,
-							statusText,
-							'error',
-							`${strings.fetchFailPrefix}${result.error}`,
-						);
-						return;
-					}
-					if (result.models.length === 0) {
-						this.setStatus(statusDot, statusText, 'error', strings.noModelsFound);
-						return;
-					}
-					if (this.modelDropdown) {
-						this.refreshModelOptions(this.modelDropdown, result.models);
-					}
-				}),
-			)
-			.addDropdown((dropdown) => {
-				this.modelDropdown = dropdown;
-				this.refreshModelOptions(dropdown, []);
-			});
+		const dropdownRow = modelSetting.controlEl.createDiv();
+		const modelDropdown = new DropdownComponent(dropdownRow);
+		this.modelDropdown = modelDropdown;
+		this.refreshModelOptions(modelDropdown, []);
+
+		fetchButton.onClick(async () => {
+			const { baseUrl } = this.plugin.settings.llm;
+			if (!baseUrl) {
+				this.setStatus(fetchStatusDot, fetchStatusText, 'error', strings.fillBaseUrlFirst);
+				return;
+			}
+
+			fetchButton.setButtonText(strings.fetching).setDisabled(true);
+			this.setStatus(fetchStatusDot, fetchStatusText, 'idle', strings.statusChecking);
+			const result = await listLlmModels(this.plugin.settings.llm);
+			fetchButton.setButtonText(strings.fetchModelsButton).setDisabled(false);
+
+			if (!result.ok) {
+				this.setStatus(
+					fetchStatusDot,
+					fetchStatusText,
+					'error',
+					`${strings.fetchFailPrefix}${result.error}`,
+				);
+				return;
+			}
+			if (result.models.length === 0) {
+				this.setStatus(fetchStatusDot, fetchStatusText, 'error', strings.noModelsFound);
+				return;
+			}
+
+			this.setStatus(fetchStatusDot, fetchStatusText, 'ok', strings.fetchOk);
+			this.refreshModelOptions(modelDropdown, result.models);
+		});
+
+		// "연결 테스트" 항목: 상태등을 같은 컨트롤 영역 안에 둬서 한 블록으로 보이게 합니다.
+		let testStatusDot!: HTMLElement;
+		let testStatusText!: HTMLElement;
+
+		// "마지막 연결 확인" 항목: 설정에 저장되어 계속 남아있는 기록(서버/모델/시각)입니다.
+		// 두 버튼(테스트/새로고침) 모두 성공하면 이 기록을 갱신합니다.
+		const lastVerifiedSetting = new Setting(containerEl)
+			.setName(strings.lastVerifiedName)
+			.setDesc(this.formatLastVerified(strings));
 
 		const testSetting = new Setting(containerEl)
 			.setName(strings.testName)
 			.setDesc(strings.testDesc)
 			.addButton((button) =>
 				button.setButtonText(strings.testButton).onClick(async () => {
-					const { baseUrl, model } = this.plugin.settings.llm;
-					if (!baseUrl || !model) {
-						this.setStatus(statusDot, statusText, 'idle', strings.statusMissing);
-						return;
-					}
-
 					button.setButtonText(strings.testing).setDisabled(true);
-					this.setStatus(statusDot, statusText, 'idle', strings.statusChecking);
-					const result = await testLlmConnection(this.plugin.settings.llm);
+					await this.runConnectionTest(testStatusDot, testStatusText, lastVerifiedSetting);
 					button.setButtonText(strings.testButton).setDisabled(false);
-
-					if (result.ok) {
-						this.setStatus(
-							statusDot,
-							statusText,
-							'ok',
-							`${strings.statusOk} · ${strings.statusReplyPrefix}${result.reply}`,
-						);
-					} else {
-						this.setStatus(
-							statusDot,
-							statusText,
-							'error',
-							strings.statusError,
-							result.error,
-						);
-					}
 				}),
 			);
 
-		// 상태등을 "연결 테스트" 항목의 컨트롤 영역 안에 넣어서, 같은 블록 안에
-		// 있는 것처럼 보이게 합니다(따로 떨어진 영역이면 별개 기능처럼 보임).
-		const statusEl = testSetting.controlEl.createDiv({ cls: 'intra-copilot-status' });
-		statusDot = statusEl.createSpan({ cls: 'intra-copilot-status-dot' });
-		statusText = statusEl.createSpan({
+		const testStatusEl = testSetting.controlEl.createDiv({ cls: 'intra-copilot-status' });
+		testStatusDot = testStatusEl.createSpan({ cls: 'intra-copilot-status-dot' });
+		testStatusText = testStatusEl.createSpan({
 			cls: 'intra-copilot-status-text',
 			text: strings.statusIdle,
 		});
+
+		lastVerifiedSetting.addExtraButton((btn) =>
+			btn
+				.setIcon('refresh-cw')
+				.setTooltip(strings.refreshTooltip)
+				.onClick(async () => {
+					btn.setDisabled(true);
+					await this.runConnectionTest(testStatusDot, testStatusText, lastVerifiedSetting);
+					btn.setDisabled(false);
+				}),
+		);
+	}
+
+	// "테스트"와 "새로고침" 버튼이 공통으로 쓰는 로직입니다. 상태등을 갱신하고,
+	// 성공하면 "마지막 연결 확인" 기록도 함께 저장/갱신합니다.
+	private async runConnectionTest(
+		statusDot: HTMLElement,
+		statusText: HTMLElement,
+		lastVerifiedSetting: Setting,
+	): Promise<void> {
+		const strings = t(this.plugin.settings.general.language).llm;
+		const { baseUrl, model } = this.plugin.settings.llm;
+
+		if (!baseUrl || !model) {
+			this.setStatus(statusDot, statusText, 'idle', strings.statusMissing);
+			return;
+		}
+
+		this.setStatus(statusDot, statusText, 'idle', strings.statusChecking);
+		const result = await testLlmConnection(this.plugin.settings.llm);
+
+		if (result.ok) {
+			this.setStatus(
+				statusDot,
+				statusText,
+				'ok',
+				`${strings.statusOk} · ${strings.statusReplyPrefix}${result.reply}`,
+			);
+			this.plugin.settings.llm.lastVerified = {
+				at: new Date().toISOString(),
+				baseUrl,
+				model,
+			};
+			await this.plugin.saveSettings();
+			lastVerifiedSetting.setDesc(this.formatLastVerified(strings));
+		} else {
+			this.setStatus(statusDot, statusText, 'error', strings.statusError, result.error);
+		}
+	}
+
+	private formatLastVerified(strings: ReturnType<typeof t>['llm']): string {
+		const record = this.plugin.settings.llm.lastVerified;
+		if (!record) {
+			return strings.neverVerified;
+		}
+		const when = new Date(record.at).toLocaleString();
+		return `${strings.lastVerifiedPrefix}${when} · ${record.baseUrl} · ${record.model}`;
 	}
 
 	// dropdown을 비우고 다시 채웁니다. models가 비어 있으면 이미 저장된 모델 값만(있다면) 보여줍니다.

@@ -1,6 +1,8 @@
 import { Plugin } from 'obsidian';
 import { DEFAULT_SETTINGS, IntraCopilotSettings } from './settings';
 import { IntraCopilotSettingTab } from './ui/settings-tab';
+import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './ui/chat-view';
+import { t } from './i18n';
 
 export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
@@ -8,6 +10,15 @@ export default class IntraCopilotPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new IntraCopilotSettingTab(this.app, this));
+
+		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
+		this.addRibbonIcon(
+			'message-circle',
+			t(this.settings.general.language).chat.ribbonTooltip,
+			() => {
+				void revealChatView(this);
+			},
+		);
 	}
 
 	onunload() {}

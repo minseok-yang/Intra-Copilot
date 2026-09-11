@@ -41,11 +41,28 @@
 	width: 100%;
 }
 
+/* 버튼+상태등이 위 줄, 드롭다운 등 다음 요소가 아래 줄에 오도록 세로로 쌓습니다. */
+.intra-copilot-tab-content .setting-item-control.intra-copilot-stacked-control {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.intra-copilot-inline-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .intra-copilot-status {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	margin-left: 10px;
+}
+
+.intra-copilot-inline-row .intra-copilot-status {
+	margin-left: 0;
 }
 
 .intra-copilot-status-dot {
@@ -56,31 +73,87 @@
 	flex-shrink: 0;
 }
 
+/* 네온 느낌의 정적인 빛(깜빡이지 않음). currentColor로 배경과 같은 색을 빛으로 씁니다. */
 .intra-copilot-status-dot.is-ok {
 	background: var(--color-green);
 	color: var(--color-green);
-	animation: intra-copilot-glow 1.4s ease-in-out infinite;
+	box-shadow: 0 0 6px 2px currentColor;
 }
 
 .intra-copilot-status-dot.is-error {
 	background: var(--color-red);
 	color: var(--color-red);
-	animation: intra-copilot-glow 1.4s ease-in-out infinite;
-}
-
-/* 네온 사인처럼 빛이 커졌다 작아졌다 하는 효과. currentColor를 써서
-   is-ok/is-error에서 정한 색을 그대로 빛 색으로 씁니다. */
-@keyframes intra-copilot-glow {
-	0%,
-	100% {
-		box-shadow: 0 0 4px 1px currentColor;
-	}
-	50% {
-		box-shadow: 0 0 10px 4px currentColor;
-	}
+	box-shadow: 0 0 6px 2px currentColor;
 }
 
 .intra-copilot-status-text {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
+}
+
+.intra-copilot-chat-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 8px;
+	gap: 8px;
+}
+
+.intra-copilot-chat-messages {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.intra-copilot-chat-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-chat-bubble {
+	padding: 8px 10px;
+	border-radius: 8px;
+	white-space: pre-wrap;
+	max-width: 90%;
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-chat-bubble.is-user {
+	align-self: flex-end;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.intra-copilot-chat-bubble.is-assistant {
+	align-self: flex-start;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.intra-copilot-chat-bubble.is-pending {
+	opacity: 0.6;
+	font-style: italic;
+}
+
+.intra-copilot-chat-bubble.is-error {
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+}
+
+.intra-copilot-chat-input-row {
+	display: flex;
+	gap: 6px;
+	align-items: flex-end;
+}
+
+.intra-copilot-chat-input {
+	flex: 1 1 auto;
+	resize: none;
+	min-height: 2.4em;
+}
+
+.intra-copilot-chat-send {
+	flex-shrink: 0;
 }
