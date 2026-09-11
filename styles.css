@@ -99,6 +99,32 @@
 	gap: 8px;
 }
 
+.intra-copilot-chat-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	padding-bottom: 6px;
+	margin-bottom: 2px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* 챗봇 상단은 설정 화면보다 훨씬 좁은 공간이라, 같은 부품(드롭다운/상태등)을
+   여기서는 더 작게 줄여서 씁니다. */
+.intra-copilot-chat-header select {
+	max-width: 60%;
+	font-size: var(--font-ui-smaller);
+	height: 24px;
+	min-height: 0;
+	padding: 0 4px;
+}
+
+.intra-copilot-chat-header .intra-copilot-status-dot {
+	width: 6px;
+	height: 6px;
+	margin-left: 0;
+}
+
 .intra-copilot-chat-messages {
 	flex: 1 1 auto;
 	overflow-y: auto;
@@ -113,11 +139,12 @@
 }
 
 .intra-copilot-chat-bubble {
-	padding: 8px 10px;
-	border-radius: 8px;
+	padding: 6px 10px;
+	border-radius: 10px;
 	white-space: pre-wrap;
-	max-width: 90%;
+	max-width: 85%;
 	font-size: var(--font-ui-small);
+	line-height: 1.4;
 }
 
 .intra-copilot-chat-bubble.is-user {
@@ -151,9 +178,49 @@
 .intra-copilot-chat-input {
 	flex: 1 1 auto;
 	resize: none;
-	min-height: 2.4em;
+	min-height: 2.2em;
+	font-size: var(--font-ui-small);
+	padding: 6px 8px;
+	border-radius: 6px;
 }
 
 .intra-copilot-chat-send {
 	flex-shrink: 0;
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-license-summary {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-license-meta {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	column-gap: 12px;
+	row-gap: 4px;
+	font-size: var(--font-ui-small);
+	margin: 0.6em 0;
+}
+
+.intra-copilot-license-meta dt {
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.intra-copilot-license-meta dd {
+	margin: 0;
+	color: var(--text-normal);
+}
+
+.intra-copilot-connection-status-text {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	margin: 4px 0 0;
+}
+
+.intra-copilot-guide-view {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 24px;
 }

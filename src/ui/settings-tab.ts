@@ -9,6 +9,10 @@ import IntraCopilotPlugin from '../main';
 import { listLlmModels, testLlmConnection } from '../llm/client';
 import { UiLanguage } from '../settings';
 import { t } from '../i18n';
+import { createStatusLight, setStatusLight } from './status-light';
+import { populateModelDropdown } from './model-dropdown';
+import { openGuideWindow } from './guide-view';
+import { LICENSE_MD, USER_GUIDE_MD } from '../content/docs';
 
 type TabId = 'general' | 'llm';
 // 새 모듈(예: 임베딩 연결)이 생기면 여기에 id를 추가하고,
@@ -74,6 +78,32 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 	private renderGeneralTab(containerEl: HTMLElement): void {
 		const language = this.plugin.settings.general.language;
 		const strings = t(language).general;
+		const licenseStrings = t(language).license;
+
+		// 라이선스/정책 요약 — 일반 탭 맨 위. 세부 내용은 [자세히 보기]에서 새 창으로 봅니다.
+		new Setting(containerEl).setName(licenseStrings.summaryHeading).setHeading();
+		containerEl.createEl('p', {
+			cls: 'intra-copilot-license-summary',
+			text: licenseStrings.summaryText,
+		});
+
+		const meta = containerEl.createEl('dl', { cls: 'intra-copilot-license-meta' });
+		const addMetaRow = (label: string, value: string) => {
+			meta.createEl('dt', { text: label });
+			meta.createEl('dd', { text: value });
+		};
+		addMetaRow(licenseStrings.versionLabel, this.plugin.manifest.version);
+		addMetaRow(licenseStrings.descriptionLabel, this.plugin.manifest.description ?? '');
+		addMetaRow(licenseStrings.publisherLabel, this.plugin.manifest.author ?? '');
+
+		new Setting(containerEl).addButton((button) =>
+			button.setButtonText(licenseStrings.detailButton).onClick(() => {
+				void openGuideWindow(this.plugin, {
+					title: licenseStrings.summaryHeading,
+					markdown: LICENSE_MD,
+				});
+			}),
+		);
 
 		new Setting(containerEl).setName(strings.heading).setHeading();
 
@@ -90,6 +120,18 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						this.display();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName(strings.guideName)
+			.setDesc(strings.guideDesc)
+			.addButton((button) =>
+				button.setButtonText(strings.guideButton).onClick(() => {
+					void openGuideWindow(this.plugin, {
+						title: strings.guideName,
+						markdown: USER_GUIDE_MD,
+					});
+				}),
 			);
 	}
 
@@ -127,122 +169,88 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				text.inputEl.type = 'password';
 			});
 
-		// "모델 이름" 항목: 위 줄은 [불러오기 버튼 + 상태등], 아래 줄은 드롭다운.
-		const modelSetting = new Setting(containerEl)
-			.setName(strings.modelName)
-			.setDesc(strings.modelDesc);
-		modelSetting.controlEl.addClass('intra-copilot-stacked-control');
+		// "연결" 블록 하나에 모델 선택 + 연결 확인 + 상태를 모았습니다.
+		// 탭을 열 때(또는 다시 그릴 때)마다 자동으로 한 번 새로 확인해서, 닫았다 열어도
+		// 예전 상태가 그대로 멈춰 있지 않게 합니다.
+		const connectionSetting = new Setting(containerEl)
+			.setName(strings.connectionHeading)
+			.setDesc(strings.connectionDesc);
+		connectionSetting.controlEl.addClass('intra-copilot-stacked-control');
 
-		const fetchRow = modelSetting.controlEl.createDiv({
+		const modelDropdown = new DropdownComponent(connectionSetting.controlEl);
+		this.modelDropdown = modelDropdown;
+		this.applyModelOptions(modelDropdown, []);
+
+		const actionRow = connectionSetting.controlEl.createDiv({
 			cls: 'intra-copilot-inline-row',
 		});
-		const fetchButton = new ButtonComponent(fetchRow).setButtonText(
-			strings.fetchModelsButton,
-		);
-		const fetchStatusEl = fetchRow.createDiv({ cls: 'intra-copilot-status' });
-		const fetchStatusDot = fetchStatusEl.createSpan({
-			cls: 'intra-copilot-status-dot',
-		});
-		const fetchStatusText = fetchStatusEl.createSpan({
-			cls: 'intra-copilot-status-text',
-			text: strings.statusIdle,
+		const checkButton = new ButtonComponent(actionRow).setButtonText(strings.testButton);
+		const status = createStatusLight(actionRow, strings.statusIdle);
+
+		const connectionStatusText = connectionSetting.controlEl.createEl('p', {
+			cls: 'intra-copilot-connection-status-text',
+			text: this.formatLastVerified(strings),
 		});
 
-		const dropdownRow = modelSetting.controlEl.createDiv();
-		const modelDropdown = new DropdownComponent(dropdownRow);
-		this.modelDropdown = modelDropdown;
-		this.refreshModelOptions(modelDropdown, []);
+		const refresh = async () => {
+			checkButton.setButtonText(strings.testing).setDisabled(true);
+			await this.refreshConnection(modelDropdown, status.dot, status.text, connectionStatusText);
+			checkButton.setButtonText(strings.testButton).setDisabled(false);
+		};
+		checkButton.onClick(() => void refresh());
 
-		fetchButton.onClick(async () => {
-			const { baseUrl } = this.plugin.settings.llm;
-			if (!baseUrl) {
-				this.setStatus(fetchStatusDot, fetchStatusText, 'error', strings.fillBaseUrlFirst);
-				return;
-			}
-
-			fetchButton.setButtonText(strings.fetching).setDisabled(true);
-			this.setStatus(fetchStatusDot, fetchStatusText, 'idle', strings.statusChecking);
-			const result = await listLlmModels(this.plugin.settings.llm);
-			fetchButton.setButtonText(strings.fetchModelsButton).setDisabled(false);
-
-			if (!result.ok) {
-				this.setStatus(
-					fetchStatusDot,
-					fetchStatusText,
-					'error',
-					`${strings.fetchFailPrefix}${result.error}`,
-				);
-				return;
-			}
-			if (result.models.length === 0) {
-				this.setStatus(fetchStatusDot, fetchStatusText, 'error', strings.noModelsFound);
-				return;
-			}
-
-			this.setStatus(fetchStatusDot, fetchStatusText, 'ok', strings.fetchOk);
-			this.refreshModelOptions(modelDropdown, result.models);
-		});
-
-		// "연결 테스트" 항목: 상태등을 같은 컨트롤 영역 안에 둬서 한 블록으로 보이게 합니다.
-		let testStatusDot!: HTMLElement;
-		let testStatusText!: HTMLElement;
-
-		// "마지막 연결 확인" 항목: 설정에 저장되어 계속 남아있는 기록(서버/모델/시각)입니다.
-		// 두 버튼(테스트/새로고침) 모두 성공하면 이 기록을 갱신합니다.
-		const lastVerifiedSetting = new Setting(containerEl)
-			.setName(strings.lastVerifiedName)
-			.setDesc(this.formatLastVerified(strings));
-
-		const testSetting = new Setting(containerEl)
-			.setName(strings.testName)
-			.setDesc(strings.testDesc)
-			.addButton((button) =>
-				button.setButtonText(strings.testButton).onClick(async () => {
-					button.setButtonText(strings.testing).setDisabled(true);
-					await this.runConnectionTest(testStatusDot, testStatusText, lastVerifiedSetting);
-					button.setButtonText(strings.testButton).setDisabled(false);
-				}),
-			);
-
-		const testStatusEl = testSetting.controlEl.createDiv({ cls: 'intra-copilot-status' });
-		testStatusDot = testStatusEl.createSpan({ cls: 'intra-copilot-status-dot' });
-		testStatusText = testStatusEl.createSpan({
-			cls: 'intra-copilot-status-text',
-			text: strings.statusIdle,
-		});
-
-		lastVerifiedSetting.addExtraButton((btn) =>
-			btn
-				.setIcon('refresh-cw')
-				.setTooltip(strings.refreshTooltip)
-				.onClick(async () => {
-					btn.setDisabled(true);
-					await this.runConnectionTest(testStatusDot, testStatusText, lastVerifiedSetting);
-					btn.setDisabled(false);
-				}),
-		);
+		void refresh();
 	}
 
-	// "테스트"와 "새로고침" 버튼이 공통으로 쓰는 로직입니다. 상태등을 갱신하고,
-	// 성공하면 "마지막 연결 확인" 기록도 함께 저장/갱신합니다.
-	private async runConnectionTest(
+	// "연결 확인" 버튼 및 탭이 열릴 때 자동으로 실행되는 로직입니다.
+	// 모델 목록을 다시 불러오고, 모델이 선택되어 있으면 실제로 대화 요청까지 보내 확인합니다.
+	private async refreshConnection(
+		modelDropdown: DropdownComponent,
 		statusDot: HTMLElement,
 		statusText: HTMLElement,
-		lastVerifiedSetting: Setting,
+		connectionStatusEl: HTMLElement,
 	): Promise<void> {
 		const strings = t(this.plugin.settings.general.language).llm;
-		const { baseUrl, model } = this.plugin.settings.llm;
+		const { baseUrl } = this.plugin.settings.llm;
 
-		if (!baseUrl || !model) {
-			this.setStatus(statusDot, statusText, 'idle', strings.statusMissing);
+		if (!baseUrl) {
+			setStatusLight(statusDot, statusText, 'idle', strings.fillBaseUrlFirst);
+			connectionStatusEl.setText(this.formatLastVerified(strings));
 			return;
 		}
 
-		this.setStatus(statusDot, statusText, 'idle', strings.statusChecking);
-		const result = await testLlmConnection(this.plugin.settings.llm);
+		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
 
+		const modelsResult = await listLlmModels(this.plugin.settings.llm);
+		if (!modelsResult.ok) {
+			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
+			setStatusLight(
+				statusDot,
+				statusText,
+				'error',
+				`${strings.fetchFailPrefix}${modelsResult.error}`,
+			);
+			connectionStatusEl.setText(this.formatLastVerified(strings));
+			return;
+		}
+		if (modelsResult.models.length === 0) {
+			this.applyModelOptions(modelDropdown, [], { allowCurrentFallback: false });
+			setStatusLight(statusDot, statusText, 'error', strings.noModelsFound);
+			connectionStatusEl.setText(this.formatLastVerified(strings));
+			return;
+		}
+		this.applyModelOptions(modelDropdown, modelsResult.models);
+
+		const currentModel = this.plugin.settings.llm.model;
+		if (!currentModel) {
+			setStatusLight(statusDot, statusText, 'idle', strings.statusMissing);
+			connectionStatusEl.setText(this.formatLastVerified(strings));
+			return;
+		}
+
+		const result = await testLlmConnection(this.plugin.settings.llm);
 		if (result.ok) {
-			this.setStatus(
+			setStatusLight(
 				statusDot,
 				statusText,
 				'ok',
@@ -251,13 +259,13 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			this.plugin.settings.llm.lastVerified = {
 				at: new Date().toISOString(),
 				baseUrl,
-				model,
+				model: currentModel,
 			};
 			await this.plugin.saveSettings();
-			lastVerifiedSetting.setDesc(this.formatLastVerified(strings));
 		} else {
-			this.setStatus(statusDot, statusText, 'error', strings.statusError, result.error);
+			setStatusLight(statusDot, statusText, 'error', strings.statusError, result.error);
 		}
+		connectionStatusEl.setText(this.formatLastVerified(strings));
 	}
 
 	private formatLastVerified(strings: ReturnType<typeof t>['llm']): string {
@@ -269,45 +277,20 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		return `${strings.lastVerifiedPrefix}${when} · ${record.baseUrl} · ${record.model}`;
 	}
 
-	// dropdown을 비우고 다시 채웁니다. models가 비어 있으면 이미 저장된 모델 값만(있다면) 보여줍니다.
-	private refreshModelOptions(
+	private applyModelOptions(
 		dropdown: DropdownComponent,
 		models: string[],
+		options: { allowCurrentFallback?: boolean } = {},
 	): void {
 		const strings = t(this.plugin.settings.general.language).llm;
-		const savedModel = this.plugin.settings.llm.model;
-		const options = models.length > 0 ? models : savedModel ? [savedModel] : [];
-
-		dropdown.selectEl.empty();
-		dropdown.addOption('', strings.modelPlaceholder);
-		for (const modelId of options) {
-			dropdown.addOption(modelId, modelId);
-		}
-		dropdown.setValue(savedModel && options.includes(savedModel) ? savedModel : '');
-		dropdown.onChange(async (value) => {
-			this.plugin.settings.llm.model = value;
-			await this.plugin.saveSettings();
+		populateModelDropdown(dropdown, models, {
+			placeholderText: strings.modelPlaceholder,
+			currentModel: this.plugin.settings.llm.model,
+			allowCurrentFallback: options.allowCurrentFallback,
+			onSelect: async (value) => {
+				this.plugin.settings.llm.model = value;
+				await this.plugin.saveSettings();
+			},
 		});
-	}
-
-	// 알림(Notice) 대신 화면에 남아있는 작은 점+문구로 서버 상태를 보여줍니다.
-	private setStatus(
-		dot: HTMLElement,
-		text: HTMLElement,
-		state: 'idle' | 'ok' | 'error',
-		message: string,
-		detail?: string,
-	): void {
-		dot.classList.remove('is-ok', 'is-error');
-		if (state !== 'idle') {
-			dot.classList.add(state === 'ok' ? 'is-ok' : 'is-error');
-		}
-
-		text.textContent = message;
-		if (detail) {
-			text.setAttribute('title', detail);
-		} else {
-			text.removeAttribute('title');
-		}
 	}
 }
