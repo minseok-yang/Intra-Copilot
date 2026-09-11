@@ -99,6 +99,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		}
 		llm.maxHistoryMessages = nonNegativeInt(llm.maxHistoryMessages, defaults.maxHistoryMessages);
 		llm.maxResponseTokens = nonNegativeInt(llm.maxResponseTokens, defaults.maxResponseTokens);
+		llm.maxContextChars = nonNegativeInt(llm.maxContextChars, defaults.maxContextChars);
 		llm.chatTimeoutSeconds = clampChatTimeout(
 			nonNegativeInt(llm.chatTimeoutSeconds, defaults.chatTimeoutSeconds),
 		);

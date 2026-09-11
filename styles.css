@@ -169,7 +169,6 @@
 .intra-copilot-chat-header-group.is-connection {
 	margin-left: auto;
 }
-
 /* 머리줄 버튼(아이콘 + 글자). 좁은 사이드바에 맞춰 설정 화면 버튼보다 작게 씁니다. */
 .intra-copilot-header-button {
 	display: inline-flex;
@@ -377,6 +376,169 @@
 .intra-copilot-chat-bubble.is-error {
 	background: var(--background-modifier-error);
 	color: var(--text-error);
+}
+
+/* 입력 영역: [지정한 대상 칩들] + [입력칸·보내기]. @ 목록은 이 영역 바로 위에 떠 있습니다. */
+.intra-copilot-chat-composer {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.intra-copilot-target-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+/* display: flex가 hidden 속성보다 우선하므로, 지정한 대상이 없을 때 줄이 남지 않게 따로 숨깁니다. */
+.intra-copilot-target-chips[hidden],
+.intra-copilot-picker[hidden] {
+	display: none;
+}
+
+/* @로 지정한 폴더·노트 칩 — 강조색으로 "선택됨"을 표시합니다. */
+.intra-copilot-target-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	max-width: 100%;
+	padding: 1px 6px;
+	border-radius: var(--radius-s);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.5;
+	white-space: nowrap;
+}
+
+.intra-copilot-target-chip-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.intra-copilot-target-chip-icon,
+.intra-copilot-target-chip-remove {
+	display: inline-flex;
+	flex-shrink: 0;
+}
+
+.intra-copilot-target-chip-icon svg,
+.intra-copilot-target-chip-remove svg {
+	width: 12px;
+	height: 12px;
+}
+
+.intra-copilot-target-chip-remove {
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.intra-copilot-target-chip-remove:hover {
+	opacity: 1;
+}
+
+/* 보낸 질문 말풍선 안의 칩 — 말풍선이 이미 강조색이라 반투명 흰 바탕으로 구분합니다. */
+.intra-copilot-bubble-targets {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 4px;
+	white-space: normal;
+}
+
+.intra-copilot-chat-bubble .intra-copilot-target-chip {
+	background: color-mix(in srgb, var(--text-on-accent) 20%, transparent);
+}
+
+.intra-copilot-bubble-attached {
+	font-size: var(--font-ui-smaller);
+	opacity: 0.85;
+}
+
+/* @ 목록(팝업) */
+.intra-copilot-picker {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 100%;
+	margin-bottom: 4px;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+	z-index: var(--layer-popover);
+}
+
+.intra-copilot-picker-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.intra-copilot-picker-item.is-active {
+	background: var(--background-modifier-hover);
+}
+
+.intra-copilot-picker-item-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.intra-copilot-picker-item-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.intra-copilot-picker-item-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.intra-copilot-picker-item-name,
+.intra-copilot-picker-item-detail {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.intra-copilot-picker-item-name {
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-picker-item-detail {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* 검색어와 일치한 글자 */
+.intra-copilot-picker-match {
+	color: var(--text-accent);
+	font-weight: 600;
+}
+
+.intra-copilot-picker-empty,
+.intra-copilot-picker-hint {
+	padding: 4px 6px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.intra-copilot-picker-hint {
+	position: sticky;
+	bottom: -4px;
+	margin-top: 2px;
+	border-top: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
 }
 
 .intra-copilot-chat-input-row {

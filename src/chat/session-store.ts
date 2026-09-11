@@ -1,11 +1,15 @@
 import IntraCopilotPlugin from '../main';
 import { ChatMessage } from '../llm/client';
+import { AttachedInfo, ChatTarget, isAttachedInfo, isChatTarget } from './vault-context';
 
 // 파일에 저장되는 메시지입니다. 서버로 보내는 모양(ChatMessage)에 화면 표시용 정보를 더했습니다.
-// 서버로 보낼 때는 buildRequestMessages()가 role/content만 골라내므로 이 추가 정보는 전송되지 않습니다.
+// 서버로 보낼 때는 composeRequestConversation()/buildRequestMessages()가 필요한 것만 골라냅니다.
 export interface StoredMessage extends ChatMessage {
 	reasoning?: string; // 추론형 모델의 생각 과정
 	truncated?: boolean; // 길이 제한에 걸려 잘린 답변인지
+	// 이 질문을 보낼 때 @로 지정했던 폴더·노트(경로만). 노트 내용 자체는 저장하지 않습니다.
+	targets?: ChatTarget[];
+	attached?: AttachedInfo; // 그때 실제로 붙여 보낸 분량
 }
 
 export interface ChatSession {
@@ -71,10 +75,24 @@ export function deriveSessionTitle(messages: ChatMessage[], emptyTitle: string):
 	return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
 }
 
-function isStoredMessage(value: unknown): value is StoredMessage {
-	if (!value || typeof value !== 'object') return false;
-	const { role, content } = value as Record<string, unknown>;
-	return (role === 'user' || role === 'assistant' || role === 'system') && typeof content === 'string';
+// 파일 속 메시지 하나를 읽습니다. 알고 있는 칸만 모양을 확인해서 옮겨 담고, 모양이 틀린 칸은 버립니다
+// (손으로 고친 파일에서 targets가 이상한 값이면, 화면이나 서버 요청이 깨지지 않게 그 칸만 뺍니다).
+function readMessage(value: unknown): StoredMessage | null {
+	if (!value || typeof value !== 'object') return null;
+	const fields = value as Record<string, unknown>;
+	const { role, content } = fields;
+	if ((role !== 'user' && role !== 'assistant' && role !== 'system') || typeof content !== 'string') {
+		return null;
+	}
+	const message: StoredMessage = { role, content };
+	if (typeof fields.reasoning === 'string' && fields.reasoning) message.reasoning = fields.reasoning;
+	if (fields.truncated === true) message.truncated = true;
+	if (Array.isArray(fields.targets)) {
+		const targets = fields.targets.filter(isChatTarget);
+		if (targets.length > 0) message.targets = targets;
+	}
+	if (isAttachedInfo(fields.attached)) message.attached = fields.attached;
+	return message;
 }
 
 function stringOr(value: unknown, fallback: string): string {
@@ -103,7 +121,9 @@ function parseSession(raw: string, id: string): ChatSession | null {
 		// 만든 시각이 없으면 지금 시각으로 — 비어 있으면 챗봇 화면이 새 대화로 착각합니다.
 		createdAt: stringOr(fields.createdAt, '') || updatedAt || new Date().toISOString(),
 		updatedAt,
-		messages: fields.messages.filter(isStoredMessage),
+		messages: fields.messages
+			.map(readMessage)
+			.filter((message): message is StoredMessage => message !== null),
 	};
 }
 

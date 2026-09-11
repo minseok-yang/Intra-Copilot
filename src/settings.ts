@@ -21,6 +21,8 @@ export interface LlmSettings {
 	maxResponseTokens: number; // 응답 최대 길이(max_tokens로 전달)
 	// 챗봇 답변을 기다리는 최대 시간(초). 모델 목록 조회/연결 확인은 이 값과 상관없이 30초입니다.
 	chatTimeoutSeconds: number;
+	// 채팅에서 @로 지정한 폴더·노트를 질문에 붙일 때 보낼 최대 글자 수. 0이면 제한 없음.
+	maxContextChars: number;
 	lastVerified?: LlmVerification;
 }
 
@@ -43,6 +45,9 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		// vLLM은 이 값만큼 메모리를 미리 잡지 않으므로(실제로 생성한 만큼만 씀) 넉넉히 잡아도 부담이 늘지 않습니다.
 		maxResponseTokens: 4096,
 		chatTimeoutSeconds: 120,
+		// 한국어 8000자는 모델(토크나이저)에 따라 대략 5천~1만 토큰입니다. 사내 모델이 한 번에 처리할 수 있는
+		// 길이를 넘으면 답변이 실패하므로, 그때는 설정에서 줄이면 됩니다(코드 수정 불필요).
+		maxContextChars: 8000,
 	},
 };
 

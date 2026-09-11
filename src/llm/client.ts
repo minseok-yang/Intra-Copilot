@@ -2,7 +2,6 @@ import { Buffer } from 'buffer';
 import * as http from 'http';
 import { requestUrl } from 'obsidian';
 import { clampChatTimeout, LlmSettings } from '../settings';
-import { BlockedHostError, ResolvedHost, resolveAllowedHost } from './network-policy';
 
 // 서버가 응답을 주지 않고 매달려 있으면 버튼이 "확인 중..."에서, 챗봇은 입력창이
 // 잠긴 채로 영원히 멈춥니다. 그래서 정해진 시간이 지나면 실패로 처리합니다.
@@ -25,15 +24,16 @@ class RequestCancelledError extends Error {
 
 // ─── 요청을 보내는 유일한 통로 ─────────────────────────────────────────
 // 이 파일 밖에서는 네트워크 요청을 보내지 않습니다. 모든 요청이 sendHttp()를 거치고,
-// sendHttp()는 보내기 전에 network-policy.ts로 목적지가 사내 주소인지 먼저 확인합니다.
+// 목적지는 설정에 입력한 서버 주소 하나뿐입니다. (주소를 사내 대역으로 제한하는 검사는 두지 않습니다 —
+// 사내에서는 회사 방화벽이 외부 연결을 막고, 집에서는 Groq 같은 외부 API로 테스트하기 때문입니다.)
 //
 // http://와 https://를 다르게 보냅니다.
 // - http://  → Node 내장 http 모듈. ① 서버가 다른 주소로 넘겨도(리다이렉트) 따라가지 않고,
-//              ② 확인한 바로 그 IP로만 접속하며, ③ [중지]·시간 초과 때 연결을 실제로 끊습니다
+//              ② [중지]·시간 초과 때 연결을 실제로 끊습니다
 //              (서버가 연결 끊김을 감지하면 답변 생성을 멈출 수 있음 — vLLM 버전에 따라 확인 필요).
 // - https:// → Obsidian의 requestUrl. 회사 자체 인증서를 Windows 인증서 저장소에서 읽어 신뢰하기
 //              때문입니다(Node는 이 저장소를 읽지 못할 수 있음). 대신 리다이렉트를 막을 방법이 없고
-//              [중지]해도 요청이 끝까지 진행됩니다. 목적지 IP 확인은 똑같이 합니다.
+//              [중지]해도 요청이 끝까지 진행됩니다.
 
 interface HttpInit {
 	method: 'GET' | 'POST';
@@ -63,19 +63,13 @@ function untilAborted<T>(signal: AbortSignal, work: Promise<T>): Promise<T> {
 	});
 }
 
-function nodeHttpRequest(
-	target: URL,
-	resolved: ResolvedHost,
-	init: HttpInit,
-	signal: AbortSignal,
-): Promise<HttpResult> {
+function nodeHttpRequest(target: URL, init: HttpInit, signal: AbortSignal): Promise<HttpResult> {
 	return new Promise<HttpResult>((resolve, reject) => {
 		const body = init.body === undefined ? undefined : Buffer.from(init.body, 'utf8');
 		const request = http.request(
 			{
-				// 이름 대신 확인한 IP로 바로 접속합니다(확인 뒤에 DNS 답이 바뀌는 속임수 방지).
-				host: resolved.address,
-				family: resolved.family,
+				// URL 속 IPv6 주소는 [::1]처럼 대괄호가 붙어 있어서 떼고 넘깁니다.
+				hostname: target.hostname.replace(/^\[|\]$/g, ''),
 				port: target.port || 80,
 				path: `${target.pathname}${target.search}`,
 				method: init.method,
@@ -124,11 +118,8 @@ async function sendHttp(
 			controller.signal,
 			(async () => {
 				const target = new URL(url);
-				const resolved = await resolveAllowedHost(target.hostname);
-				// 주소를 확인하는 사이 [중지]를 눌렀다면 보내지 않습니다.
-				if (controller.signal.aborted) throw controller.signal.reason;
 				if (target.protocol === 'http:') {
-					return nodeHttpRequest(target, resolved, init, controller.signal);
+					return nodeHttpRequest(target, init, controller.signal);
 				}
 				const response = await requestUrl({
 					url,
@@ -152,7 +143,6 @@ async function sendHttp(
 // 원인마다 "무엇이 문제이고 어떻게 고치는지" 안내문을 보여줍니다. 원문은 detail에 남깁니다.
 export type LlmErrorKind =
 	| 'invalid-url' // 서버 주소 형식이 틀림(http:// 누락 등)
-	| 'blocked-host' // 사내(사설) 주소가 아니라서 보안 정책상 보내지 않음
 	| 'redirect' // 서버가 다른 주소로 넘기려 해서 따라가지 않음
 	| 'timeout' // 정해진 시간 안에 응답 없음
 	| 'cancelled' // 사용자가 [중지]를 누름
@@ -232,7 +222,6 @@ export function classifyHttpError(status: number, body: string): LlmErrorKind {
 export function classifyException(error: unknown): LlmErrorKind {
 	if (error instanceof RequestTimeoutError) return 'timeout';
 	if (error instanceof RequestCancelledError) return 'cancelled';
-	if (error instanceof BlockedHostError) return 'blocked-host';
 	const message = error instanceof Error ? error.message : String(error);
 	// "net::ERR_CERT_..."도 net::으로 시작하므로 인증서를 먼저 봅니다.
 	if (/cert|ssl|tls/i.test(message)) return 'certificate';
@@ -467,7 +456,8 @@ export async function testLlmConnection(
 }
 
 // 챗봇 사이드바에서 실제 대화를 보낼 때 씁니다. conversation은 지금까지의 대화 전체입니다.
-// 노트 내용은 자동으로 포함되지 않습니다 — 사용자가 채팅창에 입력한 것만 전송됩니다.
+// 노트 내용은 사용자가 입력칸에서 @로 직접 지정한 폴더·노트만, 마지막 질문에 붙어서 전송됩니다
+// (chat/vault-context.ts의 composeRequestConversation 참고). 그 밖의 노트는 보내지 않습니다.
 // 사내 공용 서버 부담을 줄이기 위해 최근 대화만 보내고(buildRequestMessages 참고),
 // 응답 길이도 설정된 만큼으로 제한합니다. cancelSignal을 중단하면 [중지]로 처리됩니다.
 export async function sendChatMessage(

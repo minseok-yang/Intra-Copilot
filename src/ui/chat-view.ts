@@ -25,7 +25,19 @@ import {
 	StoredMessage,
 } from '../chat/session-store';
 import { finalizeRenderedAnswer, neutralizeRemoteContent } from '../chat/safe-markdown';
+import {
+	AttachedInfo,
+	buildVaultContext,
+	ChatTarget,
+	composeRequestConversation,
+	isRemovedBy,
+	renamedTarget,
+	resolveTarget,
+	sameTarget,
+	VaultContext,
+} from '../chat/vault-context';
 import { SessionHistoryModal } from './session-history-modal';
+import { createTargetChip, TargetPicker } from './target-picker';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
@@ -100,8 +112,12 @@ export class ChatView extends ItemView {
 	// 늦게 도착한 옛 결과가 새 결과를 덮어쓰지 않도록, 가장 최근 번호의 결과만 반영합니다.
 	private modelCheckSeq = 0;
 	private renderedLanguage: UiLanguage | null = null;
+	// 입력칸에서 @로 지정한 폴더·노트. 지우기 전까지 계속 유지되어, 이어지는 질문마다 그 내용이 붙습니다.
+	private targets: ChatTarget[] = [];
 
 	private messagesEl!: HTMLElement;
+	private targetChipsEl!: HTMLElement;
+	private picker!: TargetPicker;
 	private inputEl!: HTMLTextAreaElement;
 	private sendButtonEl!: HTMLButtonElement;
 	private newChatButton!: ButtonComponent;
@@ -158,6 +174,11 @@ export class ChatView extends ItemView {
 		// 설정 화면의 연결 확인 등 어디서든 연결 상태가 바뀌면 상태등을 다시 그립니다.
 		// register()에 넣어두면 패널이 닫힐 때 자동으로 등록이 풀립니다.
 		this.register(this.plugin.connectionStatus.subscribe(() => this.renderStatusDot()));
+		// @로 지정한 폴더·노트의 이름이 바뀌거나 지워지면 칩도 따라 바꿉니다.
+		this.registerEvent(
+			this.app.vault.on('rename', (file, oldPath) => this.handleVaultRename(oldPath, file.path)),
+		);
+		this.registerEvent(this.app.vault.on('delete', (file) => this.handleVaultDelete(file.path)));
 		// 패널을 열면(= Obsidian을 켤 때마다) 가벼운 모델 목록 조회만 한 번 합니다.
 		// 테스트 대화는 보내지 않습니다 — 사용자 수 × 실행 횟수만큼 공용 서버 GPU를 쓰기 때문입니다.
 		void this.refreshModels({ testModel: false });
@@ -250,13 +271,29 @@ export class ChatView extends ItemView {
 
 		this.messagesEl = container.createDiv({ cls: 'intra-copilot-chat-messages' });
 
-		const inputRow = container.createDiv({ cls: 'intra-copilot-chat-input-row' });
+		// 입력 영역: [지정한 대상 칩] 줄 + [입력칸·보내기] 줄. @ 목록은 이 영역 위에 뜹니다.
+		const composer = container.createDiv({ cls: 'intra-copilot-chat-composer' });
+		this.targetChipsEl = composer.createDiv({ cls: 'intra-copilot-target-chips' });
+		const inputRow = composer.createDiv({ cls: 'intra-copilot-chat-input-row' });
 		this.inputEl = inputRow.createEl('textarea', {
 			cls: 'intra-copilot-chat-input',
 			attr: { placeholder: strings.inputPlaceholder, rows: '2' },
 		});
 		this.inputEl.value = draft;
 		this.sendButtonEl = inputRow.createEl('button', { cls: 'intra-copilot-chat-send' });
+		this.picker = new TargetPicker(
+			this.app,
+			this.inputEl,
+			composer,
+			{
+				wholeVault: strings.pickerWholeVault,
+				currentNote: strings.pickerCurrentNote,
+				noMatch: strings.pickerNoMatch,
+				hint: strings.pickerHint,
+			},
+			(target) => this.addTarget(target),
+		);
+		this.renderTargetChips();
 
 		// 기다리는 동안에는 같은 버튼이 [중지]가 됩니다.
 		this.sendButtonEl.onclick = () => {
@@ -270,6 +307,14 @@ export class ChatView extends ItemView {
 			// 한글처럼 조합해서 입력하는 언어(IME)에서는 글자를 확정할 때도 Enter가 눌립니다.
 			// 이때 전송해버리면 "안녕하세" 같은 미완성 문장이 날아가므로 조합 중에는 무시합니다.
 			if (evt.isComposing) return;
+			// @ 목록이 열려 있으면 ↑↓·Enter·Esc는 목록 조작에 먼저 씁니다.
+			if (this.picker.handleKeydown(evt)) return;
+			// 입력칸이 비어 있을 때 Backspace를 누르면 마지막 칩을 지웁니다.
+			if (evt.key === 'Backspace' && this.inputEl.value === '' && this.targets.length > 0) {
+				evt.preventDefault();
+				this.setTargets(this.targets.slice(0, -1));
+				return;
+			}
 			if (evt.key === 'Enter' && !evt.shiftKey) {
 				evt.preventDefault();
 				// 기다리는 중에는 써 둔 글을 그대로 두고 안내만 합니다.
@@ -344,6 +389,7 @@ export class ChatView extends ItemView {
 	private startNewConversation(): void {
 		this.conversation = [];
 		this.setCurrentSession(null, null);
+		this.setTargets([]);
 		this.showEmptyState();
 	}
 
@@ -375,6 +421,10 @@ export class ChatView extends ItemView {
 
 		this.setCurrentSession(session.id, session.createdAt);
 		this.conversation = session.messages;
+		// 그 대화에서 마지막으로 지정했던 대상을 칩으로 되살립니다. Obsidian을 막 켰을 때는 볼트 파일 목록이
+		// 아직 다 준비되지 않았을 수 있어서 여기서 걸러내지 않고, 보낼 때 있는지 확인합니다(dropMissingTargets).
+		const lastUser = [...session.messages].reverse().find((message) => message.role === 'user');
+		this.setTargets(lastUser?.targets ?? []);
 		await this.renderConversation();
 	}
 
@@ -389,7 +439,7 @@ export class ChatView extends ItemView {
 			if (message.role === 'assistant') {
 				await this.renderAssistantBubble(this.appendBubble('assistant', ''), message);
 			} else if (message.role === 'user') {
-				this.appendBubble('user', message.content);
+				this.appendUserBubble(message);
 			}
 		}
 		this.scrollToBottom();
@@ -525,6 +575,9 @@ export class ChatView extends ItemView {
 		const text = (retryText ?? this.inputEl.value).trim();
 		if (!text) return;
 
+		// @로 지정한 대상이 그 사이 지워졌다면, 자료 없이 답하게 두지 않고 먼저 알립니다(입력한 글은 그대로).
+		if (!this.dropMissingTargets()) return;
+
 		if (this.conversation.length === 0) {
 			this.messagesEl.empty(); // "아직 대화가 없습니다" 문구를 지웁니다.
 		}
@@ -534,8 +587,26 @@ export class ChatView extends ItemView {
 			return;
 		}
 
-		if (retryText === undefined) this.inputEl.value = '';
 		this.setBusy(true);
+
+		// 지정한 폴더·노트를 지금 읽습니다. 읽기에 실패하면 입력칸을 비우기 전에 멈춰서 글이 사라지지 않게 합니다.
+		const targets = [...this.targets];
+		let vaultContext: VaultContext | null = null;
+		if (targets.length > 0) {
+			try {
+				vaultContext = await buildVaultContext(
+					this.app,
+					targets,
+					this.plugin.settings.llm.maxContextChars,
+				);
+			} catch {
+				this.setBusy(false);
+				new Notice(strings.contextReadFailed);
+				return;
+			}
+		}
+
+		if (retryText === undefined) this.inputEl.value = '';
 
 		if (!this.currentSessionId || !this.currentSessionCreatedAt) {
 			this.setCurrentSession(newSessionId(), new Date().toISOString());
@@ -547,9 +618,13 @@ export class ChatView extends ItemView {
 		const sessionId = this.currentSessionId!;
 		const createdAt = this.currentSessionCreatedAt!;
 
-		const userMessage: StoredMessage = { role: 'user', content: text };
+		const userMessage: StoredMessage = {
+			role: 'user',
+			content: text,
+			...(vaultContext ? { targets, attached: vaultContext.info } : {}),
+		};
 		conversation.push(userMessage);
-		const userBubble = this.appendBubble('user', text);
+		const userBubble = this.appendUserBubble(userMessage);
 		this.persistSession(sessionId, createdAt, conversation);
 
 		const pending = this.appendBubble('assistant', strings.thinking, { isPending: true });
@@ -559,7 +634,12 @@ export class ChatView extends ItemView {
 		// https 서버라면 기다리는 것만 그만둡니다(client.ts의 sendHttp 참고).
 		const controller = new AbortController();
 		this.abortController = controller;
-		const result = await sendChatMessage(this.plugin.settings.llm, conversation, controller.signal);
+		// 이번에 읽은 노트 내용은 마지막 질문에만 붙여 보냅니다(저장되는 대화에는 넣지 않음).
+		const result = await sendChatMessage(
+			this.plugin.settings.llm,
+			composeRequestConversation(conversation, vaultContext?.text ?? null),
+			controller.signal,
+		);
 		this.abortController = null;
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 
@@ -658,6 +738,92 @@ export class ChatView extends ItemView {
 		if (!this.inputEl.value) {
 			this.inputEl.value = text;
 		}
+	}
+
+	// 사용자 말풍선: [지정했던 대상 칩 · 첨부 분량] + 질문 글
+	private appendUserBubble(message: StoredMessage): HTMLElement {
+		const strings = this.strings();
+		const bubble = this.appendBubble('user', '');
+		if (message.targets?.length) {
+			const row = bubble.createDiv({ cls: 'intra-copilot-bubble-targets' });
+			for (const target of message.targets) {
+				createTargetChip(row, target, { wholeVaultLabel: strings.pickerWholeVault });
+			}
+			if (message.attached) {
+				row.createSpan({
+					cls: 'intra-copilot-bubble-attached',
+					text: this.describeAttached(message.attached),
+				});
+			}
+		}
+		bubble.appendText(message.content);
+		this.scrollToBottom();
+		return bubble;
+	}
+
+	private describeAttached(info: AttachedInfo): string {
+		const strings = this.strings();
+		const text = strings.attachedInfo
+			.replace('{count}', info.notes.toLocaleString())
+			.replace('{chars}', info.chars.toLocaleString());
+		return info.truncated ? `${text}${strings.attachedTruncated}` : text;
+	}
+
+	// ─── @로 지정한 대상(칩) ───────────────────────────────────────────
+
+	private addTarget(target: ChatTarget): void {
+		if (!this.targets.some((existing) => sameTarget(existing, target))) {
+			this.setTargets([...this.targets, target]);
+		}
+		this.inputEl.focus();
+	}
+
+	private setTargets(targets: ChatTarget[]): void {
+		this.targets = targets;
+		this.renderTargetChips();
+	}
+
+	private renderTargetChips(): void {
+		const strings = this.strings();
+		this.targetChipsEl.empty();
+		this.targetChipsEl.hidden = this.targets.length === 0;
+		for (const target of this.targets) {
+			createTargetChip(this.targetChipsEl, target, {
+				wholeVaultLabel: strings.pickerWholeVault,
+				removeTooltip: strings.targetRemoveTooltip,
+				onRemove: () => {
+					this.setTargets(this.targets.filter((existing) => !sameTarget(existing, target)));
+					this.inputEl.focus();
+				},
+			});
+		}
+	}
+
+	// 볼트에서 사라진 대상이 있으면 칩에서 빼고 알린 뒤 false(보내지 않음)를 돌려줍니다.
+	private dropMissingTargets(): boolean {
+		const missing = this.targets.filter((target) => !resolveTarget(this.app, target));
+		if (missing.length === 0) return true;
+		this.setTargets(this.targets.filter((target) => !missing.includes(target)));
+		new Notice(
+			this.strings().targetMissing.replace('{names}', missing.map((target) => target.path).join(', ')),
+		);
+		return false;
+	}
+
+	private handleVaultRename(oldPath: string, newPath: string): void {
+		let changed = false;
+		const next = this.targets.map((target) => {
+			const renamed = renamedTarget(target, oldPath, newPath);
+			if (!renamed) return target;
+			changed = true;
+			return renamed;
+		});
+		if (changed) this.setTargets(next);
+	}
+
+	private handleVaultDelete(path: string): void {
+		const next = this.targets.filter((target) => !isRemovedBy(target, path));
+		if (next.length !== this.targets.length) this.setTargets(next);
 	}
 
 	private appendBubble(

@@ -338,6 +338,14 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			min: 0,
 		});
 		this.addNumberSetting(advancedSection, {
+			name: strings.maxContextName,
+			desc: strings.maxContextDesc,
+			get: () => llm.maxContextChars,
+			set: (value) => (llm.maxContextChars = value),
+			parse: (raw) => parseLimit(raw, DEFAULT_SETTINGS.llm.maxContextChars),
+			min: 0,
+		});
+		this.addNumberSetting(advancedSection, {
 			name: strings.chatTimeoutName,
 			desc: strings.chatTimeoutDesc,
 			get: () => llm.chatTimeoutSeconds,
