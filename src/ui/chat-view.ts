@@ -124,7 +124,11 @@ export class ChatView extends ItemView {
 	private historyButton!: ButtonComponent;
 	private checkButton!: ButtonComponent;
 	private modelDropdown!: DropdownComponent;
+	private modelStatusEl!: HTMLElement; // 상태등 + 상태 글자 묶음(마우스를 올리면 자세한 설명)
 	private modelStatusDot!: HTMLElement;
+	private modelStatusLabel!: HTMLElement;
+	// 모델 목록·연결을 확인하는 중인지. 이 동안 상태 글자를 "확인 중"으로 보여줍니다.
+	private checking = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: IntraCopilotPlugin) {
 		super(leaf);
@@ -266,7 +270,10 @@ export class ChatView extends ItemView {
 			() => void this.refreshModels({ testModel: true }),
 		);
 
-		this.modelStatusDot = createStatusDot(connectionGroup);
+		// 상태등만 있으면 무슨 뜻인지 알기 어려워서, 옆에 지금 상태를 짧은 글자로 함께 보여줍니다.
+		this.modelStatusEl = connectionGroup.createSpan({ cls: 'intra-copilot-chat-status' });
+		this.modelStatusDot = createStatusDot(this.modelStatusEl);
+		this.modelStatusLabel = this.modelStatusEl.createSpan({ cls: 'intra-copilot-chat-status-label' });
 		this.renderStatusDot();
 
 		this.messagesEl = container.createDiv({ cls: 'intra-copilot-chat-messages' });
@@ -546,8 +553,10 @@ export class ChatView extends ItemView {
 	}
 
 	private setChecking(checking: boolean): void {
+		this.checking = checking;
 		this.checkButton.setDisabled(checking);
 		this.checkButton.buttonEl.toggleClass('intra-copilot-is-checking', checking);
+		this.renderStatusDot();
 	}
 
 	private fillDropdown(): void {
@@ -556,9 +565,10 @@ export class ChatView extends ItemView {
 		});
 	}
 
-	// 상태등을 plugin.connectionStatus 값대로 그립니다. 점 위에 마우스를 올리면
-	// 상태 문구와 마지막으로 확인된 시각을 함께 보여줍니다.
+	// 상태등과 옆의 상태 글자를 plugin.connectionStatus 값대로 그립니다. 마우스를 올리면
+	// 자세한 상태 문구와 마지막으로 확인된 시각을 함께 보여줍니다.
 	private renderStatusDot(): void {
+		const strings = this.strings();
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 		const { state, message, checkedAt } = this.plugin.connectionStatus.get();
 		const text = message || llmStrings.statusIdle;
@@ -566,6 +576,18 @@ export class ChatView extends ItemView {
 			? `${text} · ${llmStrings.lastVerifiedPrefix}${checkedAt.toLocaleString()}`
 			: text;
 		setStatusDot(this.modelStatusDot, state, tooltip);
+		this.modelStatusEl.setAttribute('title', tooltip);
+
+		// 확인하는 동안에는 이전 결과 대신 "확인 중"을 보여줍니다(상태등 색은 이전 결과 그대로).
+		const label = this.checking
+			? strings.statusLabelChecking
+			: state === 'ok'
+				? strings.statusLabelOk
+				: state === 'error'
+					? strings.statusLabelError
+					: strings.statusLabelIdle;
+		this.modelStatusLabel.setText(label);
+		this.modelStatusLabel.toggleClass('is-error', !this.checking && state === 'error');
 	}
 
 	// retryText를 주면 입력칸 대신 그 글을 보냅니다([다시 시도] 버튼). 입력칸에 새로 써 둔 글은 건드리지 않습니다.

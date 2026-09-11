@@ -206,6 +206,22 @@
 	margin-left: 0;
 }
 
+/* 머리줄 상태등 + 상태 글자("연결됨" 등). 마우스를 올리면 자세한 설명이 보입니다. */
+.intra-copilot-chat-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	cursor: default;
+}
+
+.intra-copilot-chat-status-label.is-error {
+	color: var(--text-error);
+}
+
 .intra-copilot-chat-messages {
 	flex: 1 1 auto;
 	overflow-y: auto;

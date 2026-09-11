@@ -151,6 +151,11 @@ const ko = {
 		newChatButton: '새 대화',
 		historyButton: '지난 대화',
 		checkConnectionButton: '연결 확인',
+		// 머리줄 상태등 옆에 붙는 짧은 상태 글자(자세한 설명은 마우스를 올리면 보임)
+		statusLabelOk: '연결됨',
+		statusLabelError: '연결 실패',
+		statusLabelIdle: '확인 필요',
+		statusLabelChecking: '확인 중',
 		checkConnectionTooltip:
 			'서버의 모델 목록을 다시 불러오고, 선택한 모델이 실제로 답하는지 짧은 테스트 문장으로 확인합니다',
 		newChatTooltip: '새 대화 시작 (지금 대화는 지난 대화 목록에 남습니다)',
@@ -323,6 +328,10 @@ const en: Dictionary = {
 		newChatButton: 'New chat',
 		historyButton: 'History',
 		checkConnectionButton: 'Check',
+		statusLabelOk: 'Connected',
+		statusLabelError: 'Failed',
+		statusLabelIdle: 'Not checked',
+		statusLabelChecking: 'Checking',
 		checkConnectionTooltip:
 			'Reload the server’s model list and send a short test sentence to confirm the selected model actually answers',
 		newChatTooltip: 'Start a new conversation (the current one stays in past conversations)',
