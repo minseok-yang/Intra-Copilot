@@ -1,6 +1,7 @@
 import IntraCopilotPlugin from '../main';
 import { ChatMessage } from '../llm/client';
 import { AttachedInfo, ChatTarget, isAttachedInfo, isChatTarget } from './vault-context';
+import { pluginDir } from '../plugin-paths';
 
 // 파일에 저장되는 메시지입니다. 서버로 보내는 모양(ChatMessage)에 화면 표시용 정보를 더했습니다.
 // 서버로 보낼 때는 composeRequestConversation()/buildRequestMessages()가 필요한 것만 골라냅니다.
@@ -10,6 +11,8 @@ export interface StoredMessage extends ChatMessage {
 	// 이 질문을 보낼 때 @로 지정했던 폴더·노트(경로만). 노트 내용 자체는 저장하지 않습니다.
 	targets?: ChatTarget[];
 	attached?: AttachedInfo; // 그때 실제로 붙여 보낸 분량
+	// 이 질문에 쓴 스킬(/). 이름만 저장하고 지시문은 저장하지 않습니다.
+	skill?: { id: string; name: string };
 }
 
 export interface ChatSession {
@@ -43,9 +46,7 @@ export interface ChatSessionSummary {
 const INDEX_FILE = 'index.json';
 
 function sessionsDir(plugin: IntraCopilotPlugin): string {
-	const pluginDir =
-		plugin.manifest.dir ?? `${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}`;
-	return `${pluginDir}/conversations`;
+	return `${pluginDir(plugin)}/conversations`;
 }
 
 function sessionPath(plugin: IntraCopilotPlugin, id: string): string {
@@ -68,10 +69,14 @@ export function newSessionId(): string {
 }
 
 // 첫 사용자 메시지를 짧게 잘라 목록에 보일 제목으로 씁니다.
-export function deriveSessionTitle(messages: ChatMessage[], emptyTitle: string): string {
+export function deriveSessionTitle(messages: StoredMessage[], emptyTitle: string): string {
 	const firstUser = messages.find((message) => message.role === 'user');
 	if (!firstUser) return emptyTitle;
-	const oneLine = firstUser.content.replace(/\s+/g, ' ').trim();
+	// 스킬만 고르고 글 없이 보냈다면 스킬 이름을 제목으로 씁니다.
+	const oneLine =
+		firstUser.content.replace(/\s+/g, ' ').trim() ||
+		(firstUser.skill ? `/${firstUser.skill.name}` : '');
+	if (!oneLine) return emptyTitle;
 	return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
 }
 
@@ -92,6 +97,10 @@ function readMessage(value: unknown): StoredMessage | null {
 		if (targets.length > 0) message.targets = targets;
 	}
 	if (isAttachedInfo(fields.attached)) message.attached = fields.attached;
+	const skill = fields.skill as Record<string, unknown> | undefined;
+	if (skill && typeof skill.id === 'string' && typeof skill.name === 'string') {
+		message.skill = { id: skill.id, name: skill.name };
+	}
 	return message;
 }
 

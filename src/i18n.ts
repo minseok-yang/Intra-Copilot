@@ -13,6 +13,7 @@ const ko = {
 	tabs: {
 		general: '일반',
 		llm: 'LLM 연결',
+		skills: '스킬',
 	},
 	general: {
 		heading: '표시 및 도움말',
@@ -116,13 +117,15 @@ const ko = {
 	chat: {
 		title: '챗봇',
 		ribbonTooltip: '챗봇 열기',
-		inputPlaceholder: '메시지를 입력하세요 (@: 폴더·노트 지정, Enter: 보내기, Shift+Enter: 줄바꿈)',
+		inputPlaceholder: '메시지를 입력하세요 (@: 폴더·노트, /: 스킬, Enter: 보내기, Shift+Enter: 줄바꿈)',
 		sendButton: '보내기',
 		emptyState:
-			'아직 대화가 없습니다. 아래에 메시지를 입력해보세요. @를 입력하면 볼트의 폴더·노트를 골라, 그 내용을 두고 대화할 수 있습니다.',
+			'아직 대화가 없습니다. 아래에 메시지를 입력해보세요. @를 입력하면 볼트의 폴더·노트를 골라, 그 내용을 두고 대화할 수 있습니다. ' +
+			'/를 입력하면 저장해 둔 스킬(자주 쓰는 작업 지시)을 불러옵니다.',
 		pickerWholeVault: '볼트 전체',
 		pickerCurrentNote: '현재 노트',
 		pickerNoMatch: '일치하는 폴더·노트가 없습니다',
+		skillPickerNoMatch: '일치하는 스킬이 없습니다 — 설정 → 스킬 탭에서 추가할 수 있습니다',
 		pickerHint: '↑↓ 이동 · Enter 선택 · Esc 닫기',
 		targetRemoveTooltip: '지정 해제',
 		targetMissing: '볼트에서 찾을 수 없어 지정을 해제했습니다: {names} — 확인한 뒤 다시 보내세요.',
@@ -172,11 +175,46 @@ const ko = {
 		errorDetails: '자세한 내용 (오류 원문)',
 		emptyTitle: '(빈 대화)',
 	},
+	skills: {
+		heading: '스킬 관리',
+		intro:
+			'자주 쓰는 작업 지시를 스킬로 저장해 두고, 챗봇 입력칸에서 /를 입력해 불러 씁니다. 스킬마다 .md 파일 하나로 아래 폴더에 저장되므로, ' +
+			'사내에서도 메모장 같은 편집기로 직접 고치거나 파일을 복사해 동료와 나눌 수 있습니다. 파일을 직접 고쳤다면 [목록 새로고침]을 누르세요.',
+		folderLabel: '저장 폴더: ',
+		newButton: '새 스킬',
+		reloadButton: '목록 새로고침',
+		empty: '저장된 스킬이 없습니다. [새 스킬]로 추가하세요.',
+		noDescription: '(설명 없음)',
+		fileLabel: '파일: ',
+		emptyInstructions: '⚠ 지시문이 비어 있어 챗봇 목록에 나오지 않습니다',
+		editTooltip: '편집',
+		deleteTooltip: '삭제',
+		deleteConfirm: '⚠ 한 번 더 누르면 이 스킬 파일이 영구 삭제됩니다.',
+		deleteConfirmTooltip: '한 번 더 눌러 삭제',
+		deleteFailed: '스킬을 삭제하지 못했습니다.',
+		loadFailed: '스킬 목록을 읽지 못했습니다.',
+		newTitle: '새 스킬',
+		editTitle: '스킬 편집',
+		nameField: '이름',
+		nameDesc: '챗봇에서 / 뒤에 입력해 찾는 이름입니다. 예: 노트 링크 정리',
+		descriptionField: '설명',
+		descriptionDesc: '목록에서 이름 아래 보이는 한 줄 설명입니다. (선택)',
+		instructionsField: '지시문',
+		instructionsDesc:
+			'이 스킬을 고르면 질문과 함께 모델에게 보내는 작업 지시입니다. {{input}}을 넣으면 그 자리에 입력칸의 글이 들어가고, 없으면 입력한 글이 지시문 뒤에 붙습니다. ' +
+			'@로 노트를 함께 지정하면 그 노트 내용도 전송됩니다.',
+		saveButton: '저장',
+		cancelButton: '취소',
+		nameRequired: '이름을 입력하세요.',
+		instructionsRequired: '지시문을 입력하세요.',
+		saveFailed: '스킬을 저장하지 못했습니다.',
+		saved: '스킬을 저장했습니다.',
+	},
 	license: {
 		summaryHeading: '라이선스 및 정책',
 		summaryText:
 			'사내 폐쇄망 전용으로 만든 플러그인입니다. 설정에서 지정한 LLM 서버와만 통신하며, 보내는 내용은 사용자가 채팅에 입력한 글' +
-			'(이전 대화와 기본 지시문 포함), 채팅에서 @로 직접 지정한 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
+			'(이전 대화, 기본 지시문, 선택한 스킬의 지시문 포함), 채팅에서 @로 직접 지정한 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
 			'그 밖의 노트 내용은 자동으로 전송되지 않습니다. ' +
 			'(초안 — 정식 배포 전 검토가 필요합니다.)',
 		versionLabel: '버전',
@@ -192,6 +230,7 @@ const en: Dictionary = {
 	tabs: {
 		general: 'General',
 		llm: 'LLM connection',
+		skills: 'Skills',
 	},
 	general: {
 		heading: 'Display & help',
@@ -294,13 +333,15 @@ const en: Dictionary = {
 	chat: {
 		title: 'Chatbot',
 		ribbonTooltip: 'Open chatbot',
-		inputPlaceholder: 'Type a message (@: pick folder/note, Enter: send, Shift+Enter: new line)',
+		inputPlaceholder: 'Type a message (@: folder/note, /: skill, Enter: send, Shift+Enter: new line)',
 		sendButton: 'Send',
 		emptyState:
-			'No messages yet. Type something below to start. Type @ to pick folders or notes from your vault and chat about their content.',
+			'No messages yet. Type something below to start. Type @ to pick folders or notes from your vault and chat about their content. ' +
+			'Type / to use a saved skill (a reusable task instruction).',
 		pickerWholeVault: 'Whole vault',
 		pickerCurrentNote: 'Current note',
 		pickerNoMatch: 'No matching folders or notes',
+		skillPickerNoMatch: 'No matching skills — add them in Settings → Skills',
 		pickerHint: '↑↓ move · Enter select · Esc close',
 		targetRemoveTooltip: 'Remove',
 		targetMissing: 'Removed because it no longer exists in the vault: {names} — check and send again.',
@@ -348,11 +389,46 @@ const en: Dictionary = {
 		errorDetails: 'Details (raw error message)',
 		emptyTitle: '(empty conversation)',
 	},
+	skills: {
+		heading: 'Manage skills',
+		intro:
+			'Save task instructions you use often as skills, then type / in the chatbot input to use them. Each skill is saved as one .md file in the folder below, ' +
+			'so you can edit it directly in any text editor or copy the file to share it. If you edited a file directly, press [Reload list].',
+		folderLabel: 'Folder: ',
+		newButton: 'New skill',
+		reloadButton: 'Reload list',
+		empty: 'No saved skills. Add one with [New skill].',
+		noDescription: '(no description)',
+		fileLabel: 'File: ',
+		emptyInstructions: '⚠ Instructions are empty, so it does not appear in the chatbot list',
+		editTooltip: 'Edit',
+		deleteTooltip: 'Delete',
+		deleteConfirm: '⚠ Click again to permanently delete this skill file.',
+		deleteConfirmTooltip: 'Click again to delete',
+		deleteFailed: 'Could not delete the skill.',
+		loadFailed: 'Could not read the skill list.',
+		newTitle: 'New skill',
+		editTitle: 'Edit skill',
+		nameField: 'Name',
+		nameDesc: 'The name you type after / in the chatbot to find it, e.g. Tidy note links',
+		descriptionField: 'Description',
+		descriptionDesc: 'A one-line description shown under the name in the list. (Optional)',
+		instructionsField: 'Instructions',
+		instructionsDesc:
+			'The task instructions sent to the model along with your message when you pick this skill. Put {{input}} where your typed text should go; without it, your text is added after the instructions. ' +
+			'If you also pick notes with @, their content is sent too.',
+		saveButton: 'Save',
+		cancelButton: 'Cancel',
+		nameRequired: 'Enter a name.',
+		instructionsRequired: 'Enter the instructions.',
+		saveFailed: 'Could not save the skill.',
+		saved: 'Skill saved.',
+	},
 	license: {
 		summaryHeading: 'License & policy',
 		summaryText:
 			'Built for use inside a closed company network. The plugin only talks to the LLM server set in the settings, and sends only what you type in the chat ' +
-			'(including earlier messages and the default instructions), the content of folders and notes you pick with @ in the chat, and a test sentence when checking the connection. ' +
+			'(including earlier messages, the default instructions, and the instructions of the skill you picked), the content of folders and notes you pick with @ in the chat, and a test sentence when checking the connection. ' +
 			'No other note content is sent automatically. ' +
 			'(Draft — review before real deployment.)',
 		versionLabel: 'Version',

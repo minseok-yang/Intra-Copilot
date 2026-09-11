@@ -1,6 +1,4 @@
 import { App, TFile, TFolder } from 'obsidian';
-import type { ChatMessage } from '../llm/client';
-import type { StoredMessage } from './session-store';
 
 // 챗봇 입력칸에서 @로 지정한 "대화 대상"(폴더·노트)과, 그 내용을 질문에 붙이는 방법입니다.
 //
@@ -77,7 +75,7 @@ export function isRemovedBy(target: ChatTarget, removedPath: string): boolean {
 }
 
 // 모델에게 대상을 가리킬 때 쓰는 이름
-function describeForModel(target: ChatTarget): string {
+export function describeTargetForModel(target: ChatTarget): string {
 	if (target.kind === 'note') return target.path;
 	return target.path === VAULT_ROOT_PATH ? '볼트 전체' : `${target.path}/`;
 }
@@ -184,25 +182,4 @@ export async function buildVaultContext(
 	];
 	const text = [header.join('\n'), ...parts].join('\n\n');
 	return { text, info: { notes: included.size, chars: text.length, truncated } };
-}
-
-// 서버로 보낼 대화를 만듭니다. 마지막 사용자 질문에만 이번에 읽은 [볼트 자료]를 붙이고,
-// 이전 질문에는 당시 지정한 대상의 경로만 한 줄로 남깁니다(내용은 다시 보내지 않음).
-export function composeRequestConversation(
-	conversation: readonly StoredMessage[],
-	latestContext: string | null,
-): ChatMessage[] {
-	const lastIndex = conversation.length - 1;
-	return conversation.map((message, index): ChatMessage => {
-		const { role, content } = message;
-		if (role !== 'user') return { role, content };
-		if (index === lastIndex && latestContext) {
-			return { role, content: `${latestContext}\n\n[사용자 질문]\n${content}` };
-		}
-		if (message.targets?.length) {
-			const names = message.targets.map(describeForModel).join(', ');
-			return { role, content: `(당시 지정한 자료: ${names})\n${content}` };
-		}
-		return { role, content };
-	});
 }

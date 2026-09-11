@@ -29,15 +29,17 @@ import {
 	AttachedInfo,
 	buildVaultContext,
 	ChatTarget,
-	composeRequestConversation,
 	isRemovedBy,
 	renamedTarget,
 	resolveTarget,
 	sameTarget,
 	VaultContext,
 } from '../chat/vault-context';
+import { composeRequestConversation } from '../chat/request-builder';
+import { listSkills, Skill } from '../skills/skill-store';
 import { SessionHistoryModal } from './session-history-modal';
-import { createTargetChip, TargetPicker } from './target-picker';
+import { InlinePicker } from './inline-picker';
+import { buildSkillItems, buildTargetItems, createSkillChip, createTargetChip } from './picker-items';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
@@ -114,10 +116,12 @@ export class ChatView extends ItemView {
 	private renderedLanguage: UiLanguage | null = null;
 	// 입력칸에서 @로 지정한 폴더·노트. 지우기 전까지 계속 유지되어, 이어지는 질문마다 그 내용이 붙습니다.
 	private targets: ChatTarget[] = [];
+	// 입력칸에서 /로 고른 스킬. 대상과 달리 한 번 보내면 풀립니다.
+	private selectedSkill: Skill | null = null;
 
 	private messagesEl!: HTMLElement;
 	private targetChipsEl!: HTMLElement;
-	private picker!: TargetPicker;
+	private picker!: InlinePicker;
 	private inputEl!: HTMLTextAreaElement;
 	private sendButtonEl!: HTMLButtonElement;
 	private newChatButton!: ButtonComponent;
@@ -288,19 +292,39 @@ export class ChatView extends ItemView {
 		});
 		this.inputEl.value = draft;
 		this.sendButtonEl = inputRow.createEl('button', { cls: 'intra-copilot-chat-send' });
-		this.picker = new TargetPicker(
-			this.app,
+		// @ → 폴더·노트, / → 스킬. 입력칸 하나에 목록 하나를 두고, 커서에 가까운 쪽 글자를 따릅니다.
+		this.picker = new InlinePicker(
 			this.inputEl,
 			composer,
-			{
-				wholeVault: strings.pickerWholeVault,
-				currentNote: strings.pickerCurrentNote,
-				noMatch: strings.pickerNoMatch,
-				hint: strings.pickerHint,
-			},
-			(target) => this.addTarget(target),
+			[
+				{
+					trigger: '@',
+					noMatch: strings.pickerNoMatch,
+					loadItems: () =>
+						buildTargetItems(
+							this.app,
+							{ wholeVault: strings.pickerWholeVault, currentNote: strings.pickerCurrentNote },
+							(target) => this.addTarget(target),
+						),
+				},
+				{
+					trigger: '/',
+					noMatch: strings.skillPickerNoMatch,
+					// 스킬 파일을 사내에서 직접 고칠 수도 있어서, 목록을 열 때마다 폴더를 새로 읽습니다.
+					// 지시문이 빈 스킬은 보내도 의미가 없으므로 목록에서 뺍니다.
+					loadItems: async () =>
+						buildSkillItems(
+							(await listSkills(this.plugin)).filter((skill) => skill.instructions),
+							(skill) => {
+								this.setSkill(skill);
+								this.inputEl.focus();
+							},
+						),
+				},
+			],
+			strings.pickerHint,
 		);
-		this.renderTargetChips();
+		this.renderComposerChips();
 
 		// 기다리는 동안에는 같은 버튼이 [중지]가 됩니다.
 		this.sendButtonEl.onclick = () => {
@@ -317,9 +341,14 @@ export class ChatView extends ItemView {
 			// @ 목록이 열려 있으면 ↑↓·Enter·Esc는 목록 조작에 먼저 씁니다.
 			if (this.picker.handleKeydown(evt)) return;
 			// 입력칸이 비어 있을 때 Backspace를 누르면 마지막 칩을 지웁니다.
-			if (evt.key === 'Backspace' && this.inputEl.value === '' && this.targets.length > 0) {
+			if (
+				evt.key === 'Backspace' &&
+				this.inputEl.value === '' &&
+				(this.targets.length > 0 || this.selectedSkill)
+			) {
 				evt.preventDefault();
-				this.setTargets(this.targets.slice(0, -1));
+				if (this.targets.length > 0) this.setTargets(this.targets.slice(0, -1));
+				else this.setSkill(null);
 				return;
 			}
 			if (evt.key === 'Enter' && !evt.shiftKey) {
@@ -396,6 +425,7 @@ export class ChatView extends ItemView {
 	private startNewConversation(): void {
 		this.conversation = [];
 		this.setCurrentSession(null, null);
+		this.selectedSkill = null;
 		this.setTargets([]);
 		this.showEmptyState();
 	}
@@ -590,12 +620,15 @@ export class ChatView extends ItemView {
 		this.modelStatusLabel.toggleClass('is-error', !this.checking && state === 'error');
 	}
 
-	// retryText를 주면 입력칸 대신 그 글을 보냅니다([다시 시도] 버튼). 입력칸에 새로 써 둔 글은 건드리지 않습니다.
-	private async handleSend(retryText?: string): Promise<void> {
+	// retry를 주면 입력칸·선택한 스킬 대신 그 내용을 보냅니다([다시 시도] 버튼).
+	// 입력칸에 새로 써 둔 글은 건드리지 않습니다.
+	private async handleSend(retry?: { text: string; skill: Skill | null }): Promise<void> {
 		if (this.busy) return;
 		const strings = this.strings();
-		const text = (retryText ?? this.inputEl.value).trim();
-		if (!text) return;
+		const text = (retry ? retry.text : this.inputEl.value).trim();
+		const skill = retry ? retry.skill : this.selectedSkill;
+		// 스킬만 고르고 입력칸은 비운 채 보낼 수도 있습니다.
+		if (!text && !skill) return;
 
 		// @로 지정한 대상이 그 사이 지워졌다면, 자료 없이 답하게 두지 않고 먼저 알립니다(입력한 글은 그대로).
 		if (!this.dropMissingTargets()) return;
@@ -628,7 +661,10 @@ export class ChatView extends ItemView {
 			}
 		}
 
-		if (retryText === undefined) this.inputEl.value = '';
+		if (!retry) {
+			this.inputEl.value = '';
+			this.setSkill(null); // 스킬은 한 번 보내면 풀립니다(@ 대상은 계속 유지).
+		}
 
 		if (!this.currentSessionId || !this.currentSessionCreatedAt) {
 			this.setCurrentSession(newSessionId(), new Date().toISOString());
@@ -644,6 +680,7 @@ export class ChatView extends ItemView {
 			role: 'user',
 			content: text,
 			...(vaultContext ? { targets, attached: vaultContext.info } : {}),
+			...(skill ? { skill: { id: skill.id, name: skill.name } } : {}),
 		};
 		conversation.push(userMessage);
 		const userBubble = this.appendUserBubble(userMessage);
@@ -656,10 +693,10 @@ export class ChatView extends ItemView {
 		// https 서버라면 기다리는 것만 그만둡니다(client.ts의 sendHttp 참고).
 		const controller = new AbortController();
 		this.abortController = controller;
-		// 이번에 읽은 노트 내용은 마지막 질문에만 붙여 보냅니다(저장되는 대화에는 넣지 않음).
+		// 이번에 읽은 노트 내용과 스킬 지시문은 마지막 질문에만 붙여 보냅니다(저장되는 대화에는 넣지 않음).
 		const result = await sendChatMessage(
 			this.plugin.settings.llm,
-			composeRequestConversation(conversation, vaultContext?.text ?? null),
+			composeRequestConversation(conversation, { context: vaultContext?.text ?? null, skill }),
 			controller.signal,
 		);
 		this.abortController = null;
@@ -705,7 +742,7 @@ export class ChatView extends ItemView {
 				this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);
 			}
 			if (stillOnScreen) {
-				this.showFailure(userBubble, pending, text, summary, detail);
+				this.showFailure(userBubble, pending, { text, skill }, summary, detail);
 			}
 		}
 
@@ -721,11 +758,12 @@ export class ChatView extends ItemView {
 	private showFailure(
 		userBubble: HTMLElement,
 		errorBubble: HTMLElement,
-		text: string,
+		sent: { text: string; skill: Skill | null },
 		summary: string,
 		detail: string,
 	): void {
 		const strings = this.strings();
+		const { text, skill } = sent;
 		userBubble.addClass('is-failed');
 		userBubble.createDiv({ cls: 'intra-copilot-chat-failed-label', text: strings.failedLabel });
 		errorBubble.removeClass('is-pending');
@@ -754,21 +792,25 @@ export class ChatView extends ItemView {
 			errorBubble.remove();
 			// 실패할 때 입력칸에 되돌려 둔 같은 글이 그대로 있으면 비웁니다(두 번 보내는 것처럼 보이지 않게).
 			if (this.inputEl.value.trim() === text) this.inputEl.value = '';
-			void this.handleSend(text);
+			if (skill && this.selectedSkill?.id === skill.id) this.setSkill(null);
+			void this.handleSend({ text, skill });
 		};
 
 		if (!this.inputEl.value) {
 			this.inputEl.value = text;
 		}
+		// 스킬도 되돌려 놓아서, 고쳐 보낼 때 다시 고르지 않아도 되게 합니다.
+		if (skill && !this.selectedSkill) this.setSkill(skill);
 	}
 
 	// 사용자 말풍선: [지정했던 대상 칩 · 첨부 분량] + 질문 글
 	private appendUserBubble(message: StoredMessage): HTMLElement {
 		const strings = this.strings();
 		const bubble = this.appendBubble('user', '');
-		if (message.targets?.length) {
+		if (message.skill || message.targets?.length) {
 			const row = bubble.createDiv({ cls: 'intra-copilot-bubble-targets' });
-			for (const target of message.targets) {
+			if (message.skill) createSkillChip(row, message.skill, {});
+			for (const target of message.targets ?? []) {
 				createTargetChip(row, target, { wholeVaultLabel: strings.pickerWholeVault });
 			}
 			if (message.attached) {
@@ -802,13 +844,28 @@ export class ChatView extends ItemView {
 
 	private setTargets(targets: ChatTarget[]): void {
 		this.targets = targets;
-		this.renderTargetChips();
+		this.renderComposerChips();
 	}
 
-	private renderTargetChips(): void {
+	private setSkill(skill: Skill | null): void {
+		this.selectedSkill = skill;
+		this.renderComposerChips();
+	}
+
+	// 입력칸 위의 칩 줄: [스킬(보라색)] [폴더·노트(강조색)…]
+	private renderComposerChips(): void {
 		const strings = this.strings();
 		this.targetChipsEl.empty();
-		this.targetChipsEl.hidden = this.targets.length === 0;
+		this.targetChipsEl.hidden = this.targets.length === 0 && !this.selectedSkill;
+		if (this.selectedSkill) {
+			createSkillChip(this.targetChipsEl, this.selectedSkill, {
+				removeTooltip: strings.targetRemoveTooltip,
+				onRemove: () => {
+					this.setSkill(null);
+					this.inputEl.focus();
+				},
+			});
+		}
 		for (const target of this.targets) {
 			createTargetChip(this.targetChipsEl, target, {
 				wholeVaultLabel: strings.pickerWholeVault,

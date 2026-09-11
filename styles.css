@@ -434,6 +434,12 @@
 	text-overflow: ellipsis;
 }
 
+/* /로 고른 스킬 칩 — 폴더·노트 칩(강조색)과 구분되게 보라색 */
+.intra-copilot-target-chip.is-skill {
+	background: var(--color-purple);
+	color: var(--text-on-accent);
+}
+
 .intra-copilot-target-chip-icon,
 .intra-copilot-target-chip-remove {
 	display: inline-flex;
@@ -561,6 +567,51 @@
 	display: flex;
 	gap: 6px;
 	align-items: flex-end;
+}
+
+/* 설정 → 스킬 탭 */
+.intra-copilot-skill-folder {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	word-break: break-all;
+}
+
+/* 스킬 목록 행만 가로 배치: 이름+설명은 왼쪽, [편집][삭제]는 오른쪽 */
+.intra-copilot-skill-list .setting-item {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.intra-copilot-skill-list .setting-item-control {
+	flex-shrink: 0;
+}
+
+/* 스킬 편집 창: 항목마다 이름 → 설명 → 입력칸을 세로로, 입력칸은 창 너비만큼 */
+.intra-copilot-skill-modal .setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.intra-copilot-skill-modal .setting-item-control {
+	justify-content: flex-end;
+}
+
+.intra-copilot-skill-modal input[type='text'],
+.intra-copilot-skill-instructions {
+	width: 100%;
+}
+
+.intra-copilot-skill-instructions {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-skill-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
 }
 
 .intra-copilot-chat-input {

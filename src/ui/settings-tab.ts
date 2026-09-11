@@ -2,6 +2,7 @@ import {
 	App,
 	ButtonComponent,
 	DropdownComponent,
+	Notice,
 	PluginSettingTab,
 	Setting,
 	debounce,
@@ -25,6 +26,11 @@ import {
 	ModelListOutcome,
 } from './model-dropdown';
 import { openGuideWindow } from './guide-view';
+import { deleteSkill, listSkills, Skill, skillsDir } from '../skills/skill-store';
+import { SkillEditModal } from './skill-edit-modal';
+
+// 휴지통을 한 번 누른 뒤 이 시간 안에 다시 눌러야 삭제됩니다(지난 대화 창과 같은 방식).
+const DELETE_CONFIRM_MS = 4000;
 
 // 숫자 입력칸 값을 정수로 바꿉니다. 비어 있거나 숫자가 아니거나 음수면 기본값으로 되돌립니다.
 // (예전에는 비우면 0 = "제한 없음"이 되어, 서버 보호 설정이 실수로 풀릴 수 있었습니다.)
@@ -40,7 +46,7 @@ function parseTimeoutSeconds(value: string): number {
 	return clampChatTimeout(parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds));
 }
 
-type TabId = 'general' | 'llm';
+type TabId = 'general' | 'llm' | 'skills';
 // 새 모듈(예: 임베딩 연결)이 생기면 여기에 id를 추가하고,
 // display()의 tabs 배열에 정의 하나만 더 넣으면 탭이 늘어납니다.
 
@@ -106,6 +112,11 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 				id: 'llm',
 				label: strings.tabs.llm,
 				render: (el) => this.renderLlmTab(el),
+			},
+			{
+				id: 'skills',
+				label: strings.tabs.skills,
+				render: (el) => this.renderSkillsTab(el),
 			},
 		];
 
@@ -376,6 +387,98 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			this.autoCheckPending = false;
 			void checkModels();
 		}
+	}
+
+	// 스킬 탭: SKILL 폴더의 스킬 목록과 [새 스킬]·[편집]·[삭제].
+	// 사내에서 파일을 직접 고친 경우를 위해, 탭을 그릴 때마다 폴더를 새로 읽습니다.
+	private renderSkillsTab(containerEl: HTMLElement): void {
+		const strings = t(this.plugin.settings.general.language).skills;
+
+		new Setting(containerEl).setName(strings.heading).setHeading();
+		containerEl.createEl('p', { text: strings.intro });
+		containerEl.createEl('p', {
+			cls: 'intra-copilot-skill-folder',
+			text: `${strings.folderLabel}${skillsDir(this.plugin)}/`,
+		});
+
+		new Setting(containerEl)
+			.addButton((button) =>
+				button
+					.setButtonText(strings.newButton)
+					.setCta()
+					.onClick(() => this.openSkillEditor(null)),
+			)
+			.addButton((button) =>
+				button.setButtonText(strings.reloadButton).onClick(() => this.display()),
+			);
+
+		void this.fillSkillList(containerEl.createDiv({ cls: 'intra-copilot-skill-list' }));
+	}
+
+	private async fillSkillList(listEl: HTMLElement): Promise<void> {
+		const strings = t(this.plugin.settings.general.language).skills;
+		let skills: Skill[];
+		try {
+			skills = await listSkills(this.plugin);
+		} catch {
+			listEl.createEl('p', { cls: 'intra-copilot-skill-error', text: strings.loadFailed });
+			return;
+		}
+		// 읽는 사이 다른 탭으로 옮겼거나 화면을 다시 그렸으면, 이 목록 자리는 이미 화면에 없습니다.
+		if (!listEl.isConnected) return;
+
+		if (skills.length === 0) {
+			listEl.createEl('p', { cls: 'intra-copilot-chat-empty', text: strings.empty });
+			return;
+		}
+
+		for (const skill of skills) {
+			const file = `${strings.fileLabel}${skill.id}.md`;
+			const desc = skill.instructions
+				? `${skill.description || strings.noDescription} · ${file}`
+				: `${strings.emptyInstructions} · ${file}`;
+			const row = new Setting(listEl).setName(`/${skill.name}`).setDesc(desc);
+
+			row.addExtraButton((button) =>
+				button
+					.setIcon('pencil')
+					.setTooltip(strings.editTooltip)
+					.onClick(() => this.openSkillEditor(skill)),
+			);
+
+			// 삭제는 되돌릴 수 없으므로 두 번 눌러야 합니다. 첫 번째 누름에서는 경고 문구만 보여줍니다.
+			let confirmTimer: number | null = null;
+			row.addExtraButton((button) => {
+				const reset = () => {
+					confirmTimer = null;
+					button.setIcon('trash-2').setTooltip(strings.deleteTooltip);
+					button.extraSettingsEl.removeClass('intra-copilot-delete-armed');
+					row.setDesc(desc);
+				};
+				reset();
+				button.onClick(async () => {
+					if (confirmTimer === null) {
+						button.setIcon('alert-triangle').setTooltip(strings.deleteConfirmTooltip);
+						button.extraSettingsEl.addClass('intra-copilot-delete-armed');
+						row.setDesc(strings.deleteConfirm);
+						confirmTimer = window.setTimeout(reset, DELETE_CONFIRM_MS);
+						return;
+					}
+					window.clearTimeout(confirmTimer);
+					confirmTimer = null;
+					try {
+						await deleteSkill(this.plugin, skill.id);
+					} catch {
+						new Notice(strings.deleteFailed);
+					}
+					this.display();
+				});
+			});
+		}
+	}
+
+	private openSkillEditor(skill: Skill | null): void {
+		new SkillEditModal(this.app, this.plugin, skill, () => this.display()).open();
 	}
 
 	// 고급 설정의 숫자 입력칸 하나를 만듭니다. 입력칸에서 벗어나면(blur) 실제로 저장된 값을
