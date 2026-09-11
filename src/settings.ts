@@ -1,38 +1,27 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
-import MyPlugin from './main';
+export type UiLanguage = 'ko' | 'en';
 
-export interface MyPluginSettings {
-	mySetting: string;
+export interface GeneralSettings {
+	language: UiLanguage;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default',
+export interface LlmSettings {
+	baseUrl: string;
+	apiKey: string;
+	model: string;
+}
+
+export interface IntraCopilotSettings {
+	general: GeneralSettings;
+	llm: LlmSettings;
+}
+
+export const DEFAULT_SETTINGS: IntraCopilotSettings = {
+	general: {
+		language: 'ko',
+	},
+	llm: {
+		baseUrl: '',
+		apiKey: '',
+		model: '',
+	},
 };
-
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc("It's a secret")
-			.addText((text) =>
-				text
-					.setPlaceholder('Enter your secret')
-					.setValue(this.plugin.settings.mySetting)
-					.onChange(async (value) => {
-						this.plugin.settings.mySetting = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-	}
-}

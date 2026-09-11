@@ -1,8 +1,71 @@
-/*
+.intra-copilot-tab-bar {
+	display: flex;
+	gap: 4px;
+	margin-bottom: 1em;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.intra-copilot-tab-button {
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 6px 12px;
+	cursor: pointer;
+	color: var(--text-muted);
+}
 
-If your plugin does not need CSS, delete this file.
+.intra-copilot-tab-button.is-active {
+	color: var(--text-normal);
+	border-bottom-color: var(--interactive-accent);
+	font-weight: 600;
+}
 
-*/
+/* 항목마다 이름 -> 설명 -> 입력칸 순으로 세로로 쌓이게 합니다 (기본은 가로 배치). */
+.intra-copilot-tab-content .setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.intra-copilot-tab-content .setting-item-info {
+	margin-right: 0;
+}
+
+.intra-copilot-tab-content .setting-item-control {
+	justify-content: flex-start;
+}
+
+.intra-copilot-tab-content .setting-item-control input[type='text'],
+.intra-copilot-tab-content .setting-item-control input[type='password'],
+.intra-copilot-tab-content .setting-item-control select {
+	width: 100%;
+}
+
+.intra-copilot-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: -8px;
+	margin-bottom: 1em;
+}
+
+.intra-copilot-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--text-faint);
+	flex-shrink: 0;
+}
+
+.intra-copilot-status-dot.is-ok {
+	background: var(--color-green);
+}
+
+.intra-copilot-status-dot.is-error {
+	background: var(--color-red);
+}
+
+.intra-copilot-status-text {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
