@@ -1,9 +1,7 @@
 import {
 	ButtonComponent,
 	DropdownComponent,
-	ExtraButtonComponent,
 	ItemView,
-	MarkdownRenderer,
 	Notice,
 	setIcon,
 	setTooltip,
@@ -24,29 +22,21 @@ import {
 	saveSession,
 	StoredMessage,
 } from '../chat/session-store';
-import { finalizeRenderedAnswer, neutralizeRemoteContent } from '../chat/safe-markdown';
 import {
-	AttachedInfo,
 	buildVaultContext,
 	ChatTarget,
 	isRemovedBy,
 	renamedTarget,
 	resolveTarget,
-	sameTarget,
 	VaultContext,
 } from '../chat/vault-context';
 import { composeRequestConversation } from '../chat/request-builder';
 import { listSkills, Skill } from '../skills/skill-store';
 import { SessionHistoryModal } from './session-history-modal';
-import { InlinePicker } from './inline-picker';
-import { buildSkillItems, buildTargetItems, createSkillChip, createTargetChip } from './picker-items';
+import { ChatComposer } from './chat/composer';
+import { ChatMessageList, SentMessage } from './chat/message-list';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
-
-// 맨 아래에서 이만큼(px) 안쪽을 보고 있으면 "맨 아래를 보는 중"으로 봅니다.
-const NEAR_BOTTOM_PX = 80;
-// 긴 답변의 시작 부분으로 옮길 때 위쪽에 남겨 둘 여백(px)
-const ANSWER_TOP_MARGIN_PX = 8;
 
 // 리본 아이콘 클릭 등에서 호출합니다. 이미 열려 있으면 그 탭을 보여주고,
 // 없으면 오른쪽 사이드바에 새로 엽니다.
@@ -88,6 +78,10 @@ function readSessionId(state: unknown): string | null {
 	return null;
 }
 
+// 챗봇 화면입니다. 대화 흐름(보내기·저장·불러오기·수정)과 서버 연결 상태를 맡고,
+// 화면 그리기는 두 부품에 맡깁니다.
+// - ui/chat/message-list.ts : 오간 말풍선
+// - ui/chat/composer.ts     : 입력 영역(칩·@·/ 목록·보내기)
 export class ChatView extends ItemView {
 	plugin: IntraCopilotPlugin;
 	private conversation: StoredMessage[] = [];
@@ -119,25 +113,15 @@ export class ChatView extends ItemView {
 	// 늦게 도착한 옛 결과가 새 결과를 덮어쓰지 않도록, 가장 최근 번호의 결과만 반영합니다.
 	private modelCheckSeq = 0;
 	private renderedLanguage: UiLanguage | null = null;
-	// 입력칸에서 @로 지정한 폴더·노트. 지우기 전까지 계속 유지되어, 이어지는 질문마다 그 내용이 붙습니다.
-	private targets: ChatTarget[] = [];
-	// 입력칸에서 /로 고른 스킬. 대상과 달리 한 번 보내면 풀립니다.
-	private selectedSkill: Skill | null = null;
+
 	// 보낸 메시지를 수정하는 중이면 그 메시지의 위치(conversation 안의 번호). 보내는 순간 이 위치부터
 	// 아래 대화를 버리고 새 메시지로 바꿉니다. [취소]하면 아무것도 지우지 않습니다.
 	private editingIndex: number | null = null;
 	// 수정을 시작하기 전 입력칸 상태. [취소]하면 되돌립니다.
 	private editBackup: { text: string; skill: Skill | null; targets: ChatTarget[] } | null = null;
-	// 메시지 → 화면의 말풍선. 수정 중 표시(점선·흐리게)를 붙일 때 씁니다.
-	private bubbleByMessage = new WeakMap<StoredMessage, HTMLElement>();
-	private editBannerEl!: HTMLElement;
 
-	private messagesEl!: HTMLElement;
-	// 입력칸 위의 칩 줄 — 스킬 칩과 @ 대상 칩이 함께 들어갑니다.
-	private chipsEl!: HTMLElement;
-	private picker!: InlinePicker;
-	private inputEl!: HTMLTextAreaElement;
-	private sendButtonEl!: HTMLButtonElement;
+	private messages!: ChatMessageList;
+	private composer!: ChatComposer;
 	private newChatButton!: ButtonComponent;
 	private historyButton!: ButtonComponent;
 	private checkButton!: ButtonComponent;
@@ -186,7 +170,7 @@ export class ChatView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.buildLayout();
 		this.layoutBuilt = true;
-		this.showEmptyState();
+		this.messages.showEmptyState();
 		if (this.pendingRestoreId) {
 			const id = this.pendingRestoreId;
 			this.pendingRestoreId = null;
@@ -233,10 +217,17 @@ export class ChatView extends ItemView {
 		return t(this.plugin.settings.general.language).chat;
 	}
 
-	// 머리줄(버튼들) + 메시지 영역 + 입력줄을 새로 만듭니다. 언어가 바뀌면 다시 호출됩니다.
+	// 머리줄(버튼들) + 메시지 영역 + 입력 영역을 새로 만듭니다. 언어가 바뀌면 다시 호출되므로,
+	// 입력해 둔 글과 칩은 새 입력 영역으로 그대로 옮깁니다.
 	private buildLayout(): void {
 		const strings = this.strings();
-		const draft = this.inputEl?.value ?? '';
+		const carried = this.composer
+			? {
+					text: this.composer.text,
+					targets: this.composer.getTargets(),
+					skill: this.composer.getSkill(),
+				}
+			: null;
 		this.renderedLanguage = this.plugin.settings.general.language;
 
 		const container = this.contentEl;
@@ -244,7 +235,7 @@ export class ChatView extends ItemView {
 		container.addClass('intra-copilot-chat-view');
 
 		// 머리줄: 왼쪽은 대화에 관한 버튼([새 대화] [지난 대화]), 오른쪽은 서버 연결에 관한 것
-		// (모델 선택 · [연결 확인] · 상태등). 모델 선택은 설정 화면과 완전히 같은 값(settings.llm.model)을
+		// (모델 선택 · [연결 확인] · 상태). 모델 선택은 설정 화면과 완전히 같은 값(settings.llm.model)을
 		// 공유합니다 — 여기서 바꾸면 설정에도 반영됩니다. 사이드바가 좁으면 오른쪽 묶음이 아래 줄로 내려갑니다.
 		const header = container.createDiv({ cls: 'intra-copilot-chat-header' });
 		const conversationGroup = header.createDiv({ cls: 'intra-copilot-chat-header-group' });
@@ -294,93 +285,30 @@ export class ChatView extends ItemView {
 		this.modelStatusLabel = this.modelStatusEl.createSpan({ cls: 'intra-copilot-chat-status-label' });
 		this.renderConnectionStatus();
 
-		this.messagesEl = container.createDiv({ cls: 'intra-copilot-chat-messages' });
-
-		// 입력 영역: [지정한 대상 칩] 줄 + [입력칸·보내기] 줄. @ 목록은 이 영역 위에 뜹니다.
-		const composer = container.createDiv({ cls: 'intra-copilot-chat-composer' });
-		this.editBannerEl = composer.createDiv({ cls: 'intra-copilot-edit-banner' });
-		this.renderEditBanner();
-		this.chipsEl = composer.createDiv({ cls: 'intra-copilot-target-chips' });
-		const inputRow = composer.createDiv({ cls: 'intra-copilot-chat-input-row' });
-		this.inputEl = inputRow.createEl('textarea', {
-			cls: 'intra-copilot-chat-input',
-			attr: { placeholder: strings.inputPlaceholder, rows: '2' },
-		});
-		this.inputEl.value = draft;
-		this.sendButtonEl = inputRow.createEl('button', { cls: 'intra-copilot-chat-send' });
-		// @ → 폴더·노트, / → 스킬. 입력칸 하나에 목록 하나를 두고, 커서에 가까운 쪽 글자를 따릅니다.
-		this.picker = new InlinePicker(
-			this.inputEl,
-			composer,
-			[
-				{
-					trigger: '@',
-					noMatch: strings.pickerNoMatch,
-					loadItems: () =>
-						buildTargetItems(
-							this.app,
-							{ wholeVault: strings.pickerWholeVault, currentNote: strings.pickerCurrentNote },
-							(target) => this.addTarget(target),
-						),
-				},
-				{
-					trigger: '/',
-					noMatch: strings.skillPickerNoMatch,
-					// 스킬 파일을 사내에서 직접 고칠 수도 있어서, 목록을 열 때마다 폴더를 새로 읽습니다.
-					// 지시문이 빈 스킬은 보내도 의미가 없으므로 목록에서 뺍니다.
-					loadItems: async () =>
-						buildSkillItems(
-							(await listSkills(this.plugin)).filter((skill) => skill.instructions),
-							(skill) => {
-								this.setSkill(skill);
-								this.inputEl.focus();
-							},
-						),
-				},
-			],
-			strings.pickerHint,
-		);
-		this.renderComposerChips();
-
-		// 기다리는 동안에는 같은 버튼이 [중지]가 됩니다.
-		this.sendButtonEl.onclick = () => {
-			if (this.busy) {
-				this.abortController?.abort();
-			} else {
-				void this.handleSend();
-			}
-		};
-		this.inputEl.addEventListener('keydown', (evt) => {
-			// 한글처럼 조합해서 입력하는 언어(IME)에서는 글자를 확정할 때도 Enter가 눌립니다.
-			// 이때 전송해버리면 "안녕하세" 같은 미완성 문장이 날아가므로 조합 중에는 무시합니다.
-			if (evt.isComposing) return;
-			// @ 목록이 열려 있으면 ↑↓·Enter·Esc는 목록 조작에 먼저 씁니다.
-			if (this.picker.handleKeydown(evt)) return;
-			// 메시지를 수정하는 중이면 Esc로 수정을 취소합니다.
-			if (evt.key === 'Escape' && this.editingIndex !== null) {
-				evt.preventDefault();
-				this.cancelEditing();
-				return;
-			}
-			// 입력칸이 비어 있을 때 Backspace를 누르면 마지막 칩을 지웁니다.
-			if (
-				evt.key === 'Backspace' &&
-				this.inputEl.value === '' &&
-				(this.targets.length > 0 || this.selectedSkill)
-			) {
-				evt.preventDefault();
-				if (this.targets.length > 0) this.setTargets(this.targets.slice(0, -1));
-				else this.setSkill(null);
-				return;
-			}
-			if (evt.key === 'Enter' && !evt.shiftKey) {
-				evt.preventDefault();
-				// 기다리는 중에는 써 둔 글을 그대로 두고 안내만 합니다.
-				if (this.warnIfBusy()) return;
-				void this.handleSend();
-			}
+		this.messages = new ChatMessageList(container, {
+			app: this.plugin.app,
+			component: this,
+			strings: () => this.strings(),
+			callbacks: {
+				onEdit: (message) => void this.startEditing(message),
+				onRetry: (sent, bubbles) => this.retry(sent, bubbles),
+				onCopy: (text, notice) => void this.copyToClipboard(text, notice),
+			},
 		});
 
+		this.composer = new ChatComposer(container, this.plugin, strings, {
+			onSend: () => void this.handleSend(),
+			onStop: () => this.abortController?.abort(),
+			onCancelEdit: () => this.cancelEditing(),
+			warnIfBusy: () => this.warnIfBusy(),
+		});
+
+		if (carried) {
+			this.composer.text = carried.text;
+			this.composer.setTargets(carried.targets);
+			this.composer.setSkill(carried.skill);
+		}
+		this.updateEditBanner();
 		this.applyBusyState();
 	}
 
@@ -423,10 +351,7 @@ export class ChatView extends ItemView {
 	}
 
 	private applyBusyState(): void {
-		const strings = this.strings();
-		this.sendButtonEl.setText(this.busy ? strings.stopButton : strings.sendButton);
-		this.sendButtonEl.toggleClass('mod-warning', this.busy);
-		setTooltip(this.sendButtonEl, this.busy ? strings.stopTooltip : strings.sendTooltip);
+		this.composer.setBusy(this.busy);
 		this.newChatButton.setDisabled(this.busy);
 		this.historyButton.setDisabled(this.busy);
 		// 잠긴 버튼이 눈에 띄게 흐려지도록 전용 클래스를 붙입니다(styles.css).
@@ -448,17 +373,9 @@ export class ChatView extends ItemView {
 		this.conversation = [];
 		this.setCurrentSession(null, null);
 		this.discardEditing();
-		this.selectedSkill = null;
-		this.setTargets([]);
-		this.showEmptyState();
-	}
-
-	private showEmptyState(): void {
-		this.messagesEl.empty();
-		this.messagesEl.createEl('p', {
-			cls: 'intra-copilot-chat-empty',
-			text: this.strings().emptyState,
-		});
+		this.composer.setSkill(null);
+		this.composer.setTargets([]);
+		this.messages.showEmptyState();
 	}
 
 	// 지난 대화 목록에서 지금 열려 있는 대화를 지웠다면, 다음 메시지 때 같은 파일이 다시
@@ -485,68 +402,13 @@ export class ChatView extends ItemView {
 		// 그 대화에서 마지막으로 지정했던 대상을 칩으로 되살립니다. Obsidian을 막 켰을 때는 볼트 파일 목록이
 		// 아직 다 준비되지 않았을 수 있어서 여기서 걸러내지 않고, 보낼 때 있는지 확인합니다(dropMissingTargets).
 		const lastUser = [...session.messages].reverse().find((message) => message.role === 'user');
-		this.setTargets(lastUser?.targets ?? []);
+		this.composer.setTargets(lastUser?.targets ?? []);
 		await this.renderConversation();
 	}
 
-	// this.conversation 전체를 메시지 영역에 다시 그립니다.
 	private async renderConversation(): Promise<void> {
-		if (this.conversation.length === 0) {
-			this.showEmptyState();
-			return;
-		}
-		this.messagesEl.empty();
-		for (const message of this.conversation) {
-			if (message.role === 'assistant') {
-				await this.renderAssistantBubble(this.appendBubble('assistant', ''), message);
-			} else if (message.role === 'user') {
-				this.appendUserBubble(message);
-			}
-		}
-		this.applyEditHighlight();
-		this.scrollToBottom();
-	}
-
-	// 답변 말풍선: [생각 과정(접힘)] → 답변(마크다운) → [잘림 안내] → [복사 버튼]
-	private async renderAssistantBubble(bubble: HTMLElement, message: StoredMessage): Promise<void> {
-		const strings = this.strings();
-		this.bubbleByMessage.set(message, bubble);
-		bubble.empty();
-		bubble.removeClass('is-pending', 'is-error');
-		bubble.addClass('is-markdown');
-
-		if (message.reasoning) {
-			const details = bubble.createEl('details', { cls: 'intra-copilot-chat-reasoning' });
-			details.createEl('summary', { text: strings.reasoningSummary });
-			details.createDiv({ cls: 'intra-copilot-chat-reasoning-body', text: message.reasoning });
-		}
-
-		// LLM은 보통 마크다운(목록, 굵게, 코드블록)으로 답하므로 그대로 렌더링합니다.
-		// 단, 외부 요청을 만들거나 다른 플러그인이 실행할 수 있는 문법은 먼저 무력화합니다(safe-markdown.ts).
-		const answerEl = bubble.createDiv({ cls: 'intra-copilot-chat-answer' });
-		const content = message.content || strings.emptyReply;
-		await MarkdownRenderer.render(
-			this.plugin.app,
-			neutralizeRemoteContent(content),
-			answerEl,
-			'',
-			this,
-		);
-		finalizeRenderedAnswer(answerEl, {
-			onBlockedLinkClick: (href) => void this.copyToClipboard(href, strings.linkBlockedNotice),
-		});
-
-		if (message.truncated) {
-			bubble.createDiv({ cls: 'intra-copilot-chat-notice', text: strings.truncatedNotice });
-		}
-
-		if (message.content) {
-			const actions = bubble.createDiv({ cls: 'intra-copilot-chat-actions' });
-			new ExtraButtonComponent(actions)
-				.setIcon('copy')
-				.setTooltip(strings.copyTooltip)
-				.onClick(() => void this.copyToClipboard(message.content));
-		}
+		await this.messages.render(this.conversation);
+		this.messages.setEditHighlight(this.conversation, this.editingIndex);
 	}
 
 	private async copyToClipboard(text: string, successNotice?: string): Promise<void> {
@@ -648,11 +510,11 @@ export class ChatView extends ItemView {
 
 	// retry를 주면 입력칸·선택한 스킬 대신 그 내용을 보냅니다([다시 시도] 버튼).
 	// 입력칸에 새로 써 둔 글은 건드리지 않습니다.
-	private async handleSend(retry?: { text: string; skill: Skill | null }): Promise<void> {
+	private async handleSend(retry?: SentMessage): Promise<void> {
 		if (this.busy) return;
 		const strings = this.strings();
-		const text = (retry ? retry.text : this.inputEl.value).trim();
-		const skill = retry ? retry.skill : this.selectedSkill;
+		const text = (retry ? retry.text : this.composer.text).trim();
+		const skill = retry ? retry.skill : this.composer.getSkill();
 		// 메시지 수정 중이었다면 이 위치부터 아래 대화를 버리고 보냅니다([다시 시도]는 해당 없음).
 		const editIndex = retry ? null : this.editingIndex;
 		// 스킬만 고르고 입력칸은 비운 채 보낼 수도 있습니다.
@@ -662,18 +524,18 @@ export class ChatView extends ItemView {
 		if (!this.dropMissingTargets()) return;
 
 		if (this.conversation.length === 0) {
-			this.messagesEl.empty(); // "아직 대화가 없습니다" 문구를 지웁니다.
+			this.messages.clear(); // "아직 대화가 없습니다" 문구를 지웁니다.
 		}
 
 		if (!this.isConfigured()) {
-			this.appendBubble('assistant', strings.notConfigured, { isError: true });
+			this.messages.appendPlain('assistant', strings.notConfigured, { isError: true });
 			return;
 		}
 
 		this.setBusy(true);
 
 		// 지정한 폴더·노트를 지금 읽습니다. 읽기에 실패하면 입력칸을 비우기 전에 멈춰서 글이 사라지지 않게 합니다.
-		const targets = [...this.targets];
+		const targets = this.composer.getTargets();
 		let vaultContext: VaultContext | null = null;
 		if (targets.length > 0) {
 			try {
@@ -690,8 +552,8 @@ export class ChatView extends ItemView {
 		}
 
 		if (!retry) {
-			this.inputEl.value = '';
-			this.setSkill(null); // 스킬은 한 번 보내면 풀립니다(@ 대상은 계속 유지).
+			this.composer.text = '';
+			this.composer.setSkill(null); // 스킬은 한 번 보내면 풀립니다(@ 대상은 계속 유지).
 		}
 
 		if (editIndex !== null) {
@@ -700,7 +562,7 @@ export class ChatView extends ItemView {
 			this.discardEditing();
 			this.conversation.splice(editIndex);
 			await this.renderConversation();
-			if (this.conversation.length === 0) this.messagesEl.empty();
+			if (this.conversation.length === 0) this.messages.clear();
 		}
 
 		if (!this.currentSessionId || !this.currentSessionCreatedAt) {
@@ -720,10 +582,10 @@ export class ChatView extends ItemView {
 			...(skill ? { skill: { id: skill.id, name: skill.name } } : {}),
 		};
 		conversation.push(userMessage);
-		const userBubble = this.appendUserBubble(userMessage);
+		const userBubble = this.messages.appendUser(userMessage);
 		this.persistSession(sessionId, createdAt, conversation);
 
-		const pending = this.appendBubble('assistant', strings.thinking, { isPending: true });
+		const pending = this.messages.appendPlain('assistant', strings.thinking, { isPending: true });
 
 		const snapshot = this.plugin.connectionSnapshot();
 		// [중지]를 누르면 이 컨트롤러를 중단합니다. http 서버라면 연결이 실제로 끊기고,
@@ -755,9 +617,9 @@ export class ChatView extends ItemView {
 			this.plugin.reportConnection('chat', snapshot, 'ok', llmStrings.chatOk);
 			if (stillOnScreen) {
 				// 그리기 전에 재야 합니다 — 그린 뒤엔 말풍선이 길어져 항상 "위를 보는 중"으로 보입니다.
-				const follow = this.isNearBottom();
-				await this.renderAssistantBubble(pending, reply);
-				if (follow) this.revealAnswer(pending);
+				const follow = this.messages.isNearBottom();
+				await this.messages.renderAssistant(pending, reply);
+				if (follow) this.messages.revealAnswer(pending);
 			}
 		} else {
 			// 실패하거나 중지한 질문은 대화에서 되돌립니다. 남겨두면 다음 요청에 user 메시지가 두 번
@@ -782,9 +644,12 @@ export class ChatView extends ItemView {
 				this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);
 			}
 			if (stillOnScreen) {
-				const follow = this.isNearBottom();
-				this.showFailure(userBubble, pending, { text, skill }, summary, detail);
-				if (follow) this.revealAnswer(pending);
+				const follow = this.messages.isNearBottom();
+				this.messages.showFailure(userBubble, pending, { text, skill }, summary, detail);
+				if (follow) this.messages.revealAnswer(pending);
+				// 실패한 글과 스킬을 입력칸에 되돌려 놓아서, 고쳐서 다시 보낼 수도 있게 합니다.
+				if (!this.composer.text) this.composer.text = text;
+				if (skill && !this.composer.getSkill()) this.composer.setSkill(skill);
 			}
 		}
 
@@ -793,91 +658,25 @@ export class ChatView extends ItemView {
 			await this.rebuild();
 		}
 		// [다시 시도]로 대화가 늘거나 줄었으면, 수정 안내에 적힌 개수를 다시 계산합니다.
-		if (this.editingIndex !== null) this.renderEditBanner();
-		this.inputEl.focus();
+		this.updateEditBanner();
+		this.composer.focus();
 	}
 
-	// 실패 표시: 보낸 질문은 흐리게, 오류 말풍선에는 [다시 시도] 버튼.
-	// 입력칸이 비어 있으면 질문을 되돌려 놓아서, 고쳐서 다시 보낼 수도 있게 합니다.
-	private showFailure(
-		userBubble: HTMLElement,
-		errorBubble: HTMLElement,
-		sent: { text: string; skill: Skill | null },
-		summary: string,
-		detail: string,
-	): void {
+	// 오류 말풍선의 [다시 시도]
+	private retry(sent: SentMessage, bubbles: { user: HTMLElement; error: HTMLElement }): void {
 		const strings = this.strings();
-		const { text, skill } = sent;
-		// 대화 기록에서 빠진 질문이라 [수정] 대상이 아닙니다(대신 아래 [다시 시도]를 씁니다).
-		userBubble.querySelector('.intra-copilot-chat-actions')?.remove();
-		userBubble.addClass('is-failed');
-		userBubble.createDiv({ cls: 'intra-copilot-chat-failed-label', text: strings.failedLabel });
-		errorBubble.removeClass('is-pending');
-		errorBubble.addClass('is-error');
-		errorBubble.empty();
-		// 원인과 해결 방법을 먼저 보여주고, 서버 원문은 접어둡니다(관리자에게 전달할 때 필요).
-		errorBubble.createDiv({ text: `${strings.errorPrefix}${summary}` });
-		if (detail) {
-			const details = errorBubble.createEl('details', { cls: 'intra-copilot-chat-error-detail' });
-			details.createEl('summary', { text: strings.errorDetails });
-			details.createDiv({ cls: 'intra-copilot-chat-error-detail-body', text: detail });
+		if (this.warnIfBusy()) return;
+		// 그 사이 서버 설정을 지웠다면, 말풍선을 지우기 전에 알려서 질문 글이 사라지지 않게 합니다.
+		if (!this.isConfigured()) {
+			new Notice(strings.notConfigured);
+			return;
 		}
-
-		const retryButton = errorBubble.createEl('button', {
-			cls: 'intra-copilot-chat-retry',
-			text: strings.retryButton,
-		});
-		retryButton.onclick = () => {
-			if (this.warnIfBusy()) return;
-			// 그 사이 서버 설정을 지웠다면, 말풍선을 지우기 전에 알려서 질문 글이 사라지지 않게 합니다.
-			if (!this.isConfigured()) {
-				new Notice(strings.notConfigured);
-				return;
-			}
-			userBubble.remove();
-			errorBubble.remove();
-			// 실패할 때 입력칸에 되돌려 둔 같은 글이 그대로 있으면 비웁니다(두 번 보내는 것처럼 보이지 않게).
-			if (this.inputEl.value.trim() === text) this.inputEl.value = '';
-			if (skill && this.selectedSkill?.id === skill.id) this.setSkill(null);
-			void this.handleSend({ text, skill });
-		};
-
-		if (!this.inputEl.value) {
-			this.inputEl.value = text;
-		}
-		// 스킬도 되돌려 놓아서, 고쳐 보낼 때 다시 고르지 않아도 되게 합니다.
-		if (skill && !this.selectedSkill) this.setSkill(skill);
-	}
-
-	// 사용자 말풍선: [지정했던 대상 칩 · 첨부 분량] + 질문 글
-	private appendUserBubble(message: StoredMessage): HTMLElement {
-		const strings = this.strings();
-		const bubble = this.appendBubble('user', '');
-		if (message.skill || message.targets?.length) {
-			const row = bubble.createDiv({ cls: 'intra-copilot-bubble-targets' });
-			if (message.skill) createSkillChip(row, message.skill, {});
-			for (const target of message.targets ?? []) {
-				createTargetChip(row, target, { wholeVaultLabel: strings.pickerWholeVault });
-			}
-			if (message.attached) {
-				row.createSpan({
-					cls: 'intra-copilot-bubble-attached',
-					text: this.describeAttached(message.attached),
-				});
-			}
-		}
-		bubble.appendText(message.content);
-
-		// [수정] — 이 메시지를 고쳐서 이 자리부터 다시 보냅니다. 평소엔 흐리고, 마우스를 올리면 진해집니다.
-		const actions = bubble.createDiv({ cls: 'intra-copilot-chat-actions' });
-		new ExtraButtonComponent(actions)
-			.setIcon('pencil')
-			.setTooltip(strings.editTooltip)
-			.onClick(() => void this.startEditing(message));
-
-		this.bubbleByMessage.set(message, bubble);
-		this.scrollToBottom();
-		return bubble;
+		bubbles.user.remove();
+		bubbles.error.remove();
+		// 실패할 때 입력칸에 되돌려 둔 같은 글·스킬이 그대로 있으면 비웁니다(두 번 보내는 것처럼 보이지 않게).
+		if (this.composer.text.trim() === sent.text) this.composer.text = '';
+		if (sent.skill && this.composer.getSkill()?.id === sent.skill.id) this.composer.setSkill(null);
+		void this.handleSend(sent);
 	}
 
 	// ─── 보낸 메시지 수정 ─────────────────────────────────────────────
@@ -890,19 +689,18 @@ export class ChatView extends ItemView {
 
 		if (this.editingIndex === null) {
 			this.editBackup = {
-				text: this.inputEl.value,
-				skill: this.selectedSkill,
-				targets: this.targets,
+				text: this.composer.text,
+				skill: this.composer.getSkill(),
+				targets: this.composer.getTargets(),
 			};
 		}
 		this.editingIndex = index;
-		this.inputEl.value = message.content;
-		this.setTargets(message.targets ?? []);
+		this.composer.text = message.content;
+		this.composer.setTargets(message.targets ?? []);
 		// 스킬을 찾기 전에 먼저 표시합니다(폴더를 읽는 동안 수정 중인지 알 수 없으면 안 되므로).
-		this.renderEditBanner();
-		this.applyEditHighlight();
-		this.inputEl.focus();
-		this.inputEl.setSelectionRange(this.inputEl.value.length, this.inputEl.value.length);
+		this.updateEditBanner();
+		this.messages.setEditHighlight(this.conversation, this.editingIndex);
+		this.composer.focusAtEnd();
 
 		// 대화 파일에는 스킬 이름만 있으므로, 지금 스킬 폴더에서 같은 스킬을 다시 찾습니다.
 		let skill: Skill | null = null;
@@ -917,7 +715,7 @@ export class ChatView extends ItemView {
 		}
 		// 스킬을 찾는 사이 수정을 취소했거나 다른 메시지를 골랐으면 여기서 멈춥니다.
 		if (this.editingIndex !== index) return;
-		this.setSkill(skill);
+		this.composer.setSkill(skill);
 	}
 
 	// 수정 취소: 대화는 그대로 두고, 입력칸을 수정 시작 전으로 되돌립니다.
@@ -926,107 +724,36 @@ export class ChatView extends ItemView {
 		const backup = this.editBackup;
 		this.discardEditing();
 		if (backup) {
-			this.inputEl.value = backup.text;
-			this.selectedSkill = backup.skill;
-			this.setTargets(backup.targets);
+			this.composer.text = backup.text;
+			this.composer.setSkill(backup.skill);
+			this.composer.setTargets(backup.targets);
 		}
-		this.inputEl.focus();
+		this.composer.focus();
 	}
 
 	// 수정 상태만 끝냅니다(입력칸은 건드리지 않음). 보냈을 때, 새 대화·지난 대화로 바꿀 때 씁니다.
 	private discardEditing(): void {
 		this.editingIndex = null;
 		this.editBackup = null;
-		this.renderEditBanner();
-		this.applyEditHighlight();
+		this.updateEditBanner();
+		this.messages.setEditHighlight(this.conversation, null);
 	}
 
-	private renderEditBanner(): void {
-		const strings = this.strings();
-		this.editBannerEl.empty();
-		this.editBannerEl.hidden = this.editingIndex === null;
-		if (this.editingIndex === null) return;
-		const count = this.conversation.length - this.editingIndex;
-		setIcon(this.editBannerEl.createSpan({ cls: 'intra-copilot-edit-banner-icon' }), 'pencil');
-		this.editBannerEl.createSpan({
-			cls: 'intra-copilot-edit-banner-text',
-			text: strings.editBanner.replace('{count}', String(count)),
-		});
-		const cancel = this.editBannerEl.createEl('button', {
-			cls: 'intra-copilot-edit-banner-cancel',
-			text: strings.editCancel,
-		});
-		cancel.onclick = () => this.cancelEditing();
+	// 입력칸 위 안내 줄에 "보내면 바뀔 메시지 개수"를 알려줍니다.
+	private updateEditBanner(): void {
+		this.composer.setEditing(
+			this.editingIndex === null ? null : this.conversation.length - this.editingIndex,
+		);
 	}
 
-	// 고치는 메시지는 점선 테두리, 그 아래(보내면 사라질) 대화는 흐리게 표시합니다.
-	private applyEditHighlight(): void {
-		const editing = this.editingIndex;
-		this.conversation.forEach((message, index) => {
-			const bubble = this.bubbleByMessage.get(message);
-			bubble?.toggleClass('is-editing', index === editing);
-			bubble?.toggleClass('is-superseded', editing !== null && index > editing);
-		});
-	}
-
-	private describeAttached(info: AttachedInfo): string {
-		const strings = this.strings();
-		const text = strings.attachedInfo
-			.replace('{count}', info.notes.toLocaleString())
-			.replace('{chars}', info.chars.toLocaleString());
-		return info.truncated ? `${text}${strings.attachedTruncated}` : text;
-	}
-
-	// ─── @로 지정한 대상(칩) ───────────────────────────────────────────
-
-	private addTarget(target: ChatTarget): void {
-		if (!this.targets.some((existing) => sameTarget(existing, target))) {
-			this.setTargets([...this.targets, target]);
-		}
-		this.inputEl.focus();
-	}
-
-	private setTargets(targets: ChatTarget[]): void {
-		this.targets = targets;
-		this.renderComposerChips();
-	}
-
-	private setSkill(skill: Skill | null): void {
-		this.selectedSkill = skill;
-		this.renderComposerChips();
-	}
-
-	// 입력칸 위의 칩 줄: [스킬(보라색)] [폴더·노트(강조색)…]
-	private renderComposerChips(): void {
-		const strings = this.strings();
-		this.chipsEl.empty();
-		this.chipsEl.hidden = this.targets.length === 0 && !this.selectedSkill;
-		if (this.selectedSkill) {
-			createSkillChip(this.chipsEl, this.selectedSkill, {
-				removeTooltip: strings.skillRemoveTooltip,
-				onRemove: () => {
-					this.setSkill(null);
-					this.inputEl.focus();
-				},
-			});
-		}
-		for (const target of this.targets) {
-			createTargetChip(this.chipsEl, target, {
-				wholeVaultLabel: strings.pickerWholeVault,
-				removeTooltip: strings.targetRemoveTooltip,
-				onRemove: () => {
-					this.setTargets(this.targets.filter((existing) => !sameTarget(existing, target)));
-					this.inputEl.focus();
-				},
-			});
-		}
-	}
+	// ─── @로 지정한 대상 ──────────────────────────────────────────────
 
 	// 볼트에서 사라진 대상이 있으면 칩에서 빼고 알린 뒤 false(보내지 않음)를 돌려줍니다.
 	private dropMissingTargets(): boolean {
-		const missing = this.targets.filter((target) => !resolveTarget(this.app, target));
+		const targets = this.composer.getTargets();
+		const missing = targets.filter((target) => !resolveTarget(this.app, target));
 		if (missing.length === 0) return true;
-		this.setTargets(this.targets.filter((target) => !missing.includes(target)));
+		this.composer.setTargets(targets.filter((target) => !missing.includes(target)));
 		new Notice(
 			this.strings().targetMissing.replace('{names}', missing.map((target) => target.path).join(', ')),
 		);
@@ -1035,55 +762,18 @@ export class ChatView extends ItemView {
 
 	private handleVaultRename(oldPath: string, newPath: string): void {
 		let changed = false;
-		const next = this.targets.map((target) => {
+		const next = this.composer.getTargets().map((target) => {
 			const renamed = renamedTarget(target, oldPath, newPath);
 			if (!renamed) return target;
 			changed = true;
 			return renamed;
 		});
-		if (changed) this.setTargets(next);
+		if (changed) this.composer.setTargets(next);
 	}
 
 	private handleVaultDelete(path: string): void {
-		const next = this.targets.filter((target) => !isRemovedBy(target, path));
-		if (next.length !== this.targets.length) this.setTargets(next);
-	}
-
-	private appendBubble(
-		role: 'user' | 'assistant',
-		text: string,
-		options: { isPending?: boolean; isError?: boolean } = {},
-	): HTMLElement {
-		const bubble = this.messagesEl.createDiv({
-			cls: `intra-copilot-chat-bubble is-${role}`,
-		});
-		if (options.isPending) bubble.addClass('is-pending');
-		if (options.isError) bubble.addClass('is-error');
-		bubble.setText(text);
-		this.scrollToBottom();
-		return bubble;
-	}
-
-	private scrollToBottom(): void {
-		this.messagesEl.scrollTo({ top: this.messagesEl.scrollHeight });
-	}
-
-	// 맨 아래 근처를 보고 있는지. 위로 올려 예전 대화를 읽는 중이면 답변이 와도 끌어내리지 않습니다.
-	private isNearBottom(): boolean {
-		const el = this.messagesEl;
-		return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
-	}
-
-	// 도착한 답변(또는 오류)을 보여줍니다. 화면보다 짧으면 맨 아래로, 길면 답변의 시작 부분이
-	// 보이게 옮깁니다(맨 끝으로 가면 다시 위로 올려 읽어야 하므로).
-	private revealAnswer(bubble: HTMLElement): void {
-		const el = this.messagesEl;
-		const fitsOnScreen = bubble.offsetHeight <= el.clientHeight - ANSWER_TOP_MARGIN_PX;
-		const answerTop =
-			el.scrollTop +
-			bubble.getBoundingClientRect().top -
-			el.getBoundingClientRect().top -
-			ANSWER_TOP_MARGIN_PX;
-		el.scrollTo({ top: fitsOnScreen ? el.scrollHeight : answerTop, behavior: 'smooth' });
+		const targets = this.composer.getTargets();
+		const next = targets.filter((target) => !isRemovedBy(target, path));
+		if (next.length !== targets.length) this.composer.setTargets(next);
 	}
 }

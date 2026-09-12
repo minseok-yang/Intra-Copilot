@@ -232,6 +232,9 @@ const ko = {
 
 type Dictionary = typeof ko;
 
+// 화면 부품들이 "이 화면의 문구 묶음"을 인자로 받을 때 쓰는 타입입니다.
+export type ChatStrings = Dictionary['chat'];
+
 const en: Dictionary = {
 	tabs: {
 		general: 'General',
