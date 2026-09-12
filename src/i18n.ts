@@ -46,7 +46,7 @@ const ko = {
 			'0이면 제한 없음(서버 기본값), 비워두면 기본값(4096)으로 돌아갑니다.',
 		maxContextName: '노트 자료 최대 글자 수',
 		maxContextDesc:
-			'채팅에서 @로 지정한 폴더·노트를 질문에 붙일 때 최대 몇 글자까지 보낼지 정합니다. 넘치는 노트는 빼고 보내며, 빠진 자료가 있다는 사실도 모델에게 알립니다. ' +
+			'챗봇 입력칸 위에 칩으로 올라온 폴더·노트를 질문에 붙일 때 최대 몇 글자까지 보낼지 정합니다. 넘치는 노트는 빼고 보내며, 빠진 자료가 있다는 사실도 모델에게 알립니다. ' +
 			'"길이를 넘었다"며 답변이 실패하면 줄여보세요. 0이면 제한 없음, 비워두면 기본값(8000)으로 돌아갑니다.',
 		streamingName: '답변 스트리밍',
 		streamingDesc:
@@ -126,8 +126,8 @@ const ko = {
 		inputPlaceholder: '메시지를 입력하세요 (@: 폴더·노트, /: 스킬, Enter: 보내기, Shift+Enter: 줄바꿈)',
 		sendButton: '보내기',
 		emptyState:
-			'아직 대화가 없습니다. 아래에 메시지를 입력해보세요. @를 입력하면 볼트의 폴더·노트를 골라, 그 내용을 두고 대화할 수 있습니다. ' +
-			'/를 입력하면 저장해 둔 스킬(자주 쓰는 작업 지시)을 불러옵니다.',
+			'아직 대화가 없습니다. 아래에 메시지를 입력해보세요. 지금 열려 있는 노트는 입력칸 위에 칩으로 올라오며, 그 상태로 질문하면 노트 내용이 함께 전송됩니다(칩의 ×로 뺄 수 있습니다). ' +
+			'@를 입력하면 다른 폴더·노트도 골라서 함께 읽힐 수 있고, /를 입력하면 저장해 둔 스킬(자주 쓰는 작업 지시)을 불러옵니다.',
 		editTooltip: '수정해서 다시 보내기 (이 메시지부터 아래 대화가 바뀝니다)',
 		editBanner: '메시지 수정 중 — 보내면 이 메시지부터 아래 대화 {count}개가 새 내용으로 바뀝니다. (Esc: 취소)',
 		editCancel: '취소',
@@ -209,6 +209,7 @@ const ko = {
 			'고칠 원문을 노트에서 찾지 못했습니다. 노트가 그새 바뀌었거나, 챗봇이 원문을 조금 다르게 옮겨 적었습니다. 챗봇에게 다시 물어보세요.',
 		editProblemAmbiguous:
 			'똑같은 내용이 노트에 여러 곳 있어 어디를 고쳐야 할지 알 수 없습니다. 앞뒤 줄을 더 포함해서 다시 제안해 달라고 하세요.',
+		editProblemAlreadyThere: '덧붙이려는 내용이 이미 노트에 있습니다. 같은 글이 두 번 들어가지 않도록 막았습니다.',
 		editProblemNoChange: '고치기 전과 후가 같아 바뀌는 것이 없습니다.',
 		editApplied: '노트를 고쳤습니다: {path}',
 		editReverted: '수정을 되돌렸습니다: {path}',
@@ -218,7 +219,18 @@ const ko = {
 		editRevertFailedNoBackup:
 			'되돌리지 못했습니다 — 적용한 부분이 그 뒤에 또 바뀐 것 같습니다. 노트를 직접 확인하세요.',
 		editBackupFailed: '노트는 고쳤지만, 적용 전 원본을 보관하지 못했습니다.',
-		editOpenNoteTooltip: '이 노트 열기',
+		editOpenNoteTooltip: '이 노트 열기 (적용 전에 실제 노트를 확인하세요)',
+		editFold: '내용 접기',
+		editUnfold: '내용 펼치기',
+		// 답변을 받는 중 수정 제안이 시작되면, 완성되지 않은 마커 대신 이 문구를 보여줍니다.
+		editStreaming: '(노트 수정 제안을 쓰는 중…)',
+		// 제안이 여러 개일 때 답변 맨 위에 붙는 줄
+		editSummaryCount: '노트 수정 제안 {count}개',
+		editApplyAllButton: '모두 적용',
+		editApplyAllTooltip:
+			'적용할 수 있는 제안을 위에서부터 모두 노트에 반영합니다. 하나씩 확인하려면 각 카드의 [적용]을 쓰세요.',
+		editApplyAllConfirm: '⚠ 한 번 더 누르면 모두 적용',
+		editApplyAllNone: '지금 적용할 수 있는 제안이 없습니다.',
 		// 모델이 수정 제안 형식을 크게 벗어나게 답해서 카드를 만들지 못했을 때(답변에 마커만 글자로 남음)
 		editFormatBroken:
 			'⚠ 챗봇이 수정 제안 형식을 지키지 않아 [적용] 버튼을 만들지 못했습니다. "정해진 수정 형식을 그대로 지켜서 다시 알려 줘"라고 요청해 보세요.',
@@ -262,8 +274,9 @@ const ko = {
 		summaryHeading: '라이선스 및 정책',
 		summaryText:
 			'사내 폐쇄망 전용으로 만든 플러그인입니다. 설정에서 지정한 LLM 서버와만 통신하며, 보내는 내용은 사용자가 채팅에 입력한 글' +
-			'(이전 대화, 기본 지시문, 선택한 스킬의 지시문 포함), 채팅에서 @로 직접 지정한 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
-			'그 밖의 노트 내용은 자동으로 전송되지 않습니다. ' +
+			'(이전 대화, 기본 지시문, 선택한 스킬의 지시문 포함), 챗봇 입력칸 위에 칩으로 올라와 있는 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
+			'칩에는 @로 직접 고른 것과, 지금 열려 있는 노트가 자동으로 올라옵니다. 즉 노트를 열어 둔 채 질문하면 그 노트 내용이 함께 전송되며, 칩의 ×로 빼면 전송하지 않습니다. ' +
+			'칩에 없는 노트는 전송되지 않습니다. ' +
 			'노트를 고치는 것은 챗봇 답변의 수정 카드에서 사용자가 [적용]을 누를 때뿐이며, 고치기 직전 원본은 플러그인 폴더에 보관됩니다. ' +
 			'(초안 — 정식 배포 전 검토가 필요합니다.)',
 		versionLabel: '버전',
@@ -315,7 +328,7 @@ const en: Dictionary = {
 			'0 means no limit (server default); leave empty to restore the default (4096).',
 		maxContextName: 'Max note material length',
 		maxContextDesc:
-			'The maximum number of characters sent when attaching folders and notes you picked with @ in the chat. Notes that do not fit are left out, and the model is told that some material is missing. ' +
+			'The maximum number of characters sent when attaching the folders and notes shown as chips above the chat box. Notes that do not fit are left out, and the model is told that some material is missing. ' +
 			'Lower this if answers fail because the input is too long. 0 means no limit; leave empty to restore the default (8000).',
 		streamingName: 'Streaming answers',
 		streamingDesc:
@@ -393,8 +406,8 @@ const en: Dictionary = {
 		inputPlaceholder: 'Type a message (@: folder/note, /: skill, Enter: send, Shift+Enter: new line)',
 		sendButton: 'Send',
 		emptyState:
-			'No messages yet. Type something below to start. Type @ to pick folders or notes from your vault and chat about their content. ' +
-			'Type / to use a saved skill (a reusable task instruction).',
+			'No messages yet. Type something below to start. The note you have open appears as a chip above the box, and asking a question while it is there sends that note (remove it with ×). ' +
+			'Type @ to add other folders or notes, and / to use a saved skill (a reusable task instruction).',
 		editTooltip: 'Edit and resend (replaces the conversation from this message on)',
 		editBanner: 'Editing a message — sending replaces this message and the {count} messages from here on. (Esc: cancel)',
 		editCancel: 'Cancel',
@@ -471,6 +484,8 @@ const en: Dictionary = {
 			'Could not find the original text in the note. The note may have changed, or the chatbot copied it slightly differently. Ask the chatbot again.',
 		editProblemAmbiguous:
 			'The same text appears in several places, so there is no way to tell which one to edit. Ask for a suggestion that includes more surrounding lines.',
+		editProblemAlreadyThere:
+			'The text to append is already in the note, so it was blocked to avoid adding it twice.',
 		editProblemNoChange: 'Before and after are identical — nothing would change.',
 		editApplied: 'Note edited: {path}',
 		editReverted: 'Edit undone: {path}',
@@ -480,7 +495,16 @@ const en: Dictionary = {
 		editRevertFailedNoBackup:
 			'Could not undo — the applied text seems to have changed again. Please check the note yourself.',
 		editBackupFailed: 'The note was edited, but the original could not be backed up.',
-		editOpenNoteTooltip: 'Open this note',
+		editOpenNoteTooltip: 'Open this note (check it before applying)',
+		editFold: 'Collapse',
+		editUnfold: 'Expand',
+		editStreaming: '(writing a suggested note edit…)',
+		editSummaryCount: '{count} suggested note edits',
+		editApplyAllButton: 'Apply all',
+		editApplyAllTooltip:
+			'Apply every suggestion that can be applied, from the top. Use each card’s [Apply] to go one by one.',
+		editApplyAllConfirm: '⚠ Press again to apply all',
+		editApplyAllNone: 'No suggestion can be applied right now.',
 		editFormatBroken:
 			'⚠ The chatbot did not follow the edit format, so no [Apply] button could be created. Ask it to use the exact edit format and try again.',
 	},
@@ -523,8 +547,9 @@ const en: Dictionary = {
 		summaryHeading: 'License & policy',
 		summaryText:
 			'Built for use inside a closed company network. The plugin only talks to the LLM server set in the settings, and sends only what you type in the chat ' +
-			'(including earlier messages, the default instructions, and the instructions of the skill you picked), the content of folders and notes you pick with @ in the chat, and a test sentence when checking the connection. ' +
-			'No other note content is sent automatically. ' +
+			'(including earlier messages, the default instructions, and the instructions of the skill you picked), the content of the folders and notes shown as chips above the chat box, and a test sentence when checking the connection. ' +
+			'Chips hold what you picked with @, plus the note you currently have open, which is added automatically. So asking a question while a note is open sends that note; remove the chip with × to stop sending it. ' +
+			'Notes that are not in a chip are never sent. ' +
 			'Notes are only edited when you press [Apply] on a suggested edit in a chat answer, and the note is backed up in the plugin folder first. ' +
 			'(Draft — review before real deployment.)',
 		versionLabel: 'Version',

@@ -31,6 +31,8 @@ export class ChatComposer {
 
 	// @로 지정한 폴더·노트. 지우기 전까지 유지되어, 이어지는 질문마다 그 내용이 붙습니다.
 	private targets: ChatTarget[] = [];
+	// 지금 열려 있는 마크다운 노트. 칩에 있든 없든 "어느 노트를 보고 있는지"만 나타냅니다.
+	private currentNotePath: string | null = null;
 	// 그중 "지금 열려 있는 노트"라서 자동으로 넣어 둔 칩의 경로(syncCurrentNote 참고).
 	private autoTargetPath: string | null = null;
 	// 사용자가 지운 자동 칩. 다른 노트로 옮기기 전까지는 다시 넣지 않습니다.
@@ -178,10 +180,21 @@ export class ChatComposer {
 		return this.targets.some((target) => target.kind === 'note' && target.path === path);
 	}
 
+	// 지금 고칠 수 있는 노트입니다. "지금 열려 있는 노트"가 칩에 올라와 있을 때만 값이 있습니다.
+	//
+	// 왜 칩에 있을 때만인가: 칩에서 뺐다는 것은 그 노트를 모델에게 보내지 않겠다는 뜻이고, 내용을
+	// 보내지 않으면 모델이 고칠 곳을 짚을 수도 없습니다. "칩에 올라온 것만 전송되고, 그중 지금 보고
+	// 있는 노트만 고칠 수 있다"로 규칙이 하나로 모입니다.
+	// (@로 직접 고른 칩이어도 그것이 지금 보고 있는 노트라면 고칠 수 있습니다.)
+	getEditableNote(): string | null {
+		return this.currentNotePath && this.hasNote(this.currentNotePath) ? this.currentNotePath : null;
+	}
+
 	// 자동으로 넣어 둔 현재 노트의 이름이 바뀌거나(newPath) 지워졌을 때(null) 추적 중인 경로도
 	// 함께 고칩니다. 이걸 빠뜨리면 뒤이은 setTargets가 "사용자가 칩을 지웠다"로 오해해서, 그 뒤로
 	// 노트를 옮겨도 칩이 자동으로 들어오지 않습니다.
 	retargetAuto(oldPath: string, newPath: string | null): void {
+		if (this.currentNotePath === oldPath) this.currentNotePath = newPath;
 		if (this.autoTargetPath === oldPath) this.autoTargetPath = newPath;
 		if (this.dismissedAutoPath === oldPath) this.dismissedAutoPath = newPath;
 	}
@@ -195,7 +208,12 @@ export class ChatComposer {
 	// force이면 사용자가 지웠던 기억을 잊고 다시 넣습니다(새 대화를 시작하거나 지난 대화를 불러올 때).
 	syncCurrentNote(force = false): void {
 		const active = this.plugin.app.workspace.getActiveFile();
-		const path = active && active.extension === 'md' ? active.path : null;
+		// 노트가 아닌 파일(PDF·이미지 등)을 열었을 때는 지금 대상을 그대로 둡니다. 노트를 보다가
+		// 참고 자료를 잠깐 열어 본 것뿐인데 대화 대상과 고칠 노트가 사라지면 곤란하기 때문입니다.
+		if (active && active.extension !== 'md') return;
+
+		const path = active?.path ?? null;
+		this.currentNotePath = path;
 		if (force) this.dismissedAutoPath = null;
 		if (path === this.autoTargetPath && !force) return;
 

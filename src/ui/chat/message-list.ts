@@ -1,8 +1,13 @@
-import { App, Component, ExtraButtonComponent, MarkdownRenderer } from 'obsidian';
+import { App, Component, ExtraButtonComponent, MarkdownRenderer, Notice, setTooltip } from 'obsidian';
 import type { StoredMessage } from '../../chat/session-store';
 import type { AttachedInfo } from '../../chat/vault-context';
 import { finalizeRenderedAnswer, neutralizeRemoteContent } from '../../chat/safe-markdown';
-import { EditProposal, hasUnreadableProposal, splitAnswer } from '../../chat/edit-proposal';
+import {
+	EditProposal,
+	hasUnreadableProposal,
+	hideUnfinishedProposals,
+	splitAnswer,
+} from '../../chat/edit-proposal';
 import type { ChatStrings } from '../../i18n';
 import type { Skill } from '../../skills/skill-store';
 import { createSkillChip, createTargetChip } from '../picker-items';
@@ -15,6 +20,9 @@ import { EditActionResult, EditCard } from './edit-card';
 const NEAR_BOTTOM_PX = 80;
 // 긴 답변의 시작 부분으로 옮길 때 위쪽에 남겨 둘 여백(px)
 const ANSWER_TOP_MARGIN_PX = 8;
+// [모두 적용]을 한 번 누른 뒤, 다시 눌러 확정할 수 있는 시간(밀리초). 지나면 원래대로 돌아갑니다.
+// (스킬·대화를 지울 때 쓰는 ui/delete-confirm.ts와 같은 방식입니다.)
+const APPLY_ALL_CONFIRM_MS = 4000;
 
 // 실패한 질문을 [다시 시도]로 다시 보낼 때 필요한 것(글 + 그때 쓴 스킬)
 export interface SentMessage {
@@ -156,14 +164,21 @@ export class ChatMessageList {
 
 		// 답변을 "보통 글"과 "노트 수정 제안"으로 나눠 그립니다(edit-proposal.ts). 글은 마크다운으로,
 		// 제안은 변경 전/후를 보여주는 카드 + [적용] 버튼으로 그립니다.
-		const answerEl = bubble.createDiv({ cls: 'intra-copilot-chat-answer' });
 		const content = message.content || strings.emptyReply;
 		const parts = splitAnswer(content);
+		const proposalCount = parts.filter((part) => part.kind === 'proposal').length;
 		// 카드가 있으면 말풍선 폭 제한을 풀어 넓게 씁니다(좁으면 변경 내용의 줄이 계속 접힙니다).
-		bubble.toggleClass('has-edit-cards', parts.some((part) => part.kind === 'proposal'));
+		bubble.toggleClass('has-edit-cards', proposalCount > 0);
+
+		// 제안이 여럿이면 몇 개인지 먼저 알려 줍니다(긴 답변에서는 카드가 흩어져 보입니다).
+		const summaryEl =
+			proposalCount > 1 ? bubble.createDiv({ cls: 'intra-copilot-edit-summary' }) : null;
+
+		const answerEl = bubble.createDiv({ cls: 'intra-copilot-chat-answer' });
+		const cards: EditCard[] = [];
 		for (const part of parts) {
 			if (part.kind === 'proposal') {
-				this.createEditCard(answerEl, message, part.proposal, part.index);
+				cards.push(this.createEditCard(answerEl, message, part.proposal, part.index));
 				continue;
 			}
 			// LLM은 보통 마크다운(목록, 굵게, 코드블록)으로 답하므로 그대로 렌더링합니다. 단, 외부 요청을
@@ -180,6 +195,8 @@ export class ChatMessageList {
 				onBlockedLinkClick: (href) => this.options.callbacks.onCopy(href, strings.linkBlockedNotice),
 			});
 		}
+
+		if (summaryEl) this.renderEditSummary(summaryEl, cards);
 
 		// 모델이 수정 형식을 크게 벗어나게 답해서 카드를 만들지 못했다면, 마커 글자만 남아 영문을
 		// 모르게 되므로 그 사실을 알려 줍니다.
@@ -200,6 +217,55 @@ export class ChatMessageList {
 		}
 	}
 
+	// 답변 맨 위의 "수정 제안 N개 · [모두 적용]" 줄입니다.
+	//
+	// [모두 적용]은 카드를 하나씩 확인한다는 이 기능의 취지와 어긋나는 지름길이라, 노트를 지울 때와
+	// 같은 안전장치를 둡니다 — 한 번 누르면 경고로 바뀌고, 그 안에 다시 눌러야 실제로 적용됩니다.
+	// 적용할 수 없는 카드(원문 못 찾음 등)는 건너뜁니다.
+	private renderEditSummary(summaryEl: HTMLElement, cards: readonly EditCard[]): void {
+		const strings = this.strings;
+		summaryEl.createSpan({
+			cls: 'intra-copilot-edit-summary-count',
+			text: strings.editSummaryCount.replace('{count}', String(cards.length)),
+		});
+
+		let armed: number | null = null;
+		const button = summaryEl.createEl('button', {
+			cls: 'intra-copilot-edit-summary-apply',
+			text: strings.editApplyAllButton,
+		});
+		setTooltip(button, strings.editApplyAllTooltip);
+
+		const reset = () => {
+			armed = null;
+			button.setText(strings.editApplyAllButton);
+			button.removeClass('intra-copilot-delete-armed');
+		};
+		button.onclick = () => {
+			if (armed === null) {
+				armed = window.setTimeout(reset, APPLY_ALL_CONFIRM_MS);
+				button.setText(strings.editApplyAllConfirm);
+				button.addClass('intra-copilot-delete-armed');
+				return;
+			}
+			window.clearTimeout(armed);
+			reset();
+			void this.applyAll(cards);
+		};
+	}
+
+	// 적용할 수 있는 카드를 위에서부터 하나씩 적용합니다. 한꺼번에 보내지 않고 순서대로 하는 이유는,
+	// 앞 수정이 뒤 수정의 원문을 바꿔 놓았을 수 있어서입니다(그런 카드는 스스로 적용 불가가 됩니다).
+	private async applyAll(cards: readonly EditCard[]): Promise<void> {
+		let applied = 0;
+		for (const card of cards) {
+			if (!card.canApply()) continue;
+			await card.applyNow();
+			applied++;
+		}
+		if (applied === 0) new Notice(this.strings.editApplyAllNone);
+	}
+
 	// 수정 제안 카드 하나를 만듭니다. 카드는 노트를 읽어 스스로 대조하고(읽기만 함), 실제로 노트를
 	// 고치는 일은 콜백으로 chat-view.ts에 넘깁니다.
 	private createEditCard(
@@ -207,9 +273,9 @@ export class ChatMessageList {
 		message: StoredMessage,
 		proposal: EditProposal,
 		index: number,
-	): void {
+	): EditCard {
 		const { callbacks } = this.options;
-		new EditCard(parent, proposal, index, {
+		return new EditCard(parent, proposal, index, {
 			app: this.options.app,
 			strings: this.options.strings,
 			// 대화를 다시 불러왔을 때 이미 적용한 제안은 [되돌리기] 상태로 그립니다.
@@ -229,8 +295,13 @@ export class ChatMessageList {
 	updateStreaming(bubble: HTMLElement, progress: { answer: string; reasoning: string }): void {
 		const strings = this.strings;
 		bubble.toggleClass('is-pending', !progress.answer);
+		// 수정 제안이 시작되면 그 뒤는 감춥니다. 아직 완성되지 않은 마커(<<<수정: …)가 글자 그대로
+		// 보이면 고장처럼 보이는데, 다 받으면 어차피 카드로 다시 그려집니다.
+		const answer = progress.answer
+			? hideUnfinishedProposals(progress.answer, strings.editStreaming)
+			: '';
 		bubble.setText(
-			progress.answer || (progress.reasoning ? strings.streamingReasoning : strings.thinking),
+			answer || (progress.reasoning ? strings.streamingReasoning : strings.thinking),
 		);
 	}
 

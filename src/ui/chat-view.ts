@@ -615,10 +615,10 @@ export class ChatView extends ItemView {
 		// @로 지정한 대상이 그 사이 지워졌다면, 자료 없이 답하게 두지 않고 먼저 알립니다(입력한 글은 그대로).
 		if (!this.dropMissingTargets()) return;
 
-		// 이 답변에서 고칠 수 있는 노트 — 지금 열려 있는 노트 하나뿐입니다. 답변을 기다리는 동안
-		// 다른 노트로 옮길 수 있으므로, 나중이 아니라 지금(보내는 시점) 기록해 둡니다.
-		const activeFile = this.app.workspace.getActiveFile();
-		const editableNote = activeFile?.extension === 'md' ? activeFile.path : null;
+		// 이 답변에서 고칠 수 있는 노트 — 지금 열려 있고 칩에도 올라와 있는 노트 하나뿐입니다
+		// (composer.getEditableNote 참고). 답변을 기다리는 동안 다른 노트로 옮길 수 있으므로,
+		// 나중이 아니라 지금(보내는 시점) 기록해 둡니다.
+		const editableNote = this.composer.getEditableNote();
 
 		if (this.conversation.length === 0) {
 			this.messages.clear(); // "아직 대화가 없습니다" 문구를 지웁니다.

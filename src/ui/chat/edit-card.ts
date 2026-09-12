@@ -1,4 +1,4 @@
-import { App, ButtonComponent, setIcon, setTooltip } from 'obsidian';
+import { App, ButtonComponent, ExtraButtonComponent, setIcon, setTooltip } from 'obsidian';
 import type { ChatStrings } from '../../i18n';
 import { collapseUnchanged, diffLines } from '../../chat/line-diff';
 import {
@@ -52,6 +52,8 @@ export function problemText(problem: ProposalProblem, strings: ChatStrings): str
 			return strings.editProblemNotFound;
 		case 'ambiguous':
 			return strings.editProblemAmbiguous;
+		case 'already-there':
+			return strings.editProblemAlreadyThere;
 		case 'no-change':
 			return strings.editProblemNoChange;
 	}
@@ -59,11 +61,17 @@ export function problemText(problem: ProposalProblem, strings: ChatStrings): str
 
 export class EditCard {
 	readonly el: HTMLElement;
+	// 접었을 때 감춰지는 부분(이유 + 변경 내용). 머리줄과 버튼은 항상 보입니다.
+	private readonly bodyEl: HTMLElement;
 	private readonly diffEl: HTMLElement;
 	private readonly footerEl: HTMLElement;
 	private readonly badgeEl: HTMLElement;
+	private readonly foldEl: HTMLElement;
 	private applied: boolean;
 	private busy = false;
+	private folded = false;
+	// 지금 적용할 수 없는 이유(없으면 적용 가능). [모두 적용]이 어떤 카드를 건너뛸지 판단합니다.
+	private problem: ProposalProblem | null = null;
 
 	constructor(
 		parent: HTMLElement,
@@ -75,28 +83,56 @@ export class EditCard {
 		this.el = parent.createDiv({ cls: 'intra-copilot-edit-card' });
 
 		const header = this.el.createDiv({ cls: 'intra-copilot-edit-card-header' });
+		// 펼침/접힘 세모. 적용한 카드는 접어 두고, 내용을 다시 보고 싶으면 이걸로 펼칩니다.
+		this.foldEl = header.createSpan({ cls: 'intra-copilot-edit-card-fold' });
+		this.foldEl.addEventListener('click', () => this.setFolded(!this.folded));
 		setIcon(header.createSpan({ cls: 'intra-copilot-edit-card-icon' }), 'file-pen');
 		// 노트 이름만 보여주고(경로가 길면 카드 머리가 넘칩니다) 전체 경로는 툴팁에 둡니다.
 		const pathEl = header.createSpan({
 			cls: 'intra-copilot-edit-card-path',
 			text: noteName(proposal.path),
 		});
-		setTooltip(pathEl, `${proposal.path} — ${this.strings.editOpenNoteTooltip}`);
-		pathEl.addEventListener('click', () => options.callbacks.onOpenNote(proposal.path));
+		setTooltip(pathEl, proposal.path);
 		this.badgeEl = header.createSpan({ cls: 'intra-copilot-edit-card-badge' });
+		// 적용하기 전에 실제 노트를 확인하는 것이 승인의 핵심이라, 노트 열기를 툴팁에 숨기지 않고
+		// 눈에 보이는 버튼으로 둡니다.
+		new ExtraButtonComponent(header)
+			.setIcon('square-arrow-out-up-right')
+			.setTooltip(this.strings.editOpenNoteTooltip)
+			.onClick(() => options.callbacks.onOpenNote(proposal.path))
+			.extraSettingsEl.addClass('intra-copilot-edit-card-open');
 
+		this.bodyEl = this.el.createDiv({ cls: 'intra-copilot-edit-card-body' });
 		// 왜 이렇게 고치려 하는지. 변경 내용보다 먼저 읽어야 승인 여부를 판단할 수 있으므로 위에 둡니다.
 		if (proposal.reason) {
-			const reasonEl = this.el.createDiv({ cls: 'intra-copilot-edit-card-reason' });
+			const reasonEl = this.bodyEl.createDiv({ cls: 'intra-copilot-edit-card-reason' });
 			setIcon(reasonEl.createSpan({ cls: 'intra-copilot-edit-card-reason-icon' }), 'message-square');
 			reasonEl.createSpan({ text: proposal.reason });
 		}
 
-		this.diffEl = this.el.createDiv({ cls: 'intra-copilot-edit-card-diff' });
+		this.diffEl = this.bodyEl.createDiv({ cls: 'intra-copilot-edit-card-diff' });
 		this.footerEl = this.el.createDiv({ cls: 'intra-copilot-edit-card-footer' });
 
 		this.renderDiff();
 		void this.refresh();
+	}
+
+	// 적용한 카드는 접어서 한 줄로 둡니다 — 제안이 여러 개면 다 적용한 뒤 화면이 카드로 가득 찹니다.
+	private setFolded(folded: boolean): void {
+		this.folded = folded;
+		this.el.toggleClass('is-folded', folded);
+		this.bodyEl.hidden = folded;
+		setIcon(this.foldEl, folded ? 'chevron-right' : 'chevron-down');
+		setTooltip(this.foldEl, folded ? this.strings.editUnfold : this.strings.editFold);
+	}
+
+	// [모두 적용]이 쓰는 것들 — 지금 적용할 수 있는 카드인지, 그리고 [적용]을 누른 것과 같은 처리.
+	canApply(): boolean {
+		return !this.applied && !this.busy && this.problem === null;
+	}
+
+	applyNow(): Promise<void> {
+		return this.run('apply');
 	}
 
 	private get strings(): ChatStrings {
@@ -147,6 +183,7 @@ export class EditCard {
 		});
 
 		if (this.applied) {
+			this.problem = null;
 			this.showApplied();
 			return;
 		}
@@ -156,9 +193,11 @@ export class EditCard {
 			this.proposal,
 			this.options.editableNote,
 		);
+		this.problem = problem;
 		this.footerEl.empty();
 		this.badgeEl.setText('');
 		this.el.removeClass('is-applied');
+		this.setFolded(false); // 아직 결정하지 않은 제안은 내용이 보여야 합니다.
 
 		if (problem) {
 			this.el.addClass('is-blocked');
@@ -183,6 +222,7 @@ export class EditCard {
 		this.el.removeClass('is-blocked');
 		this.el.addClass('is-applied');
 		this.badgeEl.setText(strings.editAppliedLabel);
+		this.setFolded(true); // 처리가 끝난 카드는 접어 둡니다(세모를 눌러 다시 펼칠 수 있습니다).
 		new ButtonComponent(this.footerEl)
 			.setButtonText(strings.editRevertButton)
 			.setTooltip(strings.editRevertTooltip)

@@ -100,6 +100,16 @@ export function splitAnswer(answer: string): AnswerPart[] {
 	return parts;
 }
 
+// 답변을 받는 중(스트리밍) 화면에 보여줄 글입니다. 수정 제안이 시작되면 그 뒤를 감추고 안내 한 줄로
+// 바꿉니다 — 완성되기 전의 마커가 글자 그대로 보이면 고장처럼 보이기 때문입니다. 다 받으면
+// splitAnswer로 카드를 그리므로, 감춘 내용은 곧 제대로 나타납니다.
+export function hideUnfinishedProposals(answer: string, notice: string): string {
+	const start = answer.search(/<{2,}[ \t]*수정[ \t]*:/);
+	if (start === -1) return answer;
+	const head = answer.slice(0, start).trimEnd();
+	return head ? `${head}\n\n${notice}` : notice;
+}
+
 // 읽어내지 못한 "수정" 마커가 글 조각에 남아 있는지. 모델이 형식을 크게 벗어나게 답해서 카드를
 // 만들지 못한 경우인데, 그대로 두면 사용자는 뜻 모를 기호만 보게 되므로 화면에서 안내합니다.
 export function hasUnreadableProposal(parts: readonly AnswerPart[]): boolean {
@@ -113,6 +123,7 @@ export type ProposalProblem =
 	| 'note-missing' // 그 경로에 노트가 없음(모델이 경로를 지어냈거나 그새 옮겨짐)
 	| 'not-found' // 원문을 노트에서 찾지 못함(모델이 옮겨 적은 글이 노트와 다름)
 	| 'ambiguous' // 원문이 노트에 여러 번 나옴(어디를 고칠지 알 수 없음)
+	| 'already-there' // 덧붙일 내용이 이미 노트에 있음(두 번 넣지 않도록)
 	| 'no-change'; // 이전과 이후가 같음(고칠 것이 없음)
 
 export interface ProposalCheck {
@@ -199,7 +210,14 @@ export async function checkProposal(
 	if (!file) return { problem: 'note-missing', range: null };
 	if (proposal.before === proposal.after) return { problem: 'no-change', range: null };
 
-	const range = findRange(await app.vault.cachedRead(file), proposal.before);
+	const body = await app.vault.cachedRead(file);
+	// 덧붙이기 제안(이전이 빔)은 언제나 "노트 끝"을 가리켜서 몇 번이고 적용됩니다. 넣을 내용이
+	// 이미 노트에 있으면 같은 글이 두 번 들어가지 않도록 막습니다.
+	if (proposal.before === '' && findRange(body, proposal.after) !== 'not-found') {
+		return { problem: 'already-there', range: null };
+	}
+
+	const range = findRange(body, proposal.before);
 	return typeof range === 'string' ? { problem: range, range: null } : { problem: null, range };
 }
 
@@ -251,6 +269,12 @@ export async function applyProposal(
 	let original = '';
 	const updated = await app.vault.process(file, (current) => {
 		original = current;
+		// 덧붙이기는 노트 끝을 가리켜 늘 성공하므로, 저장 직전에도 "이미 들어 있는지" 한 번 더 봅니다
+		// (카드가 막고 있지만, 카드를 그린 뒤 다른 경로로 같은 내용이 들어갔을 수 있습니다).
+		if (direction === 'apply' && search === '' && findRange(current, replacement) !== 'not-found') {
+			problem = 'already-there';
+			return current;
+		}
 		const range = findRange(current, search);
 		if (typeof range === 'string') {
 			problem = range;

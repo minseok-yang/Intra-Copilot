@@ -25,14 +25,21 @@ export function backupPath(plugin: IntraCopilotPlugin, name: string): string {
 	return `${backupsDir(plugin)}/${name}`;
 }
 
-// 파일 이름에 쓸 수 없는 글자(\ / : * ? " < > |)와 앞뒤 공백·점을 지웁니다.
-function safeName(text: string): string {
-	return text.replace(/[\\/:*?"<>|]/g, '-').replace(/^[\s.]+|[\s.]+$/g, '') || 'note';
+// 노트 경로를 파일 이름으로 씁니다. 폴더 구분선(/)까지 남겨서(-로 바꿔서) 같은 이름의 노트가 여러
+// 폴더에 있어도 어느 것의 백업인지 알 수 있습니다. 파일 이름에 쓸 수 없는 글자와 앞뒤 공백·점은
+// 지우고, 너무 길면 뒤쪽(파일 이름에 가까운 쪽)을 남깁니다 — 윈도우의 경로 길이 제한 때문입니다.
+const MAX_NAME_CHARS = 80;
+
+function safeName(notePath: string): string {
+	const cleaned = notePath.replace(/[\\/:*?"<>|]/g, '-').replace(/^[\s.]+|[\s.]+$/g, '');
+	if (!cleaned) return 'note';
+	return cleaned.length > MAX_NAME_CHARS ? cleaned.slice(-MAX_NAME_CHARS) : cleaned;
 }
 
-// 2026-09-12T04-33-12 (파일 이름에 쓸 수 있게 :을 -로)
+// 2026-09-12T04-33-12-345 (파일 이름에 쓸 수 있게 : . 을 -로)
+// 밀리초까지 넣습니다 — 초까지만 쓰면 같은 노트를 1초 안에 두 번 고쳤을 때 첫 백업이 덮어써집니다.
 function timestamp(): string {
-	return new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+	return new Date().toISOString().slice(0, 23).replace(/[:.]/g, '-');
 }
 
 // 오래된 백업부터 지워서 MAX_BACKUPS개 이하로 유지합니다. 파일 이름이 시각으로 시작하므로
@@ -53,16 +60,23 @@ export async function saveBackup(
 	notePath: string,
 	body: string,
 ): Promise<string | null> {
-	const name = `${timestamp()}-${safeName(notePath.slice(notePath.lastIndexOf('/') + 1))}`;
+	const name = `${timestamp()}-${safeName(notePath)}.md`;
 	try {
 		const dir = backupsDir(plugin);
 		if (!(await plugin.app.vault.adapter.exists(dir))) {
 			await plugin.app.vault.adapter.mkdir(dir);
 		}
-		await plugin.app.vault.adapter.write(backupPath(plugin, `${name}.md`), body);
-		await pruneBackups(plugin);
-		return `${name}.md`;
+		await plugin.app.vault.adapter.write(backupPath(plugin, name), body);
 	} catch {
 		return null;
 	}
+
+	// 오래된 백업 정리는 따로 감쌉니다. 정리에 실패했다고 "보관하지 못했다"고 알리면 안 됩니다
+	// — 백업 파일은 이미 잘 써졌고, 정리는 다음 백업 때 다시 시도됩니다.
+	try {
+		await pruneBackups(plugin);
+	} catch {
+		/* 다음 백업 때 다시 정리합니다 */
+	}
+	return name;
 }
