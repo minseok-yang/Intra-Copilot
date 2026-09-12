@@ -23,6 +23,7 @@ export interface AttachedInfo {
 	notes: number;
 	chars: number;
 	truncated: boolean; // 글자 수 제한으로 일부를 빼고 보냈는지
+	paths?: string[]; // 내용이 실제로 들어간 노트 경로(말풍선에서 펼쳐 볼 수 있게)
 }
 
 export interface VaultContext {
@@ -38,8 +39,11 @@ export function isChatTarget(value: unknown): value is ChatTarget {
 
 export function isAttachedInfo(value: unknown): value is AttachedInfo {
 	if (!value || typeof value !== 'object') return false;
-	const { notes, chars, truncated } = value as Record<string, unknown>;
-	return typeof notes === 'number' && typeof chars === 'number' && typeof truncated === 'boolean';
+	const { notes, chars, truncated, paths } = value as Record<string, unknown>;
+	if (typeof notes !== 'number' || typeof chars !== 'number' || typeof truncated !== 'boolean') {
+		return false;
+	}
+	return paths === undefined || (Array.isArray(paths) && paths.every((p) => typeof p === 'string'));
 }
 
 export function sameTarget(a: ChatTarget, b: ChatTarget): boolean {
@@ -181,5 +185,8 @@ export async function buildVaultContext(
 			: []),
 	];
 	const text = [header.join('\n'), ...parts].join('\n\n');
-	return { text, info: { notes: included.size, chars: text.length, truncated } };
+	return {
+		text,
+		info: { notes: included.size, chars: text.length, truncated, paths: [...included] },
+	};
 }

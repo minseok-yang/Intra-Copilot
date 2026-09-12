@@ -48,9 +48,14 @@ const ko = {
 		maxContextDesc:
 			'채팅에서 @로 지정한 폴더·노트를 질문에 붙일 때 최대 몇 글자까지 보낼지 정합니다. 넘치는 노트는 빼고 보내며, 빠진 자료가 있다는 사실도 모델에게 알립니다. ' +
 			'"길이를 넘었다"며 답변이 실패하면 줄여보세요. 0이면 제한 없음, 비워두면 기본값(8000)으로 돌아갑니다.',
+		streamingName: '답변 스트리밍',
+		streamingDesc:
+			'답변을 다 만들 때까지 기다리지 않고, 서버가 만드는 대로 글자가 차례로 나타나게 합니다. ' +
+			'서버가 스트리밍을 막아 두었다면 끄세요(끄면 답변이 완성된 뒤 한 번에 보입니다). ' +
+			'켜 두어도 조각을 하나도 받지 못하면 자동으로 예전 방식으로 한 번 더 시도합니다.',
 		chatTimeoutName: '답변 대기 시간 (초)',
 		chatTimeoutDesc:
-			'챗봇 답변을 최대 몇 초까지 기다릴지 정합니다. 시간 초과로 실패하는 일이 잦으면 늘려보세요. ' +
+			'챗봇 답변을 최대 몇 초까지 기다릴지 정합니다. 스트리밍을 켜면 마지막 조각이 온 뒤부터 다시 셉니다. 시간 초과로 실패하는 일이 잦으면 늘려보세요. ' +
 			'10~3600초 사이로 저장되고(범위를 벗어나면 가까운 끝값으로), 비워두면 기본값(120초)으로 돌아갑니다. ' +
 			'[모델 목록 불러오기]와 [연결 확인]은 이 값과 상관없이 30초까지 기다립니다.',
 		systemPromptName: '기본 지시문 (시스템 프롬프트)',
@@ -139,6 +144,7 @@ const ko = {
 		attachedInfo: '노트 {count}개 · {chars}자 첨부',
 		attachedTruncated: ' · 글자 수 제한으로 일부 생략',
 		thinking: '답변을 기다리는 중...',
+		streamingReasoning: '생각하는 중...',
 		notConfigured: '설정 → Intra Copilot → LLM 연결 탭에서 서버 주소와 모델을 먼저 설정하세요.',
 		errorPrefix: '오류: ',
 		retryButton: '다시 시도',
@@ -274,9 +280,14 @@ const en: Dictionary = {
 		maxContextDesc:
 			'The maximum number of characters sent when attaching folders and notes you picked with @ in the chat. Notes that do not fit are left out, and the model is told that some material is missing. ' +
 			'Lower this if answers fail because the input is too long. 0 means no limit; leave empty to restore the default (8000).',
+		streamingName: 'Streaming answers',
+		streamingDesc:
+			'Show the answer as the server produces it, instead of waiting for the whole answer. ' +
+			'Turn it off if the server blocks streaming (the answer then appears at once when finished). ' +
+			'Even when on, the plugin silently retries the old way if it receives no chunk at all.',
 		chatTimeoutName: 'Answer timeout (seconds)',
 		chatTimeoutDesc:
-			'How long to wait for a chatbot answer. Increase it if answers often fail with a timeout. ' +
+			'How long to wait for a chatbot answer. With streaming on, the wait restarts after each received chunk. Increase it if answers often fail with a timeout. ' +
 			'Saved between 10 and 3600 seconds (values outside are moved to the nearest end); leave empty to restore the default (120 seconds). ' +
 			'[Load model list] and [Check connection] always wait up to 30 seconds regardless of this value.',
 		systemPromptName: 'Default instructions (system prompt)',
@@ -363,6 +374,7 @@ const en: Dictionary = {
 		attachedInfo: '{count} notes · {chars} chars attached',
 		attachedTruncated: ' · partly left out (length limit)',
 		thinking: 'Waiting for an answer...',
+		streamingReasoning: 'Thinking...',
 		notConfigured: 'Set the server address and model first in Settings → Intra Copilot → LLM connection.',
 		errorPrefix: 'Error: ',
 		retryButton: 'Retry',

@@ -455,24 +455,182 @@ export async function testLlmConnection(
 	);
 }
 
+// ─── 스트리밍(답변 조각 받기) ────────────────────────────────────────
+// 서버가 답변을 다 만들 때까지 기다리지 않고, 만들어지는 대로 조각(SSE: "data: {...}" 줄)을 받습니다.
+// 여기서만 fetch를 씁니다 — requestUrl은 응답을 다 받은 뒤에야 돌려주므로 조각을 받을 수 없습니다.
+// (그래서 "fetch 대신 requestUrl을 쓰라"는 lint 경고가 이 줄에서 하나 납니다. 스트리밍을 포기하지
+//  않는 한 피할 수 없어 그대로 둡니다. 조각을 하나도 못 받으면 아래에서 requestUrl 방식으로 되돌립니다.)
+// 리다이렉트는 따라가지 않고(redirect: 'manual'), [중지]·시간 초과 때 연결을 실제로 끊습니다.
+
+export interface StreamProgress {
+	answer: string; // 지금까지 받은 답변(생각 과정 제외)
+	reasoning: string; // 지금까지 받은 생각 과정
+}
+
+interface StreamChunk {
+	choices?: Array<{
+		finish_reason?: string | null;
+		delta?: {
+			content?: string | null;
+			reasoning_content?: string | null;
+			reasoning?: string | null;
+		};
+	}>;
+}
+
+// received가 false면 한 조각도 받지 못한 것입니다(스트리밍이 막힌 환경일 수 있어 부르는 쪽에서 되돌립니다).
+async function streamChatCompletion(
+	settings: LlmSettings,
+	messages: ChatMessage[],
+	maxTokens: number | undefined,
+	timeoutSeconds: number,
+	cancelSignal: AbortSignal | undefined,
+	onProgress: (progress: StreamProgress) => void,
+): Promise<{ result: ChatCompletionResult; received: boolean }> {
+	const invalidUrl = validateBaseUrl(settings.baseUrl);
+	if (invalidUrl) return { result: invalidUrl, received: false };
+
+	const controller = new AbortController();
+	// 스트리밍에서는 "전체 시간"이 아니라 "조각이 끊긴 시간"을 잽니다. 긴 답변이 천천히 오는 것은
+	// 정상이지만, 아무것도 오지 않는 채로 오래 있으면 서버가 멈춘 것이기 때문입니다.
+	let idleTimer = 0;
+	const resetIdleTimer = () => {
+		window.clearTimeout(idleTimer);
+		idleTimer = window.setTimeout(
+			() => controller.abort(new RequestTimeoutError(timeoutSeconds)),
+			timeoutSeconds * 1000,
+		);
+	};
+	const onCancel = () => controller.abort(new RequestCancelledError());
+	if (cancelSignal?.aborted) onCancel();
+	cancelSignal?.addEventListener('abort', onCancel, { once: true });
+	resetIdleTimer();
+
+	let received = false;
+	try {
+		const response = await fetch(joinUrl(settings.baseUrl, '/chat/completions'), {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', ...authHeader(settings.apiKey) },
+			body: JSON.stringify({
+				model: settings.model,
+				messages,
+				stream: true,
+				...(maxTokens ? { max_tokens: maxTokens } : {}),
+			}),
+			signal: controller.signal,
+			redirect: 'manual',
+		});
+
+		if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+			return { result: { ok: false, kind: 'redirect', detail: `HTTP ${response.status}` }, received };
+		}
+		if (!response.ok) {
+			return { result: httpFailure({ status: response.status, text: await response.text() }), received };
+		}
+		if (!response.body) {
+			return { result: invalidResponse('(empty body)'), received };
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = '';
+		let raw = ''; // 서버가 보낸 답변 원문(<think> 포함 가능)
+		let reasoning = ''; // 따로 오는 생각 과정
+		let finishReason = '';
+
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			resetIdleTimer();
+			buffer += decoder.decode(value, { stream: true });
+
+			let lineEnd: number;
+			while ((lineEnd = buffer.indexOf('\n')) >= 0) {
+				const line = buffer.slice(0, lineEnd).trim();
+				buffer = buffer.slice(lineEnd + 1);
+				if (!line.startsWith('data:')) continue; // 주석(:)·빈 줄·event: 줄은 무시
+				const payload = line.slice('data:'.length).trim();
+				if (payload === '[DONE]') continue;
+
+				const chunk = parseJson(payload) as StreamChunk | undefined;
+				const choice = chunk?.choices?.[0];
+				if (!choice) continue;
+				received = true;
+				raw += choice.delta?.content ?? '';
+				reasoning += choice.delta?.reasoning_content ?? choice.delta?.reasoning ?? '';
+				if (choice.finish_reason) finishReason = choice.finish_reason;
+			}
+
+			// 화면에는 <think>를 뗀 답변만 보여줍니다(조각마다 다시 나누므로 중간에도 정확합니다).
+			const split = splitReasoning(raw);
+			onProgress({ answer: split.answer, reasoning: reasoning.trim() || split.reasoning });
+		}
+
+		// 200이지만 조각이 하나도 없었다면(스트리밍을 지원하지 않아 일반 JSON을 보낸 서버 등)
+		// 빈 답변을 성공으로 처리하지 않고 실패로 봅니다 — 부르는 쪽이 예전 방식으로 다시 시도합니다.
+		if (!received) {
+			return { result: invalidResponse(buffer || '(no stream chunks)'), received: false };
+		}
+
+		const { reasoning: inlineReasoning, answer } = splitReasoning(raw);
+		return {
+			result: {
+				ok: true,
+				reply: answer,
+				reasoning: reasoning.trim() || inlineReasoning,
+				truncated: finishReason === 'length',
+			},
+			received,
+		};
+	} catch (error) {
+		// 우리가 끊은 경우(중지·시간 초과)에는 브라우저가 주는 오류 대신 끊은 이유로 분류합니다.
+		// 그러지 않으면 [중지]가 "알 수 없는 실패"로 보여서 상태등까지 빨갛게 됩니다.
+		return {
+			result: exceptionFailure(controller.signal.aborted ? controller.signal.reason : error),
+			received,
+		};
+	} finally {
+		window.clearTimeout(idleTimer);
+		cancelSignal?.removeEventListener('abort', onCancel);
+	}
+}
+
 // 챗봇 사이드바에서 실제 대화를 보낼 때 씁니다. conversation은 지금까지의 대화 전체입니다.
 // 노트 내용은 사용자가 입력칸에서 @로 직접 지정한 폴더·노트만, 마지막 질문에 붙어서 전송됩니다
 // (chat/vault-context.ts의 composeRequestConversation 참고). 그 밖의 노트는 보내지 않습니다.
 // 사내 공용 서버 부담을 줄이기 위해 최근 대화만 보내고(buildRequestMessages 참고),
 // 응답 길이도 설정된 만큼으로 제한합니다. cancelSignal을 중단하면 [중지]로 처리됩니다.
+// onProgress를 주고 설정에서 스트리밍이 켜져 있으면 조각을 받아가며 알려줍니다.
 export async function sendChatMessage(
 	settings: LlmSettings,
 	conversation: readonly ChatMessage[],
 	cancelSignal?: AbortSignal,
+	onProgress?: (progress: StreamProgress) => void,
 ): Promise<ChatCompletionResult> {
 	const maxTokens = settings.maxResponseTokens > 0 ? settings.maxResponseTokens : undefined;
-	return postChatCompletion(
-		settings,
-		buildRequestMessages(settings, conversation),
-		maxTokens,
-		clampChatTimeout(settings.chatTimeoutSeconds),
-		cancelSignal,
-	);
+	const messages = buildRequestMessages(settings, conversation);
+	const timeoutSeconds = clampChatTimeout(settings.chatTimeoutSeconds);
+
+	if (settings.streaming && onProgress) {
+		const { result, received } = await streamChatCompletion(
+			settings,
+			messages,
+			maxTokens,
+			timeoutSeconds,
+			cancelSignal,
+			onProgress,
+		);
+		// 사용자가 [중지]를 눌렀다면 절대 다시 보내지 않습니다(공용 서버에 같은 질문이 두 번 가지 않도록).
+		if (cancelSignal?.aborted) return result;
+		// 조각을 하나라도 받았거나, 원인이 분명한 실패(인증·모델·서버 거절 등)면 그대로 알립니다.
+		// 아무것도 못 받고 연결 단계에서 막힌 경우만, 스트리밍을 막는 서버·환경일 수 있으므로
+		// 예전 방식(한 번에 받기)으로 조용히 한 번 더 시도합니다.
+		const transportFailure =
+			!result.ok && (result.kind === 'network' || result.kind === 'invalid-response' || result.kind === 'unknown');
+		if (result.ok || received || !transportFailure) return result;
+	}
+
+	return postChatCompletion(settings, messages, maxTokens, timeoutSeconds, cancelSignal);
 }
 
 // OpenAI 호환 /models 엔드포인트로 서버가 제공하는 모델 이름 목록을 가져옵니다.

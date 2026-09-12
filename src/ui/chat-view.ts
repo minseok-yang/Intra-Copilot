@@ -38,6 +38,10 @@ import { ChatMessageList, SentMessage } from './chat/message-list';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
+// 스트리밍으로 답변 조각이 올 때 화면을 다시 그리는 최소 간격(밀리초).
+// 조각마다 그리면 글자 하나에 한 번씩 화면을 고쳐 느려집니다.
+const STREAM_PAINT_MS = 60;
+
 // 리본 아이콘 클릭 등에서 호출합니다. 이미 열려 있으면 그 탭을 보여주고,
 // 없으면 오른쪽 사이드바에 새로 엽니다.
 export async function revealChatView(plugin: IntraCopilotPlugin): Promise<void> {
@@ -593,10 +597,22 @@ export class ChatView extends ItemView {
 		const controller = new AbortController();
 		this.abortController = controller;
 		// 이번에 읽은 노트 내용과 스킬 지시문은 마지막 질문에만 붙여 보냅니다(저장되는 대화에는 넣지 않음).
+		// 스트리밍이 켜져 있으면 조각이 올 때마다 말풍선 글자를 바꿔 줍니다(마크다운은 다 받은 뒤에).
+		let lastPaint = 0;
 		const result = await sendChatMessage(
 			this.plugin.settings.llm,
 			composeRequestConversation(conversation, { context: vaultContext?.text ?? null, skill }),
 			controller.signal,
+			(progress) => {
+				// 그 사이 다른 대화로 옮겼다면 그 화면에 끼어들지 않습니다.
+				if (this.conversation !== conversation) return;
+				const now = Date.now();
+				if (now - lastPaint < STREAM_PAINT_MS) return;
+				lastPaint = now;
+				const follow = this.messages.isNearBottom();
+				this.messages.updateStreaming(pending, progress);
+				if (follow) this.messages.scrollToBottom();
+			},
 		);
 		this.abortController = null;
 		const llmStrings = t(this.plugin.settings.general.language).llm;

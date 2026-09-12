@@ -23,6 +23,8 @@ export interface LlmSettings {
 	chatTimeoutSeconds: number;
 	// 채팅에서 @로 지정한 폴더·노트를 질문에 붙일 때 보낼 최대 글자 수. 0이면 제한 없음.
 	maxContextChars: number;
+	// 답변을 조각으로 받아 글자가 차례로 나타나게 할지. 서버가 스트리밍을 막아 두면 끕니다.
+	streaming: boolean;
 	lastVerified?: LlmVerification;
 }
 
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		// 한국어 8000자는 모델(토크나이저)에 따라 대략 5천~1만 토큰입니다. 사내 모델이 한 번에 처리할 수 있는
 		// 길이를 넘으면 답변이 실패하므로, 그때는 설정에서 줄이면 됩니다(코드 수정 불필요).
 		maxContextChars: 8000,
+		streaming: true,
 	},
 };
 

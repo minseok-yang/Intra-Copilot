@@ -98,10 +98,17 @@ export class ChatMessageList {
 				createTargetChip(row, target, { wholeVaultLabel: strings.pickerWholeVault });
 			}
 			if (message.attached) {
-				row.createSpan({
-					cls: 'intra-copilot-bubble-attached',
-					text: describeAttached(message.attached, strings),
-				});
+				// 어떤 노트가 실제로 전송됐는지 펼쳐 볼 수 있게 합니다(경로를 저장하기 전의 옛 대화는 글자만).
+				const label = describeAttached(message.attached, strings);
+				const paths = message.attached.paths ?? [];
+				if (paths.length > 0) {
+					const details = row.createEl('details', { cls: 'intra-copilot-bubble-attached-details' });
+					details.createEl('summary', { text: label });
+					const list = details.createEl('ul', { cls: 'intra-copilot-bubble-attached-list' });
+					for (const path of paths) list.createEl('li', { text: path });
+				} else {
+					row.createSpan({ cls: 'intra-copilot-bubble-attached', text: label });
+				}
 			}
 		}
 		bubble.appendText(message.content);
@@ -158,6 +165,16 @@ export class ChatMessageList {
 				.setTooltip(strings.copyTooltip)
 				.onClick(() => this.options.callbacks.onCopy(message.content));
 		}
+	}
+
+	// 스트리밍 중: 지금까지 받은 답변을 글자 그대로 보여줍니다(마크다운은 다 받은 뒤에 그립니다).
+	// 아직 답변이 없고 생각 과정만 오는 중이면 그렇게 알려 줍니다.
+	updateStreaming(bubble: HTMLElement, progress: { answer: string; reasoning: string }): void {
+		const strings = this.strings;
+		bubble.toggleClass('is-pending', !progress.answer);
+		bubble.setText(
+			progress.answer || (progress.reasoning ? strings.streamingReasoning : strings.thinking),
+		);
 	}
 
 	// 실패 표시: 보낸 질문은 흐리게, 오류 말풍선에는 원인·서버 원문·[다시 시도].
