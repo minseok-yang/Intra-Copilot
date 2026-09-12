@@ -31,10 +31,13 @@ import {
 	VaultContext,
 } from '../chat/vault-context';
 import { composeRequestConversation } from '../chat/request-builder';
+import { applyProposal, EditProposal, isEditable } from '../chat/edit-proposal';
+import { saveBackup } from '../chat/edit-backup';
 import { listSkills, Skill } from '../skills/skill-store';
 import { SessionHistoryModal } from './session-history-modal';
 import { ChatComposer } from './chat/composer';
 import { ChatMessageList, SentMessage } from './chat/message-list';
+import { EditActionResult, problemText } from './chat/edit-card';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
@@ -189,6 +192,9 @@ export class ChatView extends ItemView {
 			this.app.vault.on('rename', (file, oldPath) => this.handleVaultRename(oldPath, file.path)),
 		);
 		this.registerEvent(this.app.vault.on('delete', (file) => this.handleVaultDelete(file.path)));
+		// 다른 노트를 열면 "지금 열려 있는 노트" 칩도 그 노트로 바꿉니다. 수정할 수 있는 노트가
+		// 언제나 지금 보고 있는 노트 하나이므로, 칩이 그것과 어긋나 있으면 헷갈립니다.
+		this.registerEvent(this.app.workspace.on('file-open', () => this.composer.syncCurrentNote()));
 		// 패널을 열면(= Obsidian을 켤 때마다) 가벼운 모델 목록 조회만 한 번 합니다.
 		// 테스트 대화는 보내지 않습니다 — 사용자 수 × 실행 횟수만큼 공용 서버 GPU를 쓰기 때문입니다.
 		void this.refreshModels({ testModel: false });
@@ -297,6 +303,9 @@ export class ChatView extends ItemView {
 				onEdit: (message) => void this.startEditing(message),
 				onRetry: (sent, bubbles) => this.retry(sent, bubbles),
 				onCopy: (text, notice) => void this.copyToClipboard(text, notice),
+				onApplyEdit: (message, proposal, index) => this.applyEdit(message, proposal, index),
+				onRevertEdit: (message, proposal, index) => this.revertEdit(message, proposal, index),
+				onOpenNote: (path) => this.openNote(path),
 			},
 		});
 
@@ -312,6 +321,8 @@ export class ChatView extends ItemView {
 			this.composer.setTargets(carried.targets);
 			this.composer.setSkill(carried.skill);
 		}
+		// 지금 열려 있는 노트를 칩에 넣습니다(화면을 다시 그린 것뿐이므로 사용자가 지웠던 것은 존중).
+		this.composer.syncCurrentNote(!carried);
 		this.updateEditBanner();
 		this.applyBusyState();
 	}
@@ -379,6 +390,7 @@ export class ChatView extends ItemView {
 		this.discardEditing();
 		this.composer.setSkill(null);
 		this.composer.setTargets([]);
+		this.composer.syncCurrentNote(true); // 새 대화에서는 지금 보고 있는 노트부터 다시 시작합니다.
 		this.messages.showEmptyState();
 	}
 
@@ -407,6 +419,7 @@ export class ChatView extends ItemView {
 		// 아직 다 준비되지 않았을 수 있어서 여기서 걸러내지 않고, 보낼 때 있는지 확인합니다(dropMissingTargets).
 		const lastUser = [...session.messages].reverse().find((message) => message.role === 'user');
 		this.composer.setTargets(lastUser?.targets ?? []);
+		this.composer.syncCurrentNote(true);
 		await this.renderConversation();
 	}
 
@@ -449,6 +462,81 @@ export class ChatView extends ItemView {
 			.catch(() => {
 				new Notice(this.strings().saveFailed);
 			});
+	}
+
+	// ─── 승인형 Diff: 답변 속 수정 제안을 노트에 반영하기 ───────────────────
+	//
+	// 노트를 실제로 고치는 곳은 아래 두 메서드뿐입니다. 카드(ui/chat/edit-card.ts)는 노트를 읽어
+	// 대조만 하고, 고치는 일은 여기로 넘깁니다 — "노트가 바뀌는 지점"을 한 곳에 모아 두기 위해서입니다.
+
+	// 적용 표시(message.edits)를 대화 파일에 남깁니다. 그 사이 다른 대화로 옮겼다면 저장하지
+	// 않습니다(노트는 이미 고쳐졌고, 표시만 남지 않습니다).
+	private saveEditMark(message: StoredMessage): void {
+		if (!this.currentSessionId || !this.currentSessionCreatedAt) return;
+		if (!this.conversation.includes(message)) return;
+		this.persistSession(this.currentSessionId, this.currentSessionCreatedAt, this.conversation);
+	}
+
+	private async applyEdit(
+		message: StoredMessage,
+		proposal: EditProposal,
+		index: number,
+	): Promise<EditActionResult> {
+		const strings = this.strings();
+		// 카드가 이미 막고 있지만, 노트를 고치는 유일한 지점이므로 여기서도 확인합니다.
+		if (!isEditable(proposal, message.editableNote ?? null)) {
+			new Notice(strings.editApplyFailed.replace('{reason}', strings.editProblemNotCurrent));
+			return { ok: false, problem: 'not-current' };
+		}
+		const result = await applyProposal(this.app, proposal);
+		if (!result.ok) {
+			new Notice(strings.editApplyFailed.replace('{reason}', problemText(result.problem, strings)));
+			return { ok: false, problem: result.problem };
+		}
+
+		// 고치기 직전의 원본을 보관합니다. 보관에 실패해도 수정을 취소하지는 않습니다 — 되돌리기는
+		// 백업 없이도 동작하므로(적용한 부분을 원래 글로 되돌리는 방식), 알림만 띄웁니다.
+		const backup = await saveBackup(this.plugin, proposal.path, result.before);
+		if (!backup) new Notice(strings.editBackupFailed);
+
+		message.edits = [
+			...(message.edits ?? []).filter((edit) => edit.index !== index),
+			{ index, at: new Date().toISOString(), ...(backup ? { backup } : {}) },
+		];
+		this.saveEditMark(message);
+		new Notice(strings.editApplied.replace('{path}', proposal.path));
+		return { ok: true };
+	}
+
+	private async revertEdit(
+		message: StoredMessage,
+		proposal: EditProposal,
+		index: number,
+	): Promise<EditActionResult> {
+		const strings = this.strings();
+		const result = await applyProposal(this.app, proposal, 'revert');
+		if (!result.ok) {
+			// 적용한 부분을 그 뒤에 또 고쳐서 찾지 못하는 경우입니다. 보관해 둔 원본 위치를 알려 줍니다.
+			const backup = message.edits?.find((edit) => edit.index === index)?.backup;
+			new Notice(
+				backup
+					? strings.editRevertFailed.replace('{name}', backup)
+					: strings.editRevertFailedNoBackup,
+			);
+			return { ok: false, problem: result.problem };
+		}
+
+		const remaining = (message.edits ?? []).filter((edit) => edit.index !== index);
+		if (remaining.length > 0) message.edits = remaining;
+		else delete message.edits;
+		this.saveEditMark(message);
+		new Notice(strings.editReverted.replace('{path}', proposal.path));
+		return { ok: true };
+	}
+
+	// 카드의 노트 이름을 눌렀을 때. 챗봇이 있는 사이드바 자리를 빼앗지 않고 본문 영역에서 엽니다.
+	private openNote(path: string): void {
+		void this.app.workspace.openLinkText(path, '', false);
 	}
 
 	// ① 모델 목록을 다시 불러오고, testModel이면([연결 확인] 버튼) ② 선택한 모델에 짧은 테스트 문장을 보내
@@ -527,6 +615,11 @@ export class ChatView extends ItemView {
 		// @로 지정한 대상이 그 사이 지워졌다면, 자료 없이 답하게 두지 않고 먼저 알립니다(입력한 글은 그대로).
 		if (!this.dropMissingTargets()) return;
 
+		// 이 답변에서 고칠 수 있는 노트 — 지금 열려 있는 노트 하나뿐입니다. 답변을 기다리는 동안
+		// 다른 노트로 옮길 수 있으므로, 나중이 아니라 지금(보내는 시점) 기록해 둡니다.
+		const activeFile = this.app.workspace.getActiveFile();
+		const editableNote = activeFile?.extension === 'md' ? activeFile.path : null;
+
 		if (this.conversation.length === 0) {
 			this.messages.clear(); // "아직 대화가 없습니다" 문구를 지웁니다.
 		}
@@ -547,6 +640,7 @@ export class ChatView extends ItemView {
 					this.app,
 					targets,
 					this.plugin.settings.llm.maxContextChars,
+					editableNote,
 				);
 			} catch {
 				this.setBusy(false);
@@ -627,6 +721,7 @@ export class ChatView extends ItemView {
 				content: result.reply,
 				...(result.reasoning ? { reasoning: result.reasoning } : {}),
 				...(result.truncated ? { truncated: true } : {}),
+				...(editableNote ? { editableNote } : {}),
 			};
 			conversation.push(reply);
 			this.persistSession(sessionId, createdAt, conversation);
@@ -784,12 +879,15 @@ export class ChatView extends ItemView {
 			changed = true;
 			return renamed;
 		});
+		// 칩을 바꾸기 전에 "지금 열려 있는 노트" 추적 경로부터 맞춰 둡니다(composer.retargetAuto 참고).
+		this.composer.retargetAuto(oldPath, newPath);
 		if (changed) this.composer.setTargets(next);
 	}
 
 	private handleVaultDelete(path: string): void {
 		const targets = this.composer.getTargets();
 		const next = targets.filter((target) => !isRemovedBy(target, path));
+		this.composer.retargetAuto(path, null);
 		if (next.length !== targets.length) this.composer.setTargets(next);
 	}
 }

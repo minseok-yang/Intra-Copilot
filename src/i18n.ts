@@ -138,6 +138,8 @@ const ko = {
 		skillPickerNoMatch: '일치하는 스킬이 없습니다 — 설정 → 스킬 탭에서 추가할 수 있습니다',
 		pickerHint: '↑↓ 이동 · Enter 선택 · Esc 닫기',
 		targetRemoveTooltip: '지정 해제',
+		// 자동으로 들어온 "지금 열려 있는 노트" 칩의 툴팁
+		currentNoteChip: '지금 열려 있는 노트입니다. 이 대화에서 고칠 수 있는 노트는 이것뿐입니다. (×로 빼면 전송하지 않습니다)',
 		skillRemoveTooltip: '스킬 선택 해제',
 		targetMissing: '볼트에서 찾을 수 없어 지정을 해제했습니다: {names} — 확인한 뒤 다시 보내세요.',
 		contextReadFailed: '지정한 노트를 읽지 못했습니다. 다시 시도하세요.',
@@ -186,6 +188,40 @@ const ko = {
 		failedLabel: '⚠ 답변을 받지 못해 이 질문은 대화 기록에 포함되지 않았습니다',
 		errorDetails: '자세한 내용 (오류 원문)',
 		emptyTitle: '(빈 대화)',
+
+		// 승인형 Diff — 답변 속 노트 수정 제안 카드(ui/chat/edit-card.ts)
+		editCardHeading: '노트 수정 제안',
+		editApplyButton: '적용',
+		editApplyTooltip: '이 내용대로 노트를 고칩니다. 고치기 직전 원본은 따로 보관합니다.',
+		editRevertButton: '되돌리기',
+		editRevertTooltip: '이 수정을 적용하기 전으로 되돌립니다. 그 뒤에 직접 고친 다른 부분은 그대로 둡니다.',
+		editAppliedLabel: '적용함',
+		editAppendLabel: '노트 끝에 덧붙이기',
+		editDeleteLabel: '이 부분 지우기',
+		editDiffSkipped: '… 바뀌지 않은 {count}줄 생략',
+		editChecking: '노트와 대조하는 중...',
+		// 적용할 수 없는 이유(카드 안에 회색 글씨로 보이고, 이때 [적용] 버튼은 잠깁니다)
+		editProblemNotCurrent:
+			'이 질문을 보낼 때 열려 있던 노트가 아니라서 고칠 수 없습니다. 고칠 수 있는 노트는 그때 화면에 열어 둔 노트 하나뿐입니다. 이 노트를 열고 다시 요청하세요.',
+		editProblemNoteMissing:
+			'이 경로에 노트가 없습니다. 노트가 옮겨졌거나 이름이 바뀌었을 수 있습니다.',
+		editProblemNotFound:
+			'고칠 원문을 노트에서 찾지 못했습니다. 노트가 그새 바뀌었거나, 챗봇이 원문을 조금 다르게 옮겨 적었습니다. 챗봇에게 다시 물어보세요.',
+		editProblemAmbiguous:
+			'똑같은 내용이 노트에 여러 곳 있어 어디를 고쳐야 할지 알 수 없습니다. 앞뒤 줄을 더 포함해서 다시 제안해 달라고 하세요.',
+		editProblemNoChange: '고치기 전과 후가 같아 바뀌는 것이 없습니다.',
+		editApplied: '노트를 고쳤습니다: {path}',
+		editReverted: '수정을 되돌렸습니다: {path}',
+		editApplyFailed: '노트를 고치지 못했습니다: {reason}',
+		editRevertFailed:
+			'되돌리지 못했습니다 — 적용한 부분이 그 뒤에 또 바뀐 것 같습니다. 적용 전 원본은 플러그인 폴더의 backups/{name} 파일에 있습니다.',
+		editRevertFailedNoBackup:
+			'되돌리지 못했습니다 — 적용한 부분이 그 뒤에 또 바뀐 것 같습니다. 노트를 직접 확인하세요.',
+		editBackupFailed: '노트는 고쳤지만, 적용 전 원본을 보관하지 못했습니다.',
+		editOpenNoteTooltip: '이 노트 열기',
+		// 모델이 수정 제안 형식을 크게 벗어나게 답해서 카드를 만들지 못했을 때(답변에 마커만 글자로 남음)
+		editFormatBroken:
+			'⚠ 챗봇이 수정 제안 형식을 지키지 않아 [적용] 버튼을 만들지 못했습니다. "정해진 수정 형식을 그대로 지켜서 다시 알려 줘"라고 요청해 보세요.',
 	},
 	skills: {
 		heading: '스킬 관리',
@@ -228,6 +264,7 @@ const ko = {
 			'사내 폐쇄망 전용으로 만든 플러그인입니다. 설정에서 지정한 LLM 서버와만 통신하며, 보내는 내용은 사용자가 채팅에 입력한 글' +
 			'(이전 대화, 기본 지시문, 선택한 스킬의 지시문 포함), 채팅에서 @로 직접 지정한 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
 			'그 밖의 노트 내용은 자동으로 전송되지 않습니다. ' +
+			'노트를 고치는 것은 챗봇 답변의 수정 카드에서 사용자가 [적용]을 누를 때뿐이며, 고치기 직전 원본은 플러그인 폴더에 보관됩니다. ' +
 			'(초안 — 정식 배포 전 검토가 필요합니다.)',
 		versionLabel: '버전',
 		descriptionLabel: '설명',
@@ -368,6 +405,8 @@ const en: Dictionary = {
 		skillPickerNoMatch: 'No matching skills — add them in Settings → Skills',
 		pickerHint: '↑↓ move · Enter select · Esc close',
 		targetRemoveTooltip: 'Remove',
+		currentNoteChip:
+			'The note you have open. It is the only note this conversation can edit. (Remove with × to stop sending it.)',
 		skillRemoveTooltip: 'Clear skill',
 		targetMissing: 'Removed because it no longer exists in the vault: {names} — check and send again.',
 		contextReadFailed: 'Could not read the selected notes. Try again.',
@@ -414,6 +453,36 @@ const en: Dictionary = {
 		failedLabel: '⚠ No answer received — this question is not part of the conversation history',
 		errorDetails: 'Details (raw error message)',
 		emptyTitle: '(empty conversation)',
+
+		editCardHeading: 'Suggested note edit',
+		editApplyButton: 'Apply',
+		editApplyTooltip: 'Edit the note as shown. The note is backed up first.',
+		editRevertButton: 'Undo',
+		editRevertTooltip: 'Undo this edit. Other changes you made afterwards are kept.',
+		editAppliedLabel: 'Applied',
+		editAppendLabel: 'Append to the end of the note',
+		editDeleteLabel: 'Remove this part',
+		editDiffSkipped: '… {count} unchanged lines hidden',
+		editChecking: 'Matching against the note...',
+		editProblemNotCurrent:
+			'This is not the note that was open when you sent the question, so it cannot be edited. Only that one note can be edited. Open this note and ask again.',
+		editProblemNoteMissing: 'No note at this path. It may have been moved or renamed.',
+		editProblemNotFound:
+			'Could not find the original text in the note. The note may have changed, or the chatbot copied it slightly differently. Ask the chatbot again.',
+		editProblemAmbiguous:
+			'The same text appears in several places, so there is no way to tell which one to edit. Ask for a suggestion that includes more surrounding lines.',
+		editProblemNoChange: 'Before and after are identical — nothing would change.',
+		editApplied: 'Note edited: {path}',
+		editReverted: 'Edit undone: {path}',
+		editApplyFailed: 'Could not edit the note: {reason}',
+		editRevertFailed:
+			'Could not undo — the applied text seems to have changed again. The original is kept in the plugin folder at backups/{name}.',
+		editRevertFailedNoBackup:
+			'Could not undo — the applied text seems to have changed again. Please check the note yourself.',
+		editBackupFailed: 'The note was edited, but the original could not be backed up.',
+		editOpenNoteTooltip: 'Open this note',
+		editFormatBroken:
+			'⚠ The chatbot did not follow the edit format, so no [Apply] button could be created. Ask it to use the exact edit format and try again.',
 	},
 	skills: {
 		heading: 'Manage skills',
@@ -456,6 +525,7 @@ const en: Dictionary = {
 			'Built for use inside a closed company network. The plugin only talks to the LLM server set in the settings, and sends only what you type in the chat ' +
 			'(including earlier messages, the default instructions, and the instructions of the skill you picked), the content of folders and notes you pick with @ in the chat, and a test sentence when checking the connection. ' +
 			'No other note content is sent automatically. ' +
+			'Notes are only edited when you press [Apply] on a suggested edit in a chat answer, and the note is backed up in the plugin folder first. ' +
 			'(Draft — review before real deployment.)',
 		versionLabel: 'Version',
 		descriptionLabel: 'Description',

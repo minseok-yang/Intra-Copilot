@@ -13,6 +13,27 @@ export interface StoredMessage extends ChatMessage {
 	attached?: AttachedInfo; // 그때 실제로 붙여 보낸 분량
 	// 이 질문에 쓴 스킬(/). 이름만 저장하고 지시문은 저장하지 않습니다.
 	skill?: { id: string; name: string };
+	// 이 답변 속 수정 제안 중 사용자가 [적용]한 것들. 대화를 다시 불러와도 "적용함" 표시가 남습니다.
+	edits?: AppliedEdit[];
+	// (답변에만) 그 질문을 보낼 때 열려 있던 노트의 경로. 이 답변의 수정 제안 중 실제로 고칠 수 있는
+	// 것은 이 노트에 대한 것뿐입니다. 적용하는 시점이 아니라 질문한 시점을 기준으로 삼아, 답변을
+	// 읽다가 다른 노트로 옮겨도 엉뚱한 파일이 고쳐지지 않게 합니다.
+	editableNote?: string;
+}
+
+// 승인형 Diff에서 사용자가 [적용]을 누른 기록입니다. 고친 내용 자체는 답변(content)에 이미 들어
+// 있으므로 따로 저장하지 않습니다.
+export interface AppliedEdit {
+	index: number; // 그 답변 속 몇 번째 수정 제안인지
+	at: string; // 적용한 시각(ISO 날짜 문자열)
+	backup?: string; // 적용 전 원본을 보관한 파일 이름(되돌리기에 실패했을 때 안내에 씁니다)
+}
+
+function isAppliedEdit(value: unknown): value is AppliedEdit {
+	if (!value || typeof value !== 'object') return false;
+	const { index, at, backup } = value as Record<string, unknown>;
+	if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) return false;
+	return typeof at === 'string' && (backup === undefined || typeof backup === 'string');
 }
 
 export interface ChatSession {
@@ -100,6 +121,13 @@ function readMessage(value: unknown): StoredMessage | null {
 	const skill = fields.skill as Record<string, unknown> | undefined;
 	if (skill && typeof skill.id === 'string' && typeof skill.name === 'string') {
 		message.skill = { id: skill.id, name: skill.name };
+	}
+	if (Array.isArray(fields.edits)) {
+		const edits = fields.edits.filter(isAppliedEdit);
+		if (edits.length > 0) message.edits = edits;
+	}
+	if (typeof fields.editableNote === 'string' && fields.editableNote) {
+		message.editableNote = fields.editableNote;
 	}
 	return message;
 }

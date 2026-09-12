@@ -2,9 +2,11 @@ import { App, Component, ExtraButtonComponent, MarkdownRenderer } from 'obsidian
 import type { StoredMessage } from '../../chat/session-store';
 import type { AttachedInfo } from '../../chat/vault-context';
 import { finalizeRenderedAnswer, neutralizeRemoteContent } from '../../chat/safe-markdown';
+import { EditProposal, hasUnreadableProposal, splitAnswer } from '../../chat/edit-proposal';
 import type { ChatStrings } from '../../i18n';
 import type { Skill } from '../../skills/skill-store';
 import { createSkillChip, createTargetChip } from '../picker-items';
+import { EditActionResult, EditCard } from './edit-card';
 
 // 챗봇 화면에서 "오간 말풍선"만 담당합니다. 무엇을 보낼지·언제 보낼지는 chat-view.ts가 정하고,
 // 여기서는 받은 메시지를 그리고, 스크롤을 옮기고, 버튼이 눌리면 알려주기만 합니다.
@@ -24,6 +26,19 @@ export interface MessageListCallbacks {
 	onEdit: (message: StoredMessage) => void;
 	onRetry: (sent: SentMessage, bubbles: { user: HTMLElement; error: HTMLElement }) => void;
 	onCopy: (text: string, successNotice?: string) => void;
+	// 답변 속 수정 제안 카드(승인형 Diff)의 [적용]·[되돌리기]·노트 열기입니다. 어느 답변에 딸린
+	// 제안인지 함께 넘겨서, 적용 여부를 그 메시지에 기록할 수 있게 합니다(session-store의 edits).
+	onApplyEdit: (
+		message: StoredMessage,
+		proposal: EditProposal,
+		index: number,
+	) => Promise<EditActionResult>;
+	onRevertEdit: (
+		message: StoredMessage,
+		proposal: EditProposal,
+		index: number,
+	) => Promise<EditActionResult>;
+	onOpenNote: (path: string) => void;
 }
 
 interface MessageListOptions {
@@ -139,20 +154,38 @@ export class ChatMessageList {
 			details.createDiv({ cls: 'intra-copilot-chat-reasoning-body', text: message.reasoning });
 		}
 
-		// LLM은 보통 마크다운(목록, 굵게, 코드블록)으로 답하므로 그대로 렌더링합니다.
-		// 단, 외부 요청을 만들거나 다른 플러그인이 실행할 수 있는 문법은 먼저 무력화합니다(safe-markdown.ts).
+		// 답변을 "보통 글"과 "노트 수정 제안"으로 나눠 그립니다(edit-proposal.ts). 글은 마크다운으로,
+		// 제안은 변경 전/후를 보여주는 카드 + [적용] 버튼으로 그립니다.
 		const answerEl = bubble.createDiv({ cls: 'intra-copilot-chat-answer' });
 		const content = message.content || strings.emptyReply;
-		await MarkdownRenderer.render(
-			this.options.app,
-			neutralizeRemoteContent(content),
-			answerEl,
-			'',
-			this.options.component,
-		);
-		finalizeRenderedAnswer(answerEl, {
-			onBlockedLinkClick: (href) => this.options.callbacks.onCopy(href, strings.linkBlockedNotice),
-		});
+		const parts = splitAnswer(content);
+		// 카드가 있으면 말풍선 폭 제한을 풀어 넓게 씁니다(좁으면 변경 내용의 줄이 계속 접힙니다).
+		bubble.toggleClass('has-edit-cards', parts.some((part) => part.kind === 'proposal'));
+		for (const part of parts) {
+			if (part.kind === 'proposal') {
+				this.createEditCard(answerEl, message, part.proposal, part.index);
+				continue;
+			}
+			// LLM은 보통 마크다운(목록, 굵게, 코드블록)으로 답하므로 그대로 렌더링합니다. 단, 외부 요청을
+			// 만들거나 다른 플러그인이 실행할 수 있는 문법은 먼저 무력화합니다(safe-markdown.ts).
+			const textEl = answerEl.createDiv({ cls: 'intra-copilot-chat-answer-text' });
+			await MarkdownRenderer.render(
+				this.options.app,
+				neutralizeRemoteContent(part.text),
+				textEl,
+				'',
+				this.options.component,
+			);
+			finalizeRenderedAnswer(textEl, {
+				onBlockedLinkClick: (href) => this.options.callbacks.onCopy(href, strings.linkBlockedNotice),
+			});
+		}
+
+		// 모델이 수정 형식을 크게 벗어나게 답해서 카드를 만들지 못했다면, 마커 글자만 남아 영문을
+		// 모르게 되므로 그 사실을 알려 줍니다.
+		if (hasUnreadableProposal(parts)) {
+			bubble.createDiv({ cls: 'intra-copilot-chat-notice', text: strings.editFormatBroken });
+		}
 
 		if (message.truncated) {
 			bubble.createDiv({ cls: 'intra-copilot-chat-notice', text: strings.truncatedNotice });
@@ -165,6 +198,30 @@ export class ChatMessageList {
 				.setTooltip(strings.copyTooltip)
 				.onClick(() => this.options.callbacks.onCopy(message.content));
 		}
+	}
+
+	// 수정 제안 카드 하나를 만듭니다. 카드는 노트를 읽어 스스로 대조하고(읽기만 함), 실제로 노트를
+	// 고치는 일은 콜백으로 chat-view.ts에 넘깁니다.
+	private createEditCard(
+		parent: HTMLElement,
+		message: StoredMessage,
+		proposal: EditProposal,
+		index: number,
+	): void {
+		const { callbacks } = this.options;
+		new EditCard(parent, proposal, index, {
+			app: this.options.app,
+			strings: this.options.strings,
+			// 대화를 다시 불러왔을 때 이미 적용한 제안은 [되돌리기] 상태로 그립니다.
+			applied: message.edits?.some((edit) => edit.index === index) ?? false,
+			// 고칠 수 있는 노트는 이 질문을 보낼 때 열려 있던 것 하나뿐입니다.
+			editableNote: message.editableNote ?? null,
+			callbacks: {
+				onApply: (target, at) => callbacks.onApplyEdit(message, target, at),
+				onRevert: (target, at) => callbacks.onRevertEdit(message, target, at),
+				onOpenNote: (path) => callbacks.onOpenNote(path),
+			},
+		});
 	}
 
 	// 스트리밍 중: 지금까지 받은 답변을 글자 그대로 보여줍니다(마크다운은 다 받은 뒤에 그립니다).
