@@ -20,3 +20,6 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# 개인 PC 경로가 들어간 개발용 배포 스크립트(집에서만 씀)
+dev-deploy.cmd
