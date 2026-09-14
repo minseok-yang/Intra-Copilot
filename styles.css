@@ -1021,3 +1021,254 @@
 	border-top: none;
 	padding-top: 0;
 }
+
+/* ─── 설정 화면: 기능 네 개 구조 ─────────────────────────────────── */
+
+/* 탭이 다섯 개라 좁은 설정 창에서는 가로로 밀어 볼 수 있게 합니다. */
+.intra-copilot-tab-bar {
+	overflow-x: auto;
+}
+
+.intra-copilot-tab-button {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+/* 준비 중인 기능의 탭은 흐리게(눌러서 들어갈 수는 있습니다). */
+.intra-copilot-tab-button.is-upcoming:not(.is-active) {
+	opacity: 0.6;
+}
+
+/* 기능 탭 맨 위의 머리말: 이름 · 상태 · 한 줄 설명 */
+.intra-copilot-feature-header {
+	margin-bottom: 4px;
+}
+
+.intra-copilot-feature-header-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+}
+
+.intra-copilot-feature-header-desc {
+	margin-top: 2px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* 기능 안의 섹션(하위 탭) */
+.intra-copilot-subtab-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 12px 0 4px;
+}
+
+.intra-copilot-subtab-button {
+	padding: 3px 10px;
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-subtab-button.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* 상태 배지(사용 가능 / 준비 중) — 탭 머리말·일반 탭 카드·문서 목차가 함께 씁니다. */
+.intra-copilot-feature-badge {
+	flex: none;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-size: var(--font-ui-smaller);
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+.intra-copilot-feature-badge.is-available {
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+}
+
+.intra-copilot-feature-badge.is-upcoming {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+/* 일반 탭의 기능 카드 네 개 */
+.intra-copilot-feature-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px;
+	margin-bottom: 18px;
+}
+
+.intra-copilot-feature-card {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	height: auto;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	box-shadow: none;
+	text-align: left;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.intra-copilot-feature-card:hover {
+	border-color: var(--interactive-accent);
+}
+
+.intra-copilot-feature-card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.intra-copilot-feature-card-name {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.intra-copilot-feature-card.is-upcoming .intra-copilot-feature-card-name {
+	color: var(--text-muted);
+}
+
+.intra-copilot-feature-card-desc {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+}
+
+.intra-copilot-setup-hint button {
+	margin-top: 8px;
+}
+
+/* 준비 중인 기능의 설정 자리 */
+.intra-copilot-upcoming-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 10px;
+	padding: 8px 10px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+}
+
+.intra-copilot-section-intro {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-upcoming-items {
+	opacity: 0.65;
+}
+
+/* ─── 사용자 가이드·라이선스 창: 목차 → 쪽 ─────────────────────────── */
+
+.intra-copilot-doc-intro > :first-child {
+	margin-top: 0;
+}
+
+.intra-copilot-doc-group {
+	margin-top: 20px;
+}
+
+.intra-copilot-doc-group-label {
+	margin-bottom: 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+}
+
+.intra-copilot-doc-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 8px;
+}
+
+.intra-copilot-doc-card {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	height: auto;
+	padding: 12px 14px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	box-shadow: none;
+	text-align: left;
+	white-space: normal;
+}
+
+button.intra-copilot-doc-card {
+	cursor: pointer;
+}
+
+button.intra-copilot-doc-card:hover {
+	border-color: var(--interactive-accent);
+}
+
+.intra-copilot-doc-card.is-upcoming {
+	opacity: 0.6;
+}
+
+.intra-copilot-doc-card-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.intra-copilot-doc-card-summary {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+}
+
+.intra-copilot-doc-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.intra-copilot-doc-nav.is-bottom {
+	flex-wrap: wrap;
+	margin-top: 32px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.intra-copilot-doc-nav-spacer {
+	flex: 1;
+}
+
+.intra-copilot-doc-nav-button {
+	font-size: var(--font-ui-small);
+}
+
+/* 본문 속 다른 쪽으로 가는 링크 */
+.intra-copilot-doc-link {
+	color: var(--text-accent);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.intra-copilot-doc-link:hover {
+	color: var(--text-accent-hover);
+}

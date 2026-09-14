@@ -3,7 +3,7 @@ import IntraCopilotPlugin from '../main';
 import { t } from '../i18n';
 import { newSkillId, saveSkill, Skill } from '../skills/skill-store';
 
-// 스킬 하나를 새로 만들거나 고치는 창입니다(설정 → 스킬 탭의 [새 스킬]·[편집]).
+// 스킬 하나를 새로 만들거나 고치는 창입니다(설정 → 챗봇 → 스킬의 [새 스킬]·[편집]).
 // 저장하면 SKILL 폴더의 .md 파일에 씁니다. 파일 이름은 처음 만들 때 정해지고, 이름을 바꿔도 그대로입니다.
 export class SkillEditModal extends Modal {
 	constructor(

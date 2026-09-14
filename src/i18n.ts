@@ -11,31 +11,94 @@ import type { LlmErrorKind } from './llm/client';
 // - 지정: @로 고른 폴더·노트(대화 대상). / 선택: /로 고른 스킬. 둘을 바꿔 쓰지 않습니다.
 // - 버튼·설정 이름은 실제 동작 그대로 부르고, 설명문에서 그 이름을 [대괄호]나 "따옴표"로 똑같이 인용합니다.
 const ko = {
+	// 설정 화면 맨 위 탭: 일반(모든 기능에 공통) + 기능 네 개(ui/settings/features.ts)
 	tabs: {
 		general: '일반',
-		llm: 'LLM 연결',
-		skills: '스킬',
+		chatbot: '챗봇',
+		link: '링크',
+		templater: '템플레이터',
+		reminder: '리마인더',
 	},
 	general: {
-		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지 → 어떻게 시작하는지 → 설정값 →
-		// 부차적인 정보(버전·라이선스)"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
+		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지 → (처음이면) 어떻게 시작하는지 →
+		// 어떤 기능이 있는지 → 설정값 → 부차적인 정보(버전)"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
 		introText:
-			'사내 폐쇄망에서 쓰는 Obsidian 챗봇입니다. 사내 LLM 서버와 대화하고, 노트를 읽혀 묻고, ' +
-			'챗봇이 제안한 수정을 하나씩 확인한 뒤 [적용]을 눌러 노트에 반영합니다.',
+			'사내 폐쇄망에서 쓰는 Obsidian 도우미입니다. 챗봇·링크·템플레이터·리마인더 네 가지 기능을 한곳에 묶었고, ' +
+			'기능마다 위의 탭에서 따로 설정합니다.',
 		// 소개 아래 한 줄. 전송 정책의 핵심만 짧게 — 자세한 내용은 [라이선스 및 정책] 버튼으로 봅니다.
+		// (링크의 임베딩 서버, 템플레이터의 MCP 연결처럼 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.)
 		privacyNote:
 			'노트 내용은 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
+		featuresHeading: '기능',
 		// 아직 서버를 설정하지 않았을 때만 보이는 안내
 		setupHeading: '처음 설정하기',
 		setupSteps:
-			'① 위의 [LLM 연결] 탭에서 서버 주소를 입력하고 ② [연결 확인]으로 모델을 고른 뒤 ③ 왼쪽 리본의 봇 아이콘으로 챗봇을 엽니다.',
+			'① [챗봇] 탭의 [LLM 연결]에서 서버 주소를 입력하고, ② [모델 목록 불러오기]로 모델을 고른 뒤 [연결 확인]을 누르고, ③ 왼쪽 리본의 봇 아이콘으로 챗봇을 엽니다.',
+		setupButton: 'LLM 연결 설정하기',
 		displayHeading: '표시',
 		languageName: '표시 언어',
 		languageDesc:
 			'플러그인 화면(설정·챗봇)에 쓰이는 언어를 바꿉니다. 사용자 가이드와 라이선스 문서는 한국어로만 제공됩니다.',
 		infoHeading: '정보',
+	},
+	// Intra Copilot이 묶은 기능 네 가지(ui/settings/features.ts). 이름은 아직 가칭이라 여기서만 고치면
+	// 설정 화면 전체(탭 머리말, 일반 탭의 기능 목록)에 반영됩니다.
+	features: {
+		available: '사용 가능',
+		upcoming: '준비 중',
+		chatbot: {
+			name: '인트라 챗봇',
+			desc: '사내 LLM과 대화하고, 노트를 읽혀 묻고, 제안받은 수정을 확인한 뒤 노트에 반영합니다.',
+		},
+		link: { name: '인트라 링크', desc: '임베딩으로 내용이 비슷한 노트를 찾아 서로 연결합니다.' },
+		templater: { name: '인트라 템플레이터', desc: '받은 파일과 양식을 바탕으로 새 노트를 만들어 줍니다.' },
+		reminder: { name: '인트라 리마인더', desc: '노트를 정해 둔 주기로 다시 읽게 해, 지식이 낡지 않게 합니다.' },
+	},
+	// 기능 탭 안의 섹션(하위 탭) 이름
+	sections: {
+		llm: 'LLM 연결',
+		skills: '스킬',
+		embedding: '임베딩 서버',
+		index: '인덱스',
+		templates: '양식',
+		prompts: '프롬프트',
+		mcp: 'MCP 연결',
+		schedule: '읽기 주기',
+	},
+	// 준비 중인 기능의 설정 자리(ui/settings/upcoming-section.ts). 모두 잠겨 있고 아무것도 저장하지 않습니다.
+	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
+	upcoming: {
+		notice: '이 기능은 아직 만드는 중입니다. 아래는 앞으로 들어갈 설정의 자리이며, 지금은 바꿀 수 없습니다.',
+		embeddingIntro: '비슷한 노트를 찾는 데 쓸 임베딩 서버를 연결합니다. 챗봇의 LLM 서버와 따로 둘 수 있습니다.',
+		embeddingUrl: { name: '서버 주소', desc: '임베딩 모델을 제공하는 OpenAI 호환 서버 주소' },
+		embeddingKey: { name: 'API 키', desc: '서버에 접속할 때 쓰는 인증 키' },
+		embeddingModel: { name: '임베딩 모델', desc: '노트를 벡터로 바꿀 때 쓸 모델' },
+		indexIntro: '어떤 노트를 색인할지 정하고, 색인을 관리합니다.',
+		indexFolders: { name: '색인할 폴더', desc: '비워 두면 볼트 전체를 색인합니다' },
+		indexExclude: { name: '제외할 폴더', desc: '색인하지 않을 폴더' },
+		indexRebuild: { name: '인덱스 다시 만들기', desc: '노트가 많이 바뀌었을 때 처음부터 다시 색인합니다' },
+		templatesIntro: '받은 파일로 새 노트를 만들 때 참고할 양식 노트를 관리합니다.',
+		templatesFolder: { name: '양식 폴더', desc: '양식 노트를 모아 둔 폴더' },
+		templatesDefault: { name: '기본 양식', desc: '따로 고르지 않을 때 쓸 양식' },
+		promptsIntro: '새 노트를 만들 때 모델에게 줄 지시문을 관리합니다.',
+		promptsInstructions: { name: '노트 생성 지시문', desc: '양식을 채울 때 모델이 따를 규칙' },
+		mcpIntro: '새 노트를 만들 때 쓸 외부 도구(MCP 서버) 연결을 관리합니다.',
+		mcpServers: { name: 'MCP 서버', desc: '연결할 MCP 서버 목록' },
+		scheduleIntro: '어떤 노트를 얼마나 자주 다시 읽도록 알려 줄지 정합니다.',
+		scheduleFolders: { name: '대상 폴더', desc: '주기적으로 다시 읽을 노트가 있는 폴더' },
+		scheduleInterval: { name: '다시 읽기 주기', desc: '얼마나 자주 다시 읽을지' },
+		scheduleNotify: { name: '알림 방식', desc: '다시 읽을 때가 된 노트를 알려 주는 방법' },
+		buttonRebuild: '다시 만들기',
+		buttonAdd: '추가',
+	},
+	// 사용자 가이드·라이선스 창(ui/guide-view.ts)의 이동 버튼
+	docs: {
+		toc: '목차',
+		prev: '이전',
+		next: '다음',
+		upcoming: '준비 중',
 	},
 	llm: {
 		heading: 'LLM 서버 연결',
@@ -113,7 +176,7 @@ const ko = {
 				'서버에 연결할 수 없습니다. 서버 주소(오타, http/https, 포트 번호)와 네트워크(사내망·VPN) 연결을 확인하세요.',
 			certificate:
 				'서버의 보안 인증서를 신뢰할 수 없습니다. 주소가 맞는지 확인하고, 사내 서버라면 서버 관리자나 IT 부서에 문의하세요.',
-			auth: 'API 키가 없거나 올바르지 않거나, 이 서버를 쓸 권한이 없습니다(인증 실패). LLM 연결 탭에서 API 키를 확인하세요.',
+			auth: 'API 키가 없거나 올바르지 않거나, 이 서버를 쓸 권한이 없습니다(인증 실패). 설정의 챗봇 → LLM 연결에서 API 키를 확인하세요.',
 			'not-found':
 				'서버에는 연결됐지만 요청한 경로를 찾을 수 없습니다. 서버 주소가 API 주소(보통 /v1로 끝남)인지 확인하세요.',
 			model:
@@ -147,7 +210,7 @@ const ko = {
 		pickerWholeVault: '볼트 전체',
 		pickerCurrentNote: '현재 노트',
 		pickerNoMatch: '일치하는 폴더·노트가 없습니다',
-		skillPickerNoMatch: '일치하는 스킬이 없습니다 — 설정 → 스킬 탭에서 추가할 수 있습니다',
+		skillPickerNoMatch: '일치하는 스킬이 없습니다 — 설정 → 챗봇 → 스킬에서 추가할 수 있습니다',
 		pickerHint: '↑↓ 이동 · Enter 선택 · Esc 닫기',
 		targetRemoveTooltip: '지정 해제',
 		// 자동으로 들어온 "지금 열려 있는 노트" 칩의 툴팁
@@ -159,7 +222,7 @@ const ko = {
 		attachedTruncated: ' · 글자 수 제한으로 일부 생략',
 		thinking: '답변을 기다리는 중...',
 		streamingReasoning: '생각하는 중...',
-		notConfigured: '설정 → Intra Copilot → LLM 연결 탭에서 서버 주소와 모델을 먼저 설정하세요.',
+		notConfigured: '설정 → Intra Copilot → 챗봇 → LLM 연결에서 서버 주소와 모델을 먼저 설정하세요.',
 		errorPrefix: '오류: ',
 		retryButton: '다시 시도',
 		emptyReply: '(빈 답변)',
@@ -283,14 +346,14 @@ const ko = {
 		saved: '스킬을 저장했습니다.',
 	},
 	license: {
-		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_MD).
+		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_BOOK).
 		summaryHeading: '라이선스 및 정책',
 		versionLabel: '버전',
 		publisherLabel: '제작자',
 	},
 };
 
-type Dictionary = typeof ko;
+export type Dictionary = typeof ko;
 
 // 화면 부품들이 "이 화면의 문구 묶음"을 인자로 받을 때 쓰는 타입입니다.
 export type ChatStrings = Dictionary['chat'];
@@ -298,25 +361,80 @@ export type ChatStrings = Dictionary['chat'];
 const en: Dictionary = {
 	tabs: {
 		general: 'General',
-		llm: 'LLM connection',
-		skills: 'Skills',
+		chatbot: 'Chatbot',
+		link: 'Link',
+		templater: 'Templater',
+		reminder: 'Reminder',
 	},
 	general: {
 		introText:
-			'An Obsidian chatbot for use inside a closed company network. Talk to your company LLM server, give it notes to read, ' +
-			'and review each suggested edit before pressing [Apply] to change the note.',
+			'An Obsidian assistant for use inside a closed company network. It bundles four features (Chatbot, Link, Templater, Reminder), ' +
+			'each configured in its own tab above.',
 		privacyNote:
 			'Note content never leaves the LLM server you configured, and only what is shown as a chip above the chat box is sent.',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
+		featuresHeading: 'Features',
 		setupHeading: 'Getting started',
 		setupSteps:
-			'① Enter the server address in the [LLM connection] tab above, ② pick a model with [Check connection], then ③ open the chatbot with the bot icon in the left ribbon.',
+			'① Enter the server address in [Chatbot] → [LLM connection], ② pick a model with [Load model list] and press [Check connection], then ③ open the chatbot with the bot icon in the left ribbon.',
+		setupButton: 'Set up LLM connection',
 		displayHeading: 'Display',
 		languageName: 'Display language',
 		languageDesc:
 			'Change the language used in this plugin (settings and chatbot). The user guide and license documents are available in Korean only.',
 		infoHeading: 'About',
+	},
+	features: {
+		available: 'Available',
+		upcoming: 'Coming soon',
+		chatbot: {
+			name: 'Intra Chatbot',
+			desc: 'Talk to your company LLM, give it notes to read, and review suggested edits before applying them.',
+		},
+		link: { name: 'Intra Link', desc: 'Find notes with similar content using embeddings and link them together.' },
+		templater: { name: 'Intra Templater', desc: 'Create new notes from received files and templates.' },
+		reminder: { name: 'Intra Reminder', desc: 'Have notes read again on a set schedule so knowledge stays fresh.' },
+	},
+	sections: {
+		llm: 'LLM connection',
+		skills: 'Skills',
+		embedding: 'Embedding server',
+		index: 'Index',
+		templates: 'Templates',
+		prompts: 'Prompts',
+		mcp: 'MCP connections',
+		schedule: 'Review schedule',
+	},
+	upcoming: {
+		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
+		embeddingIntro: 'Connect the embedding server used to find similar notes. It can be separate from the chatbot LLM server.',
+		embeddingUrl: { name: 'Server address', desc: 'Address of an OpenAI-compatible server that provides embedding models' },
+		embeddingKey: { name: 'API key', desc: 'Key used to access the server' },
+		embeddingModel: { name: 'Embedding model', desc: 'Model used to turn notes into vectors' },
+		indexIntro: 'Choose which notes to index and manage the index.',
+		indexFolders: { name: 'Folders to index', desc: 'Leave empty to index the whole vault' },
+		indexExclude: { name: 'Folders to exclude', desc: 'Folders that are never indexed' },
+		indexRebuild: { name: 'Rebuild index', desc: 'Index everything again from scratch after many changes' },
+		templatesIntro: 'Manage the template notes used when creating a new note from a received file.',
+		templatesFolder: { name: 'Template folder', desc: 'Folder that holds template notes' },
+		templatesDefault: { name: 'Default template', desc: 'Template used when none is chosen' },
+		promptsIntro: 'Manage the instructions given to the model when creating a new note.',
+		promptsInstructions: { name: 'Note creation instructions', desc: 'Rules the model follows when filling in a template' },
+		mcpIntro: 'Manage connections to external tools (MCP servers) used when creating new notes.',
+		mcpServers: { name: 'MCP servers', desc: 'List of MCP servers to connect to' },
+		scheduleIntro: 'Choose which notes to read again and how often you are reminded.',
+		scheduleFolders: { name: 'Target folders', desc: 'Folders with notes to read again periodically' },
+		scheduleInterval: { name: 'Review interval', desc: 'How often to read them again' },
+		scheduleNotify: { name: 'Notification', desc: 'How notes that are due are shown to you' },
+		buttonRebuild: 'Rebuild',
+		buttonAdd: 'Add',
+	},
+	docs: {
+		toc: 'Contents',
+		prev: 'Previous',
+		next: 'Next',
+		upcoming: 'Coming soon',
 	},
 	llm: {
 		heading: 'LLM server connection',
@@ -393,7 +511,7 @@ const en: Dictionary = {
 				'Cannot reach the server. Check the address (typos, http/https, port) and your network connection (company network / VPN).',
 			certificate:
 				'The server’s security certificate is not trusted. Check the address, and for an internal server ask the server admin or IT.',
-			auth: 'The API key is missing or wrong, or you do not have access to this server (authentication failed). Check the API key in the LLM connection tab.',
+			auth: 'The API key is missing or wrong, or you do not have access to this server (authentication failed). Check the API key in Settings → Chatbot → LLM connection.',
 			'not-found':
 				'Reached the server, but the requested path was not found. Make sure the address is the API address (usually ending in /v1).',
 			model:
@@ -427,7 +545,7 @@ const en: Dictionary = {
 		pickerWholeVault: 'Whole vault',
 		pickerCurrentNote: 'Current note',
 		pickerNoMatch: 'No matching folders or notes',
-		skillPickerNoMatch: 'No matching skills — add them in Settings → Skills',
+		skillPickerNoMatch: 'No matching skills — add them in Settings → Chatbot → Skills',
 		pickerHint: '↑↓ move · Enter select · Esc close',
 		targetRemoveTooltip: 'Remove',
 		currentNoteChip:
@@ -439,7 +557,7 @@ const en: Dictionary = {
 		attachedTruncated: ' · partly left out (length limit)',
 		thinking: 'Waiting for an answer...',
 		streamingReasoning: 'Thinking...',
-		notConfigured: 'Set the server address and model first in Settings → Intra Copilot → LLM connection.',
+		notConfigured: 'Set the server address and model first in Settings → Intra Copilot → Chatbot → LLM connection.',
 		errorPrefix: 'Error: ',
 		retryButton: 'Retry',
 		emptyReply: '(empty answer)',
