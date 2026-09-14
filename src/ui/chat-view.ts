@@ -201,6 +201,11 @@ export class ChatView extends ItemView {
 		void this.refreshModels({ testModel: false });
 	}
 
+	// 리마인더의 챗봇 버튼: 방금 연 노트를 칩에 넣습니다. 전에 이 노트 칩을 ×로 지웠더라도 다시 넣습니다.
+	attachCurrentNote(): void {
+		if (this.layoutBuilt) this.composer.syncCurrentNote(true);
+	}
+
 	onSettingsChanged(): void {
 		if (this.plugin.settings.general.language !== this.renderedLanguage) {
 			if (this.busy) {

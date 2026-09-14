@@ -20,7 +20,7 @@ export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
 	chatbot: 'available',
 	link: 'upcoming',
 	templater: 'upcoming',
-	reminder: 'upcoming',
+	reminder: 'available',
 };
 
 // ─── 기능 아이콘 ────────────────────────────────────────────────────

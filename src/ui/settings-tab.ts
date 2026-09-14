@@ -6,6 +6,7 @@ import { FEATURE_STATUS, FeatureId, featureIcon, SettingsTabId } from './setting
 import { renderGeneralSection } from './settings/general-section';
 import { LlmSettingsSection, renderSystemPromptSection } from './settings/llm-section';
 import { renderSkillsSection } from './settings/skills-section';
+import { renderReminderScheduleSection, renderReminderTargetsSection } from './settings/reminder-section';
 import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-section';
 
 // 설정 화면의 틀입니다.
@@ -151,7 +152,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			case 'templater':
 				return [upcoming('templates'), upcoming('prompts'), upcoming('mcp')];
 			case 'reminder':
-				return [upcoming('schedule')];
+				return [
+					{ id: 'targets', label: labels.reminderTargets, render: renderReminderTargetsSection },
+					{ id: 'schedule', label: labels.schedule, render: renderReminderScheduleSection },
+				];
 		}
 	}
 }

@@ -1297,3 +1297,60 @@ button.intra-copilot-doc-card:hover {
 .intra-copilot-doc-link:hover {
 	color: var(--text-accent-hover);
 }
+
+/* ─── 리마인더 화면(오른쪽 사이드바) ─────────────────────────────────── */
+.intra-copilot-reminder-view {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 8px;
+}
+
+.intra-copilot-reminder-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.intra-copilot-reminder-title {
+	font-weight: var(--font-semibold);
+}
+
+.intra-copilot-reminder-scope {
+	margin: 0;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-reminder-card {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.intra-copilot-reminder-name {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.intra-copilot-reminder-meta {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* 사이드바가 좁으면 아이콘 버튼이 다음 줄로 내려갑니다. */
+.intra-copilot-reminder-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin-top: 6px;
+}

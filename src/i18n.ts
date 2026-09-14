@@ -63,7 +63,8 @@ const ko = {
 		templates: '양식',
 		prompts: '프롬프트',
 		mcp: 'MCP 연결',
-		schedule: '읽기 주기',
+		reminderTargets: '대상 노트',
+		schedule: '주기·알림',
 	},
 	// 준비 중인 기능의 설정 자리(ui/settings/upcoming-section.ts). 모두 잠겨 있고 아무것도 저장하지 않습니다.
 	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
@@ -84,10 +85,6 @@ const ko = {
 		promptsInstructions: { name: '노트 생성 지시문', desc: '양식을 채울 때 모델이 따를 규칙' },
 		mcpIntro: '새 노트를 만들 때 쓸 외부 도구(MCP 서버) 연결을 관리합니다.',
 		mcpServers: { name: '서버', desc: '연결할 MCP 서버 목록' },
-		scheduleIntro: '어떤 노트를 얼마나 자주 다시 읽도록 알려 줄지 정합니다.',
-		scheduleFolders: { name: '대상 폴더', desc: '주기적으로 다시 읽을 노트가 있는 폴더' },
-		scheduleInterval: { name: '주기', desc: '얼마나 자주 다시 읽을지' },
-		scheduleNotify: { name: '알림 방식', desc: '다시 읽을 때가 된 노트를 알려 주는 방법' },
 		buttonStart: '시작',
 		buttonAdd: '추가',
 	},
@@ -348,6 +345,56 @@ const ko = {
 		saveFailed: '스킬을 저장하지 못했습니다.',
 		saved: '스킬을 저장했습니다.',
 	},
+	// 리마인더 화면(ui/reminder-view.ts)과 설정(ui/settings/reminder-section.ts)
+	reminder: {
+		title: '리마인더',
+		ribbonTooltip: '리마인더 열기',
+		todayCount: '오늘 다시 볼 노트 {count}개',
+		refreshTooltip: '목록 새로고침',
+		scopeNote: '이 볼트 안의 노트만 살펴보며, 노트 내용이나 목록을 어디로도 보내지 않습니다.',
+		doneToday: '오늘 챙길 노트를 모두 챙겼습니다. 남은 노트는 내일 다시 보여 드립니다.',
+		nothingDue: '지금 다시 볼 노트가 없습니다.',
+		reasonNever: '한 번도 확인하지 않음',
+		reasonStale: '{days}일 전에 확인',
+		reasonOrphan: '들어오는 링크 없음',
+		reviewButton: '확인함',
+		reviewTooltip: '다시 읽었습니다 — {days}일 뒤에 다시 보여 줍니다',
+		snoozeButton: '나중에',
+		snoozeTooltip: '{days}일 동안 목록에서 뺍니다',
+		chatTooltip: '노트를 열고 챗봇 입력칸에 올리기 (질문은 직접 써서 보냅니다)',
+		archiveTooltip: '보관 폴더({folder})로 옮기기',
+		archiveExists: '보관 폴더에 같은 이름의 노트가 있어 옮기지 못했습니다: {path}',
+		archiveFailed: '노트를 보관 폴더로 옮기지 못했습니다.',
+		deleteTooltip: '휴지통으로 삭제',
+		deleteConfirmTooltip: '한 번 더 눌러 휴지통으로 삭제',
+		deleteFailed: '노트를 삭제하지 못했습니다.',
+		startupNotice: '리마인더: 오늘 다시 볼 노트가 {count}개 있습니다. 여기를 눌러 열기',
+		targetsIntro:
+			'이 플러그인이 설치된 볼트 안의 모든 노트(.md)를 살펴봅니다. 다른 볼트나 볼트 밖의 파일은 보지 않으며, 노트 내용이나 목록을 어디로도 보내지 않습니다. ' +
+			'아래 조건에 해당하는 노트는 목록에 올리지 않습니다.',
+		excludedFoldersName: '제외 폴더',
+		excludedFoldersDesc: '쉼표(,)로 구분합니다. 하위 폴더도 함께 빠집니다. 예: Templates, Daily',
+		graceDaysName: '새 노트 유예 기간(일)',
+		graceDaysDesc: '만든 지 이 기간이 지나지 않은 노트는 목록에 올리지 않습니다. 0이면 바로 올립니다. 비워두면 기본값(7)으로 돌아갑니다.',
+		deferTagsName: '미룸 태그',
+		deferTagsDesc:
+			'이 태그가 붙은 노트를 목록 앞쪽에 보여 줍니다. 쉼표로 구분하고 #은 빼고 적습니다. 하위 태그(예: todo/업무)도 포함됩니다.',
+		archiveFolderName: '보관 폴더',
+		archiveFolderDesc:
+			'노트 카드의 상자 아이콘을 누르면 노트를 이 폴더로 옮깁니다(링크는 Obsidian이 알아서 고칩니다). 폴더가 없으면 만들고, 이 폴더의 노트는 목록에 올리지 않습니다. 비워두면 기본값(Archive)으로 돌아갑니다.',
+		scheduleIntro:
+			'한 번 확인한 노트를 언제 다시 보여 줄지, 하루에 몇 개씩 챙길지 정합니다. ' +
+			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트부터, 그다음 오래 확인하지 않은 순서로 보여 줍니다.',
+		intervalName: '다시 볼 간격(일)',
+		intervalDesc: '[확인함]을 누른 노트는 이 기간이 지나면 다시 목록에 올라옵니다. 비워두면 기본값(90)으로 돌아갑니다.',
+		snoozeName: '나중에 기간(일)',
+		snoozeDesc: '[나중에]를 누른 노트를 이 기간 동안 목록에서 뺍니다. 비워두면 기본값(7)으로 돌아갑니다.',
+		dailyLimitName: '하루 표시 개수',
+		dailyLimitDesc:
+			'하루에 챙길 노트 수입니다. [확인함]·[나중에]를 누르거나 보관·삭제한 노트가 이 수에 들어갑니다. 비워두면 기본값(5)으로 돌아갑니다.',
+		notifyName: '켤 때 알림',
+		notifyDesc: '그날 처음 Obsidian을 켰을 때 다시 볼 노트가 있으면 알림을 한 번 띄웁니다.',
+	},
 	license: {
 		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_BOOK).
 		summaryHeading: '라이선스 및 정책',
@@ -361,6 +408,7 @@ export type Dictionary = typeof ko;
 
 // 화면 부품들이 "이 화면의 문구 묶음"을 인자로 받을 때 쓰는 타입입니다.
 export type ChatStrings = Dictionary['chat'];
+export type ReminderStrings = Dictionary['reminder'];
 
 const en: Dictionary = {
 	general: {
@@ -404,7 +452,8 @@ const en: Dictionary = {
 		templates: 'Templates',
 		prompts: 'Prompts',
 		mcp: 'MCP connections',
-		schedule: 'Review schedule',
+		reminderTargets: 'Target notes',
+		schedule: 'Schedule & alerts',
 	},
 	upcoming: {
 		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
@@ -423,10 +472,6 @@ const en: Dictionary = {
 		promptsInstructions: { name: 'Note creation instructions', desc: 'Rules the model follows when filling in a template' },
 		mcpIntro: 'Manage connections to external tools (MCP servers) used when creating new notes.',
 		mcpServers: { name: 'Servers', desc: 'List of MCP servers to connect to' },
-		scheduleIntro: 'Choose which notes to read again and how often you are reminded.',
-		scheduleFolders: { name: 'Target folders', desc: 'Folders with notes to read again periodically' },
-		scheduleInterval: { name: 'Interval', desc: 'How often to read them again' },
-		scheduleNotify: { name: 'Notification', desc: 'How notes that are due are shown to you' },
 		buttonStart: 'Start',
 		buttonAdd: 'Add',
 	},
@@ -676,6 +721,55 @@ const en: Dictionary = {
 		instructionsRequired: 'Enter the instructions.',
 		saveFailed: 'Could not save the skill.',
 		saved: 'Skill saved.',
+	},
+	reminder: {
+		title: 'Reminder',
+		ribbonTooltip: 'Open reminder',
+		todayCount: '{count} notes to revisit today',
+		refreshTooltip: 'Refresh list',
+		scopeNote: 'Only notes in this vault are checked, and neither their content nor the list is sent anywhere.',
+		doneToday: "You have gone through today's notes. The rest will show up tomorrow.",
+		nothingDue: 'No notes to revisit right now.',
+		reasonNever: 'Never reviewed',
+		reasonStale: 'Reviewed {days} days ago',
+		reasonOrphan: 'No incoming links',
+		reviewButton: 'Reviewed',
+		reviewTooltip: 'I read it again — show it again in {days} days',
+		snoozeButton: 'Later',
+		snoozeTooltip: 'Hide it from the list for {days} days',
+		chatTooltip: 'Open the note and put it in the chatbot input (you write and send the question)',
+		archiveTooltip: 'Move to the archive folder ({folder})',
+		archiveExists: 'A note with the same name is already in the archive folder: {path}',
+		archiveFailed: 'Could not move the note to the archive folder.',
+		deleteTooltip: 'Move to trash',
+		deleteConfirmTooltip: 'Click again to move to trash',
+		deleteFailed: 'Could not delete the note.',
+		startupNotice: 'Reminder: {count} notes to revisit today. Click here to open.',
+		targetsIntro:
+			'Checks every note (.md) in the vault where this plugin is installed. Other vaults and files outside the vault are never read, and neither note content nor the list is sent anywhere. ' +
+			'Notes matching the conditions below are left out of the list.',
+		excludedFoldersName: 'Excluded folders',
+		excludedFoldersDesc: 'Separate with commas. Subfolders are excluded too, e.g. Templates, Daily',
+		graceDaysName: 'Grace period for new notes (days)',
+		graceDaysDesc: 'Notes younger than this are not listed. 0 lists them right away. Leave empty to restore the default (7).',
+		deferTagsName: 'Deferral tags',
+		deferTagsDesc:
+			'Notes with these tags are shown first. Separate with commas and leave out the #. Nested tags (e.g. todo/work) count too.',
+		archiveFolderName: 'Archive folder',
+		archiveFolderDesc:
+			'The box icon on a note card moves the note here (Obsidian updates links to it). The folder is created if missing, and notes in it are not listed. Leave empty to restore the default (Archive).',
+		scheduleIntro:
+			'Choose when a reviewed note comes back and how many notes to go through each day. ' +
+			'Notes without incoming links or with a deferral tag come first, then the ones reviewed longest ago.',
+		intervalName: 'Review interval (days)',
+		intervalDesc: 'A note marked [Reviewed] comes back to the list after this many days. Leave empty to restore the default (90).',
+		snoozeName: 'Later period (days)',
+		snoozeDesc: 'A note marked [Later] is hidden from the list for this many days. Leave empty to restore the default (7).',
+		dailyLimitName: 'Notes per day',
+		dailyLimitDesc:
+			'How many notes to go through each day. Notes marked [Reviewed] or [Later], archived, or deleted count toward it. Leave empty to restore the default (5).',
+		notifyName: 'Notify on startup',
+		notifyDesc: 'The first time you open Obsidian each day, show one notification if there are notes to revisit.',
 	},
 	license: {
 		summaryHeading: 'License & policy',

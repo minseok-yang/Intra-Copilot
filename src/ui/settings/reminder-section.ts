@@ -1,0 +1,119 @@
+import { normalizePath, Setting } from 'obsidian';
+import { DEFAULT_SETTINGS } from '../../settings';
+import type { SettingsContext } from './context';
+import { addNumberSetting, parseLimit } from './llm-section';
+
+// 리마인더 → 대상 노트 / 주기·알림.
+// 볼트 전체를 살펴보는 기능이라, 무엇을 보고 무엇을 보내지 않는지를 대상 노트 섹션 맨 위에 적어 둡니다.
+
+const defaults = DEFAULT_SETTINGS.reminder;
+
+// "Templates, /Daily/" 같은 폴더 입력을 볼트 기준 경로로 맞춥니다. 볼트 맨 위('/')는 뺍니다.
+function cleanFolder(item: string): string {
+	const path = item ? normalizePath(item) : '';
+	return path === '/' ? '' : path;
+}
+
+// 쉼표로 구분한 목록 입력칸. 입력칸에서 벗어나면 실제로 저장된 목록을 다시 보여 줍니다.
+function addListSetting(
+	containerEl: HTMLElement,
+	ctx: SettingsContext,
+	options: {
+		name: string;
+		desc: string;
+		get: () => string[];
+		set: (value: string[]) => void;
+		clean: (item: string) => string;
+	},
+): void {
+	new Setting(containerEl)
+		.setName(options.name)
+		.setDesc(options.desc)
+		.addText((text) => {
+			text.setValue(options.get().join(', ')).onChange((value) => {
+				options.set(
+					value
+						.split(',')
+						.map((item) => options.clean(item.trim()))
+						.filter((item) => item !== ''),
+				);
+				ctx.saveSoon();
+			});
+			text.inputEl.addEventListener('blur', () => {
+				text.setValue(options.get().join(', '));
+			});
+		});
+}
+
+export function renderReminderTargetsSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+	const strings = ctx.strings.reminder;
+	const reminder = ctx.plugin.settings.reminder;
+
+	containerEl.createEl('p', { text: strings.targetsIntro });
+
+	addListSetting(containerEl, ctx, {
+		name: strings.excludedFoldersName,
+		desc: strings.excludedFoldersDesc,
+		get: () => reminder.excludedFolders,
+		set: (value) => (reminder.excludedFolders = value),
+		clean: cleanFolder,
+	});
+	addNumberSetting(containerEl, ctx, {
+		name: strings.graceDaysName,
+		desc: strings.graceDaysDesc,
+		get: () => reminder.graceDays,
+		set: (value) => (reminder.graceDays = value),
+		parse: (raw) => parseLimit(raw, defaults.graceDays),
+		min: 0,
+	});
+	addListSetting(containerEl, ctx, {
+		name: strings.deferTagsName,
+		desc: strings.deferTagsDesc,
+		get: () => reminder.deferTags,
+		set: (value) => (reminder.deferTags = value),
+		clean: (item) => item.replace(/^#/, ''),
+	});
+	new Setting(containerEl)
+		.setName(strings.archiveFolderName)
+		.setDesc(strings.archiveFolderDesc)
+		.addText((text) => {
+			text.setValue(reminder.archiveFolder).onChange((value) => {
+				reminder.archiveFolder = cleanFolder(value.trim()) || defaults.archiveFolder;
+				ctx.saveSoon();
+			});
+			text.inputEl.addEventListener('blur', () => {
+				text.setValue(reminder.archiveFolder);
+			});
+		});
+}
+
+export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+	const strings = ctx.strings.reminder;
+	const reminder = ctx.plugin.settings.reminder;
+
+	containerEl.createEl('p', { text: strings.scheduleIntro });
+
+	// 0일·0개는 뜻이 없으므로 1 이상으로 맞춥니다.
+	const addAtLeastOne = (key: 'intervalDays' | 'snoozeDays' | 'dailyLimit', name: string, desc: string) =>
+		addNumberSetting(containerEl, ctx, {
+			name,
+			desc,
+			get: () => reminder[key],
+			set: (value) => (reminder[key] = value),
+			parse: (raw) => Math.max(1, parseLimit(raw, defaults[key])),
+			min: 1,
+		});
+	addAtLeastOne('intervalDays', strings.intervalName, strings.intervalDesc);
+	addAtLeastOne('snoozeDays', strings.snoozeName, strings.snoozeDesc);
+	addAtLeastOne('dailyLimit', strings.dailyLimitName, strings.dailyLimitDesc);
+
+	new Setting(containerEl)
+		.setName(strings.notifyName)
+		.setDesc(strings.notifyDesc)
+		.addToggle((toggle) =>
+			toggle.setValue(reminder.notifyOnStartup).onChange((value) => {
+				reminder.notifyOnStartup = value;
+				ctx.saveSoon();
+			}),
+		);
+}

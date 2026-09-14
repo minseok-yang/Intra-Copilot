@@ -2,7 +2,7 @@ import { Setting } from 'obsidian';
 import type { Dictionary } from '../../i18n';
 import type { SettingsContext } from './context';
 
-// 아직 만들지 않은 기능(링크·템플레이터·리마인더)의 설정 자리입니다.
+// 아직 만들지 않은 기능(링크·템플레이터)의 설정 자리입니다.
 //
 // 왜 빈 양식을 미리 두는가: Intra Copilot은 기능 네 개를 묶은 플러그인이라, 설정 화면의 뼈대(기능별
 // 탭과 그 안의 섹션)를 먼저 잡아 두면 기능을 만들 때 이 자리에 실제 설정만 채워 넣으면 됩니다.
@@ -24,7 +24,7 @@ interface PlaceholderSection {
 	items: PlaceholderItem[];
 }
 
-export type UpcomingSectionId = 'embedding' | 'index' | 'templates' | 'prompts' | 'mcp' | 'schedule';
+export type UpcomingSectionId = 'embedding' | 'index' | 'templates' | 'prompts' | 'mcp';
 
 function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionId, PlaceholderSection> {
 	return {
@@ -62,15 +62,6 @@ function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionI
 		mcp: {
 			intro: u.mcpIntro,
 			items: [{ text: u.mcpServers, control: 'button', button: u.buttonAdd }],
-		},
-		// ─── 리마인더 ───
-		schedule: {
-			intro: u.scheduleIntro,
-			items: [
-				{ text: u.scheduleFolders, control: 'text' },
-				{ text: u.scheduleInterval, control: 'dropdown' },
-				{ text: u.scheduleNotify, control: 'dropdown' },
-			],
 		},
 	};
 }

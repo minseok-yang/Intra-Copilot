@@ -20,7 +20,7 @@ import type { SettingsContext } from './context';
 // 숫자 입력칸 값을 정수로 바꿉니다. 비어 있거나 숫자가 아니거나 음수면 기본값으로 되돌립니다.
 // (예전에는 비우면 0 = "제한 없음"이 되어, 서버 보호 설정이 실수로 풀릴 수 있었습니다.)
 // 0은 사용자가 일부러 입력한 "제한 없음"이므로 그대로 허용합니다.
-function parseLimit(value: string, fallback: number): number {
+export function parseLimit(value: string, fallback: number): number {
 	const trimmed = value.trim();
 	if (!trimmed) return fallback;
 	const parsed = Number.parseInt(trimmed, 10);
@@ -29,6 +29,38 @@ function parseLimit(value: string, fallback: number): number {
 
 function parseTimeoutSeconds(value: string): number {
 	return clampChatTimeout(parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds));
+}
+
+// 숫자 입력칸 하나를 만듭니다(챗봇 고급 설정, 리마인더). 입력칸에서 벗어나면(blur) 실제로 저장된 값을
+// 다시 보여줘서, 비워둔 칸이 기본값으로 돌아간 것을 사용자가 바로 알 수 있게 합니다.
+export function addNumberSetting(
+	containerEl: HTMLElement,
+	ctx: SettingsContext,
+	options: {
+		name: string;
+		desc: string;
+		get: () => number;
+		set: (value: number) => void;
+		parse: (raw: string) => number;
+		min: number;
+		max?: number;
+	},
+): void {
+	new Setting(containerEl)
+		.setName(options.name)
+		.setDesc(options.desc)
+		.addText((text) => {
+			text.setValue(String(options.get())).onChange((value) => {
+				options.set(options.parse(value));
+				ctx.saveSoon();
+			});
+			text.inputEl.type = 'number';
+			text.inputEl.min = String(options.min);
+			if (options.max !== undefined) text.inputEl.max = String(options.max);
+			text.inputEl.addEventListener('blur', () => {
+				text.setValue(String(options.get()));
+			});
+		});
 }
 
 // 챗봇 → 시스템 프롬프트. 서버 연결이 아니라 "대화 내용"에 관한 설정이라 LLM 연결에서 따로 떼어 둡니다.
@@ -230,7 +262,7 @@ export class LlmSettingsSection {
 		});
 
 		const llm = this.plugin.settings.llm;
-		this.addNumberSetting(advancedSection, {
+		addNumberSetting(advancedSection, ctx, {
 			name: strings.maxHistoryName,
 			desc: strings.maxHistoryDesc,
 			get: () => llm.maxHistoryMessages,
@@ -238,7 +270,7 @@ export class LlmSettingsSection {
 			parse: (raw) => parseLimit(raw, DEFAULT_SETTINGS.llm.maxHistoryMessages),
 			min: 0,
 		});
-		this.addNumberSetting(advancedSection, {
+		addNumberSetting(advancedSection, ctx, {
 			name: strings.maxResponseName,
 			desc: strings.maxResponseDesc,
 			get: () => llm.maxResponseTokens,
@@ -246,7 +278,7 @@ export class LlmSettingsSection {
 			parse: (raw) => parseLimit(raw, DEFAULT_SETTINGS.llm.maxResponseTokens),
 			min: 0,
 		});
-		this.addNumberSetting(advancedSection, {
+		addNumberSetting(advancedSection, ctx, {
 			name: strings.maxContextName,
 			desc: strings.maxContextDesc,
 			get: () => llm.maxContextChars,
@@ -263,7 +295,7 @@ export class LlmSettingsSection {
 					ctx.saveSoon();
 				}),
 			);
-		this.addNumberSetting(advancedSection, {
+		addNumberSetting(advancedSection, ctx, {
 			name: strings.chatTimeoutName,
 			desc: strings.chatTimeoutDesc,
 			get: () => llm.chatTimeoutSeconds,
@@ -282,36 +314,6 @@ export class LlmSettingsSection {
 		}
 	}
 
-	// 고급 설정의 숫자 입력칸 하나를 만듭니다. 입력칸에서 벗어나면(blur) 실제로 저장된 값을
-	// 다시 보여줘서, 비워둔 칸이 기본값으로 돌아간 것을 사용자가 바로 알 수 있게 합니다.
-	private addNumberSetting(
-		containerEl: HTMLElement,
-		options: {
-			name: string;
-			desc: string;
-			get: () => number;
-			set: (value: number) => void;
-			parse: (raw: string) => number;
-			min: number;
-			max?: number;
-		},
-	): void {
-		new Setting(containerEl)
-			.setName(options.name)
-			.setDesc(options.desc)
-			.addText((text) => {
-				text.setValue(String(options.get())).onChange((value) => {
-					options.set(options.parse(value));
-					this.ctx.saveSoon();
-				});
-				text.inputEl.type = 'number';
-				text.inputEl.min = String(options.min);
-				if (options.max !== undefined) text.inputEl.max = String(options.max);
-				text.inputEl.addEventListener('blur', () => {
-					text.setValue(String(options.get()));
-				});
-			});
-	}
 
 	// [모델 목록 불러오기] 버튼 및 섹션이 열릴 때 자동으로 실행됩니다. 서버에서 모델 목록을 가져와
 	// 드롭다운을 채웁니다. 연결 테스트(실제 대화 요청)는 하지 않습니다.
