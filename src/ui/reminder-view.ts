@@ -5,6 +5,7 @@ import {
 	getAllTags,
 	ItemView,
 	Menu,
+	moment,
 	normalizePath,
 	Notice,
 	setIcon,
@@ -188,12 +189,18 @@ function listKey(list: TodayList): string {
 	return JSON.stringify([list.shown, list.due.length]);
 }
 
+function formatDate(ms: number): string {
+	return moment(ms).format('YYYY-MM-DD');
+}
+
 function describeReason(reason: DueReason, strings: ReminderStrings): string {
 	switch (reason.kind) {
 		case 'neverPostponed':
-			return strings.reasonNeverPostponed;
+			return strings.reasonNeverPostponed.replace('{date}', formatDate(reason.modifiedAt));
 		case 'postponed':
-			return strings.reasonPostponed.replace('{days}', String(reason.days));
+			return strings.reasonPostponed
+				.replace('{days}', String(reason.days))
+				.replace('{date}', formatDate(reason.postponedAt));
 		case 'orphan':
 			return strings.reasonOrphan;
 		case 'tag':

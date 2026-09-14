@@ -26,9 +26,10 @@ export interface NoteRecord {
 	days?: number; // 그때 고른 기간(일). 없으면 설정의 나중에 기본 기간
 }
 
+// 첫 번째 이유에는 순서를 정한 날짜를 함께 담아, 카드에서 왜 이 순서인지 보이게 합니다.
 export type DueReason =
-	| { kind: 'neverPostponed' }
-	| { kind: 'postponed'; days: number }
+	| { kind: 'neverPostponed'; modifiedAt: number } // 미룬 적 없음 — 마지막으로 고친 때(순서 기준)
+	| { kind: 'postponed'; days: number; postponedAt: number } // 미룬 지 며칠 — [나중에]를 누른 때(순서 기준)
 	| { kind: 'orphan' }
 	| { kind: 'tag'; tag: string };
 
@@ -69,9 +70,9 @@ export function findDueNotes(
 		if (postponedDay !== undefined && now - postponedDay < days * DAY_MS) continue;
 
 		const reasons: DueReason[] = [
-			postponedDay === undefined
-				? { kind: 'neverPostponed' }
-				: { kind: 'postponed', days: Math.floor((now - postponedDay) / DAY_MS) },
+			postponedAt === undefined || postponedDay === undefined
+				? { kind: 'neverPostponed', modifiedAt: facts.mtime }
+				: { kind: 'postponed', days: Math.floor((now - postponedDay) / DAY_MS), postponedAt },
 		];
 		if (facts.incomingLinks === 0) reasons.push({ kind: 'orphan' });
 		// 대소문자를 가리지 않고, 하위 태그(todo/업무)도 todo로 봅니다.
