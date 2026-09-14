@@ -28,7 +28,7 @@ export type UpcomingSectionId = 'embedding' | 'index' | 'templates' | 'prompts' 
 
 function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionId, PlaceholderSection> {
 	return {
-		// ─── 인트라 링크 ───
+		// ─── 링크 ───
 		embedding: {
 			intro: u.embeddingIntro,
 			items: [
@@ -45,7 +45,7 @@ function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionI
 				{ text: u.indexRebuild, control: 'button', button: u.buttonRebuild },
 			],
 		},
-		// ─── 인트라 템플레이터 ───
+		// ─── 템플레이터 ───
 		templates: {
 			intro: u.templatesIntro,
 			items: [
@@ -63,7 +63,7 @@ function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionI
 			intro: u.mcpIntro,
 			items: [{ text: u.mcpServers, control: 'button', button: u.buttonAdd }],
 		},
-		// ─── 인트라 리마인더 ───
+		// ─── 리마인더 ───
 		schedule: {
 			intro: u.scheduleIntro,
 			items: [

@@ -31,7 +31,23 @@ function parseTimeoutSeconds(value: string): number {
 	return clampChatTimeout(parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds));
 }
 
-// 인트라 챗봇 → LLM 연결: 서버 주소·API 키, 모델 목록·연결 확인, 고급 설정, 기본 지시문.
+// 챗봇 → 기본 지시문. 서버 연결이 아니라 "대화 내용"에 관한 설정이라 LLM 연결에서 따로 떼어 둡니다.
+export function renderSystemPromptSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+	const strings = ctx.strings.llm;
+	const llm = ctx.plugin.settings.llm;
+
+	new Setting(containerEl).setName(strings.systemPromptName).setHeading();
+	new Setting(containerEl).setDesc(strings.systemPromptDesc).addTextArea((text) => {
+		text.setValue(llm.systemPrompt).onChange((value) => {
+			llm.systemPrompt = value;
+			ctx.saveSoon();
+		});
+		text.inputEl.rows = 8;
+		text.inputEl.addClass('intra-copilot-system-prompt');
+	});
+}
+
+// 챗봇 → LLM 연결: 서버 주소·API 키, 모델 목록·연결 확인, 고급 설정.
 //
 // 다른 섹션과 달리 상태를 들고 있는 클래스입니다. 탭을 오가거나 언어를 바꿔 화면을 다시 그려도 불러온
 // 모델 목록과 표시등을 그대로 보여주고, 자동 확인은 설정 창을 새로 열었을 때 한 번만 하기 위해서입니다.
@@ -241,20 +257,6 @@ export class LlmSettingsSection {
 			min: MIN_CHAT_TIMEOUT_SECONDS,
 			max: MAX_CHAT_TIMEOUT_SECONDS,
 		});
-
-		// 기본 지시문(시스템 프롬프트) — 서버 연결 정보가 아니라 "대화 내용"에 관한 설정이라
-		// 고급 설정 박스 밖에 따로 둡니다.
-		new Setting(containerEl)
-			.setName(strings.systemPromptName)
-			.setDesc(strings.systemPromptDesc)
-			.addTextArea((text) => {
-				text.setValue(llm.systemPrompt).onChange((value) => {
-					llm.systemPrompt = value;
-					ctx.saveSoon();
-				});
-				text.inputEl.rows = 3;
-				text.inputEl.addClass('intra-copilot-system-prompt');
-			});
 
 		// 설정 창을 새로 연 뒤 이 섹션을 처음 그릴 때만 자동으로 확인합니다.
 		// 가벼운 모델 목록 조회만 하고, 테스트 대화(연결 확인)는 버튼을 눌렀을 때만 보냅니다.

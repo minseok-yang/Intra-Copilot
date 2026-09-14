@@ -6,6 +6,7 @@ import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
 import { t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
 import type { StatusState } from './ui/status-light';
+import { featureIcon, registerFeatureIcons } from './ui/settings/features';
 
 // 저장 파일(data.json)을 손으로 고쳤거나 예전 버전에서 넘어온 값이 이상해도 안전한 값으로 맞춥니다.
 function nonNegativeInt(value: unknown, fallback: number): number {
@@ -20,13 +21,15 @@ export default class IntraCopilotPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		// 리본·챗봇 탭·설정 화면이 쓰는 기능 아이콘을 가장 먼저 등록합니다.
+		registerFeatureIcons();
 		this.addSettingTab(new IntraCopilotSettingTab(this.app, this));
 
 		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 		this.registerView(GUIDE_VIEW_TYPE, (leaf) => new GuideView(leaf, this));
 		this.ribbonIconEl = this.addRibbonIcon(
-			'bot',
-			t(this.settings.general.language).chat.ribbonTooltip,
+			featureIcon('chatbot'),
+			this.ribbonTooltip(),
 			() => {
 				void revealChatView(this);
 			},
@@ -46,9 +49,15 @@ export default class IntraCopilotPlugin extends Plugin {
 	// (리본 아이콘 툴팁, 열려 있는 챗봇)이 바뀐 설정을 바로 따라가게 합니다.
 	notifySettingsChanged(): void {
 		if (this.ribbonIconEl) {
-			setTooltip(this.ribbonIconEl, t(this.settings.general.language).chat.ribbonTooltip);
+			setTooltip(this.ribbonIconEl, this.ribbonTooltip());
 		}
 		refreshChatViews(this);
+	}
+
+	// 리본에는 다른 플러그인 아이콘도 함께 있으므로 "Intra Copilot: 챗봇 열기"처럼 플러그인 이름을 붙입니다.
+	// (명령 팔레트는 Obsidian이 플러그인 이름을 알아서 붙이므로 명령 이름에는 붙이지 않습니다.)
+	private ribbonTooltip(): string {
+		return `${this.manifest.name}: ${t(this.settings.general.language).chat.ribbonTooltip}`;
 	}
 
 	// 서버 주소·키만 묶은 값입니다. 모델 목록은 모델 선택과 상관없으므로, 목록 확인 결과가

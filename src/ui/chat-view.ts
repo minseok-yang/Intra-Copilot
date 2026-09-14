@@ -38,6 +38,7 @@ import { SessionHistoryModal } from './session-history-modal';
 import { ChatComposer } from './chat/composer';
 import { ChatMessageList, SentMessage } from './chat/message-list';
 import { EditActionResult, problemText } from './chat/edit-card';
+import { featureIcon } from './settings/features';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
@@ -153,7 +154,7 @@ export class ChatView extends ItemView {
 	}
 
 	getIcon(): string {
-		return 'bot';
+		return featureIcon('chatbot');
 	}
 
 	getState(): Record<string, unknown> {

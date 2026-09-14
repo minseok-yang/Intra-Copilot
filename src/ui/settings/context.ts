@@ -14,8 +14,8 @@ export interface SettingsContext {
 	strings: Dictionary;
 	// 글자를 칠 때마다 파일에 쓰지 않도록, 입력이 멈춘 뒤 한 번만 저장합니다.
 	saveSoon: () => void;
-	// 지금 보고 있는 탭을 다시 그립니다(목록을 새로 읽었거나 언어를 바꿨을 때).
+	// 지금 보고 있는 화면을 다시 그립니다(목록을 새로 읽었거나 언어를 바꿨을 때).
 	redraw: () => void;
-	// 다른 탭(과 그 안의 섹션)으로 옮깁니다. 예: 일반 탭의 기능 목록에서 [인트라 챗봇]을 눌렀을 때.
+	// 다른 화면(과 그 안의 섹션)으로 옮깁니다. 예: 처음 화면에서 [챗봇] 카드를 눌렀을 때.
 	openTab: (tab: SettingsTabId, section?: string) => void;
 }

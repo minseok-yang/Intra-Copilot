@@ -1,23 +1,26 @@
-import { App, PluginSettingTab, debounce } from 'obsidian';
+import { App, PluginSettingTab, debounce, setIcon } from 'obsidian';
 import IntraCopilotPlugin from '../main';
 import { t } from '../i18n';
 import type { SettingsContext } from './settings/context';
-import { FEATURE_ORDER, FEATURE_STATUS, FeatureId, SettingsTabId } from './settings/features';
+import { FEATURE_STATUS, FeatureId, featureIcon, SettingsTabId } from './settings/features';
 import { renderGeneralSection } from './settings/general-section';
-import { LlmSettingsSection } from './settings/llm-section';
+import { LlmSettingsSection, renderSystemPromptSection } from './settings/llm-section';
 import { renderSkillsSection } from './settings/skills-section';
 import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-section';
 
 // 설정 화면의 틀입니다.
 //
-//   [일반] [챗봇] [링크] [템플레이터] [리마인더]     ← 맨 위 탭: 공통 + 기능 네 개
-//   ──────────────────────────────────────
-//   인트라 챗봇  [사용 가능]                          ← 기능 머리말(기능 탭에서만)
+//   처음 화면(general-section.ts): 소개 상자 + ⚙ 설정 [챗봇] [링크] [템플레이터] [리마인더]
+//        │ 카드를 누르면
+//        ▼
+//   ← Intra Copilot                                  ← 처음 화면으로 돌아가기
+//   챗봇  [사용 가능]                          ← 기능 머리말
 //   사내 LLM과 대화하고…
 //   [LLM 연결] [스킬]                                 ← 기능 안의 섹션(둘 이상일 때만)
 //   …섹션 내용…
 //
-// 섹션이 실제로 무엇을 그리는지는 ui/settings/ 폴더에 나눠 두었고, 여기서는 탭 전환·저장·다시 그리기만
+// 기능으로 가는 길은 처음 화면의 카드 하나뿐입니다(예전에는 맨 위 탭도 있어 같은 역할이 둘이었습니다).
+// 섹션이 실제로 무엇을 그리는지는 ui/settings/ 폴더에 나눠 두었고, 여기서는 화면 전환·저장·다시 그리기만
 // 맡습니다. 기능을 만들면 sectionsFor()에서 그 기능의 준비 중 양식을 실제 설정으로 바꾸고,
 // features.ts에서 상태를 'available'로 바꿉니다.
 
@@ -53,6 +56,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		// Obsidian이 설정 창을 닫거나 다른 플러그인 탭으로 옮길 때 호출합니다.
 		this.saveSoon.run(); // 아직 저장되지 않은 입력이 있으면 지금 저장합니다.
 		this.llmSection.reset();
+		this.activeTab = 'general'; // 설정을 다시 열면 늘 처음 화면(기능별 설정 카드)부터 보이게
 		// 서버 주소/키가 바뀌었을 수 있으니, 열려 있는 챗봇 화면이 모델 목록을 다시 확인하게 합니다.
 		this.plugin.notifySettingsChanged();
 		super.hide();
@@ -74,19 +78,6 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 			openTab: (tab, section) => this.openTab(tab, section),
 		};
 
-		const tabBar = containerEl.createDiv({ cls: 'intra-copilot-tab-bar' });
-		const tabIds: SettingsTabId[] = ['general', ...FEATURE_ORDER];
-		for (const id of tabIds) {
-			const button = tabBar.createEl('button', {
-				cls: 'intra-copilot-tab-button',
-				text: strings.tabs[id],
-			});
-			button.toggleClass('is-active', id === this.activeTab);
-			// 준비 중인 기능은 탭 글자를 흐리게 합니다(눌러서 앞으로 들어갈 설정 자리를 볼 수는 있습니다).
-			if (id !== 'general') button.toggleClass('is-upcoming', FEATURE_STATUS[id] === 'upcoming');
-			button.onclick = () => this.openTab(id);
-		}
-
 		const content = containerEl.createDiv({ cls: 'intra-copilot-tab-content' });
 		if (this.activeTab === 'general') {
 			renderGeneralSection(content, ctx);
@@ -99,15 +90,23 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		this.activeTab = tab;
 		if (tab !== 'general' && section) this.activeSection[tab] = section;
 		this.display();
+		this.containerEl.scrollTop = 0; // 아래쪽 카드를 눌러도 새 화면은 맨 위부터 보이게
 	}
 
 	private renderFeature(containerEl: HTMLElement, ctx: SettingsContext, feature: FeatureId): void {
 		const { strings } = ctx;
 		const status = FEATURE_STATUS[feature];
 
+		const back = containerEl.createEl('button', {
+			cls: 'intra-copilot-back-button',
+			text: `← ${this.plugin.manifest.name}`,
+		});
+		back.onclick = () => this.openTab('general');
+
 		// 기능 머리말: 이름·상태·한 줄 설명. 지금 어느 기능의 설정을 보고 있는지 분명히 합니다.
 		const header = containerEl.createDiv({ cls: 'intra-copilot-feature-header' });
 		const title = header.createDiv({ cls: 'intra-copilot-feature-header-title' });
+		setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(feature));
 		title.createSpan({ cls: 'intra-copilot-feature-header-name', text: strings.features[feature].name });
 		title.createSpan({ cls: `intra-copilot-feature-badge is-${status}`, text: strings.features[status] });
 		header.createDiv({ cls: 'intra-copilot-feature-header-desc', text: strings.features[feature].desc });
@@ -148,6 +147,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 						label: labels.llm,
 						render: (el, sectionCtx) => this.llmSection.render(el, sectionCtx),
 					},
+					{ id: 'prompt', label: labels.prompt, render: renderSystemPromptSection },
 					{ id: 'skills', label: labels.skills, render: renderSkillsSection },
 				];
 			case 'link':

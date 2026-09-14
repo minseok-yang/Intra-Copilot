@@ -11,54 +11,47 @@ import type { LlmErrorKind } from './llm/client';
 // - 지정: @로 고른 폴더·노트(대화 대상). / 선택: /로 고른 스킬. 둘을 바꿔 쓰지 않습니다.
 // - 버튼·설정 이름은 실제 동작 그대로 부르고, 설명문에서 그 이름을 [대괄호]나 "따옴표"로 똑같이 인용합니다.
 const ko = {
-	// 설정 화면 맨 위 탭: 일반(모든 기능에 공통) + 기능 네 개(ui/settings/features.ts)
-	tabs: {
-		general: '일반',
-		chatbot: '챗봇',
-		link: '링크',
-		templater: '템플레이터',
-		reminder: '리마인더',
-	},
 	general: {
-		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지 → (처음이면) 어떻게 시작하는지 →
-		// 어떤 기능이 있는지 → 설정값 → 부차적인 정보(버전)"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
+		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지(이름·설명·문서·버전) → 기능별 설정 바로가기 →
+		// (처음이면) 어떻게 시작하는지 → 설정값"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
 		introText:
 			'사내 폐쇄망에서 쓰는 Obsidian 도우미입니다. 챗봇·링크·템플레이터·리마인더 네 가지 기능을 한곳에 묶었고, ' +
-			'기능마다 위의 탭에서 따로 설정합니다.',
+			'기능마다 아래 [설정]의 카드를 눌러 따로 설정합니다.',
 		// 소개 아래 한 줄. 전송 정책의 핵심만 짧게 — 자세한 내용은 [라이선스 및 정책] 버튼으로 봅니다.
 		// (링크의 임베딩 서버, 템플레이터의 MCP 연결처럼 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.)
 		privacyNote:
 			'노트 내용은 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
-		featuresHeading: '기능',
+		// 기능 네 개로 가는 바로가기 줄의 제목(톱니바퀴 아이콘과 함께)
+		settingsHeading: '설정',
 		// 아직 서버를 설정하지 않았을 때만 보이는 안내
 		setupHeading: '처음 설정하기',
 		setupSteps:
-			'① [챗봇] 탭의 [LLM 연결]에서 서버 주소를 입력하고, ② [모델 목록 불러오기]로 모델을 고른 뒤 [연결 확인]을 누르고, ③ 왼쪽 리본의 봇 아이콘으로 챗봇을 엽니다.',
+			'① 위 [챗봇] 카드 → [LLM 연결]에서 서버 주소를 입력하고, ② [모델 목록 불러오기]로 모델을 고른 뒤 [연결 확인]을 누르고, ③ 왼쪽 리본의 챗봇 아이콘(가로줄 사이의 말풍선)으로 챗봇을 엽니다.',
 		setupButton: 'LLM 연결 설정하기',
 		displayHeading: '표시',
 		languageName: '표시 언어',
 		languageDesc:
 			'플러그인 화면(설정·챗봇)에 쓰이는 언어를 바꿉니다. 사용자 가이드와 라이선스 문서는 한국어로만 제공됩니다.',
-		infoHeading: '정보',
 	},
 	// Intra Copilot이 묶은 기능 네 가지(ui/settings/features.ts). 이름은 아직 가칭이라 여기서만 고치면
-	// 설정 화면 전체(탭 머리말, 일반 탭의 기능 목록)에 반영됩니다.
+	// 설정 화면 전체(처음 화면의 카드, 기능 설정의 머리말)에 반영됩니다.
 	features: {
 		available: '사용 가능',
 		upcoming: '준비 중',
 		chatbot: {
-			name: '인트라 챗봇',
+			name: '챗봇',
 			desc: '사내 LLM과 대화하고, 노트를 읽혀 묻고, 제안받은 수정을 확인한 뒤 노트에 반영합니다.',
 		},
-		link: { name: '인트라 링크', desc: '임베딩으로 내용이 비슷한 노트를 찾아 서로 연결합니다.' },
-		templater: { name: '인트라 템플레이터', desc: '받은 파일과 양식을 바탕으로 새 노트를 만들어 줍니다.' },
-		reminder: { name: '인트라 리마인더', desc: '노트를 정해 둔 주기로 다시 읽게 해, 지식이 낡지 않게 합니다.' },
+		link: { name: '링크', desc: '임베딩으로 내용이 비슷한 노트를 찾아 서로 연결합니다.' },
+		templater: { name: '템플레이터', desc: '받은 파일과 양식을 바탕으로 새 노트를 만들어 줍니다.' },
+		reminder: { name: '리마인더', desc: '노트를 정해 둔 주기로 다시 읽게 해, 지식이 낡지 않게 합니다.' },
 	},
 	// 기능 탭 안의 섹션(하위 탭) 이름
 	sections: {
 		llm: 'LLM 연결',
+		prompt: '기본 지시문',
 		skills: '스킬',
 		embedding: '임베딩 서버',
 		index: '인덱스',
@@ -316,6 +309,8 @@ const ko = {
 			'자주 쓰는 작업 지시를 스킬로 저장해 두고, 챗봇 입력칸에서 /를 입력해 불러 씁니다. 스킬마다 .md 파일 하나로 아래 폴더에 저장되므로, ' +
 			'사내에서도 메모장 같은 편집기로 직접 고치거나 파일을 복사해 동료와 나눌 수 있습니다. 파일을 직접 고쳤다면 [목록 새로고침]을 누르세요.',
 		folderLabel: '저장 폴더: ',
+		openFolderButton: '폴더 열기',
+		openFolderFailed: '스킬 폴더를 열지 못했습니다.',
 		newButton: '새 스킬',
 		reloadButton: '목록 새로고침',
 		empty: '저장된 스킬이 없습니다. [새 스킬]로 추가하세요.',
@@ -349,6 +344,7 @@ const ko = {
 		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_BOOK).
 		summaryHeading: '라이선스 및 정책',
 		versionLabel: '버전',
+		releaseDateLabel: '배포일',
 		publisherLabel: '제작자',
 	},
 };
@@ -359,45 +355,38 @@ export type Dictionary = typeof ko;
 export type ChatStrings = Dictionary['chat'];
 
 const en: Dictionary = {
-	tabs: {
-		general: 'General',
-		chatbot: 'Chatbot',
-		link: 'Link',
-		templater: 'Templater',
-		reminder: 'Reminder',
-	},
 	general: {
 		introText:
 			'An Obsidian assistant for use inside a closed company network. It bundles four features (Chatbot, Link, Templater, Reminder), ' +
-			'each configured in its own tab above.',
+			'each configured from its card under [Settings] below.',
 		privacyNote:
 			'Note content never leaves the LLM server you configured, and only what is shown as a chip above the chat box is sent.',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
-		featuresHeading: 'Features',
+		settingsHeading: 'Settings',
 		setupHeading: 'Getting started',
 		setupSteps:
-			'① Enter the server address in [Chatbot] → [LLM connection], ② pick a model with [Load model list] and press [Check connection], then ③ open the chatbot with the bot icon in the left ribbon.',
+			'① Enter the server address in the [Chatbot] card above → [LLM connection], ② pick a model with [Load model list] and press [Check connection], then ③ open the chatbot with the chatbot icon (a speech bubble between two lines) in the left ribbon.',
 		setupButton: 'Set up LLM connection',
 		displayHeading: 'Display',
 		languageName: 'Display language',
 		languageDesc:
 			'Change the language used in this plugin (settings and chatbot). The user guide and license documents are available in Korean only.',
-		infoHeading: 'About',
 	},
 	features: {
 		available: 'Available',
 		upcoming: 'Coming soon',
 		chatbot: {
-			name: 'Intra Chatbot',
+			name: 'Chatbot',
 			desc: 'Talk to your company LLM, give it notes to read, and review suggested edits before applying them.',
 		},
-		link: { name: 'Intra Link', desc: 'Find notes with similar content using embeddings and link them together.' },
-		templater: { name: 'Intra Templater', desc: 'Create new notes from received files and templates.' },
-		reminder: { name: 'Intra Reminder', desc: 'Have notes read again on a set schedule so knowledge stays fresh.' },
+		link: { name: 'Link', desc: 'Find notes with similar content using embeddings and link them together.' },
+		templater: { name: 'Templater', desc: 'Create new notes from received files and templates.' },
+		reminder: { name: 'Reminder', desc: 'Have notes read again on a set schedule so knowledge stays fresh.' },
 	},
 	sections: {
 		llm: 'LLM connection',
+		prompt: 'System prompt',
 		skills: 'Skills',
 		embedding: 'Embedding server',
 		index: 'Index',
@@ -644,6 +633,8 @@ const en: Dictionary = {
 			'Save task instructions you use often as skills, then type / in the chatbot input to use them. Each skill is saved as one .md file in the folder below, ' +
 			'so you can edit it directly in any text editor or copy the file to share it. If you edited a file directly, press [Reload list].',
 		folderLabel: 'Folder: ',
+		openFolderButton: 'Open folder',
+		openFolderFailed: 'Could not open the skill folder.',
 		newButton: 'New skill',
 		reloadButton: 'Reload list',
 		empty: 'No saved skills. Add one with [New skill].',
@@ -676,6 +667,7 @@ const en: Dictionary = {
 	license: {
 		summaryHeading: 'License & policy',
 		versionLabel: 'Version',
+		releaseDateLabel: 'Release date',
 		publisherLabel: 'Author',
 	},
 };
