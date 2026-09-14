@@ -41,22 +41,19 @@ interface EditCardOptions {
 	editableNote: string | null;
 }
 
+// 적용할 수 없는 이유 → 화면 문구의 이름. 이유가 새로 생기면 여기 빠뜨린 것을 TypeScript가 알려 줍니다.
+const PROBLEM_TEXT = {
+	'not-current': 'editProblemNotCurrent',
+	'note-missing': 'editProblemNoteMissing',
+	'not-found': 'editProblemNotFound',
+	ambiguous: 'editProblemAmbiguous',
+	'already-there': 'editProblemAlreadyThere',
+	'no-change': 'editProblemNoChange',
+} as const satisfies Record<ProposalProblem, keyof ChatStrings>;
+
 // 적용할 수 없는 이유를 화면 문구로 바꿉니다. 카드 안 회색 글씨와 [적용] 실패 알림이 함께 씁니다.
 export function problemText(problem: ProposalProblem, strings: ChatStrings): string {
-	switch (problem) {
-		case 'not-current':
-			return strings.editProblemNotCurrent;
-		case 'note-missing':
-			return strings.editProblemNoteMissing;
-		case 'not-found':
-			return strings.editProblemNotFound;
-		case 'ambiguous':
-			return strings.editProblemAmbiguous;
-		case 'already-there':
-			return strings.editProblemAlreadyThere;
-		case 'no-change':
-			return strings.editProblemNoChange;
-	}
+	return strings[PROBLEM_TEXT[problem]];
 }
 
 export class EditCard {

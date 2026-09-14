@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../llm/client';
-import { INPUT_PLACEHOLDER } from '../skills/skill-store';
+import { INPUT_PLACEHOLDER, type Skill } from '../skills/skill-store';
 import type { StoredMessage } from './session-store';
 import { describeTargetForModel } from './vault-context';
 
@@ -13,14 +13,9 @@ import { describeTargetForModel } from './vault-context';
 // 그래서 대화가 길어져도 요청 크기는 "이번 자료·지시문 1회분 + 대화"로 일정합니다.
 // (이 안내 글들은 모델에게 보내는 것이라 화면 언어와 상관없이 한국어입니다.)
 
-export interface SkillPrompt {
-	name: string;
-	instructions: string;
-}
-
 export interface LatestAttachments {
 	context: string | null; // buildVaultContext()가 만든 [볼트 자료]
-	skill: SkillPrompt | null;
+	skill: Pick<Skill, 'name' | 'instructions'> | null;
 }
 
 function composeLatest(content: string, { context, skill }: LatestAttachments): string {

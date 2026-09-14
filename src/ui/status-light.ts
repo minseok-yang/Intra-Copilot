@@ -18,11 +18,7 @@ export function setStatusLight(
 	message: string,
 	detail?: string,
 ): void {
-	dot.classList.remove('is-ok', 'is-error');
-	if (state !== 'idle') {
-		dot.classList.add(state === 'ok' ? 'is-ok' : 'is-error');
-	}
-
+	setStatusDot(dot, state);
 	text.textContent = message;
 	if (detail) {
 		text.setAttribute('title', detail);
@@ -31,15 +27,8 @@ export function setStatusLight(
 	}
 }
 
-// 긴 문구를 놓을 자리가 없을 때 쓰는 점 하나짜리 버전입니다(챗봇 머리줄).
-// 상태 설명은 부르는 쪽에서 점 옆의 짧은 글자와 툴팁으로 보여줍니다.
-export function createStatusDot(container: HTMLElement): HTMLElement {
-	return container.createSpan({ cls: 'intra-copilot-status-dot' });
-}
-
+// 점 색만 바꿉니다. 긴 문구를 놓을 자리가 없는 챗봇 머리줄은 이것만 씁니다.
 export function setStatusDot(dot: HTMLElement, state: StatusState): void {
-	dot.classList.remove('is-ok', 'is-error');
-	if (state !== 'idle') {
-		dot.classList.add(state === 'ok' ? 'is-ok' : 'is-error');
-	}
+	dot.toggleClass('is-ok', state === 'ok');
+	dot.toggleClass('is-error', state === 'error');
 }

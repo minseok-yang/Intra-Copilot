@@ -12,7 +12,7 @@ import IntraCopilotPlugin from '../main';
 import { sendChatMessage } from '../llm/client';
 import { describeLlmError, t } from '../i18n';
 import { UiLanguage } from '../settings';
-import { createStatusDot, setStatusDot, StatusState } from './status-light';
+import { setStatusDot, StatusState } from './status-light';
 import { checkSelectedModel, fetchModelList, fillModelDropdown } from './model-dropdown';
 import {
 	deleteSession,
@@ -200,11 +200,6 @@ export class ChatView extends ItemView {
 		void this.refreshModels({ testModel: false });
 	}
 
-	async onClose(): Promise<void> {
-		// 답변을 기다리는 중에 패널을 닫아도 요청은 계속 진행되고,
-		// 답이 오면 handleSend가 파일에는 저장합니다(화면만 없을 뿐).
-	}
-
 	onSettingsChanged(): void {
 		if (this.plugin.settings.general.language !== this.renderedLanguage) {
 			if (this.busy) {
@@ -291,7 +286,7 @@ export class ChatView extends ItemView {
 
 		// 상태등만 있으면 무슨 뜻인지 알기 어려워서, 옆에 지금 상태를 짧은 글자로 함께 보여줍니다.
 		this.modelStatusEl = connectionGroup.createSpan({ cls: 'intra-copilot-chat-status' });
-		this.modelStatusDot = createStatusDot(this.modelStatusEl);
+		this.modelStatusDot = this.modelStatusEl.createSpan({ cls: 'intra-copilot-status-dot' });
 		this.modelStatusLabel = this.modelStatusEl.createSpan({ cls: 'intra-copilot-chat-status-label' });
 		this.renderConnectionStatus();
 
@@ -740,16 +735,13 @@ export class ChatView extends ItemView {
 			}
 			this.persistSession(sessionId, createdAt, conversation);
 
-			let summary: string;
+			const described = describeLlmError(this.plugin.settings.general.language, result);
+			let summary = described.summary;
 			let detail = '';
-			if (result.kind === 'cancelled') {
-				// 사용자가 멈춘 것이라 서버 상태는 알 수 없으므로 상태등은 건드리지 않습니다.
-				summary = describeLlmError(this.plugin.settings.general.language, result).summary;
-			} else {
-				const described = describeLlmError(this.plugin.settings.general.language, result);
+			// 사용자가 [중지]한 것이면 서버 상태를 알 수 없으므로 상태등은 건드리지 않습니다.
+			if (result.kind !== 'cancelled') {
 				// "답변 대기 시간" 설정은 챗봇 답변에만 적용되므로, 그 안내는 여기서만 덧붙입니다.
-				summary =
-					result.kind === 'timeout' ? `${described.summary} ${strings.timeoutHint}` : described.summary;
+				if (result.kind === 'timeout') summary = `${summary} ${strings.timeoutHint}`;
 				detail = described.detail;
 				// 실패하면 상태등도 빨간색으로 — 말풍선만 빨갛고 상태등은 녹색이면 헷갈립니다.
 				this.plugin.reportConnection('chat', snapshot, 'error', `${llmStrings.chatFailPrefix}${summary}`);

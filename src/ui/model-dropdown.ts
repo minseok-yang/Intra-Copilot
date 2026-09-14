@@ -4,40 +4,6 @@ import { listLlmModels, testLlmConnection } from '../llm/client';
 import { describeLlmError, t } from '../i18n';
 import { StatusState } from './status-light';
 
-interface PopulateModelDropdownOptions {
-	placeholderText: string;
-	currentModel: string;
-	// false로 주면 목록이 비었을 때 저장된 모델도 보여주지 않습니다.
-	// 방금 연결에 실패한 직후처럼, 예전 결과가 아직 유효한 것처럼 보이면 안 될 때 씁니다.
-	allowCurrentFallback?: boolean;
-	onSelect: (value: string) => void | Promise<void>;
-}
-
-// dropdown을 비우고 모델 목록으로 다시 채웁니다. 이름의 영어 abc 순으로 정렬합니다.
-export function populateModelDropdown(
-	dropdown: DropdownComponent,
-	models: string[],
-	options: PopulateModelDropdownOptions,
-): void {
-	const sorted = [...models].sort((a, b) => a.localeCompare(b));
-	const list =
-		sorted.length > 0
-			? sorted
-			: options.allowCurrentFallback !== false && options.currentModel
-				? [options.currentModel]
-				: [];
-
-	dropdown.selectEl.empty();
-	dropdown.addOption('', options.placeholderText);
-	for (const modelId of list) {
-		dropdown.addOption(modelId, modelId);
-	}
-	dropdown.setValue(
-		options.currentModel && list.includes(options.currentModel) ? options.currentModel : '',
-	);
-	dropdown.onChange((value) => options.onSelect(value));
-}
-
 // 챗봇 화면과 설정 화면이 함께 쓰는 확인 결과입니다.
 // 상태등 색(state), 상태 문구(message), 서버 원문(detail — 툴팁/자세한 내용용)을 담습니다.
 export interface CheckOutcome {
@@ -135,18 +101,21 @@ export function fillModelDropdown(
 	models: string[],
 	options: { lastState?: StatusState; onSelected?: () => void } = {},
 ): void {
-	populateModelDropdown(dropdown, models, {
-		placeholderText: t(plugin.settings.general.language).llm.modelPlaceholder,
-		currentModel: plugin.settings.llm.model,
-		allowCurrentFallback: options.lastState !== 'error',
-		onSelect: async (value) => {
-			plugin.settings.llm.model = value;
-			// 새 모델은 아직 대화해본 적이 없으므로, 이전 모델의 녹색불을 그대로 두지 않습니다.
-			plugin.connectionStatus.markChanged(
-				t(plugin.settings.general.language).llm.statusModelChanged,
-			);
-			await plugin.saveSettings();
-			options.onSelected?.();
-		},
+	const strings = t(plugin.settings.general.language).llm;
+	const current = plugin.settings.llm.model;
+	// 이름의 영어 abc 순. 목록이 비었으면 저장된 모델이라도 보여줍니다(방금 실패한 직후는 제외).
+	const sorted = [...models].sort((a, b) => a.localeCompare(b));
+	const list = sorted.length > 0 ? sorted : options.lastState !== 'error' && current ? [current] : [];
+
+	dropdown.selectEl.empty();
+	dropdown.addOption('', strings.modelPlaceholder);
+	for (const modelId of list) dropdown.addOption(modelId, modelId);
+	dropdown.setValue(current && list.includes(current) ? current : '');
+	dropdown.onChange(async (value) => {
+		plugin.settings.llm.model = value;
+		// 새 모델은 아직 대화해본 적이 없으므로, 이전 모델의 녹색불을 그대로 두지 않습니다.
+		plugin.connectionStatus.markChanged(strings.statusModelChanged);
+		await plugin.saveSettings();
+		options.onSelected?.();
 	});
 }

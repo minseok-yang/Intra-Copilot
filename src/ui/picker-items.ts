@@ -1,5 +1,6 @@
 import { App, setIcon, setTooltip, TFile, TFolder } from 'obsidian';
 import { ChatTarget, VAULT_ROOT_PATH } from '../chat/vault-context';
+import { noteName } from '../chat/edit-proposal';
 import type { Skill } from '../skills/skill-store';
 import type { PickerItem } from './inline-picker';
 
@@ -95,10 +96,6 @@ export function buildSkillItems(skills: Skill[], onPick: (skill: Skill) => void)
 
 // ─── 칩 ──────────────────────────────────────────────────────────
 
-function lastSegment(path: string): string {
-	return path.slice(path.lastIndexOf('/') + 1);
-}
-
 export function describeTarget(
 	target: ChatTarget,
 	wholeVaultLabel: string,
@@ -106,9 +103,9 @@ export function describeTarget(
 	if (target.kind === 'folder') {
 		return target.path === VAULT_ROOT_PATH
 			? { icon: 'library', label: wholeVaultLabel }
-			: { icon: 'folder', label: lastSegment(target.path) };
+			: { icon: 'folder', label: noteName(target.path) };
 	}
-	return { icon: 'file-text', label: lastSegment(target.path).replace(/\.md$/i, '') };
+	return { icon: 'file-text', label: noteName(target.path).replace(/\.md$/i, '') };
 }
 
 interface ChipOptions {

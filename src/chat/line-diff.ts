@@ -115,8 +115,3 @@ export function collapseUnchanged(lines: readonly DiffLine[]): DiffBlock[] {
 	if (skipped > 0) blocks.push({ lines: [], skippedBefore: skipped });
 	return blocks;
 }
-
-// 바뀐 줄이 하나도 없는지(모델이 "고쳤다"면서 같은 글을 준 경우를 걸러냅니다).
-export function hasChanges(lines: readonly DiffLine[]): boolean {
-	return lines.some((line) => line.kind !== 'same');
-}

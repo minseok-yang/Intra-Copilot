@@ -42,8 +42,6 @@ export default class IntraCopilotPlugin extends Plugin {
 		});
 	}
 
-	onunload() {}
-
 	// 설정 화면에서 언어·모델·서버 주소가 바뀐 뒤 호출합니다. 설정 밖의 화면들
 	// (리본 아이콘 툴팁, 열려 있는 챗봇)이 바뀐 설정을 바로 따라가게 합니다.
 	notifySettingsChanged(): void {

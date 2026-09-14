@@ -286,15 +286,7 @@ export async function applyProposal(
 	return problem ? { ok: false, problem } : { ok: true, before: original, after: updated };
 }
 
-// 되돌리기가 가능한지(적용한 새 글이 노트에 그대로 남아 있는지) 확인합니다.
-export async function canRevert(app: App, proposal: EditProposal): Promise<boolean> {
-	const file = app.vault.getFileByPath(proposal.path);
-	if (!file) return false;
-	// 되돌리기는 "이후 → 이전"이므로, 이후 글을 찾을 수 있어야 합니다.
-	return typeof findRange(await app.vault.cachedRead(file), proposal.after) !== 'string';
-}
-
-// 노트 경로에서 파일 이름만(카드 제목에 씁니다).
+// 경로에서 마지막 이름만(카드 제목·칩 이름에 씁니다).
 export function noteName(path: string): string {
 	return path.slice(path.lastIndexOf('/') + 1);
 }
