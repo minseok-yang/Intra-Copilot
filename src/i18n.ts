@@ -65,6 +65,7 @@ const ko = {
 		mcp: 'MCP 연결',
 		reminderTargets: '대상 노트',
 		schedule: '주기·알림',
+		reminderProperties: '노트 속성',
 	},
 	// 준비 중인 기능의 설정 자리(ui/settings/upcoming-section.ts). 모두 잠겨 있고 아무것도 저장하지 않습니다.
 	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
@@ -354,8 +355,8 @@ const ko = {
 		doneToday: '오늘 챙길 노트를 모두 챙겼습니다. 더 읽고 싶으면 아래 [더 보기]를 누르세요.',
 		nothingDue: '지금 다시 볼 노트가 없습니다.',
 		moreButton: '더 보기 ({count}개)',
-		reasonNeverPostponed: '미룬 적 없음 · 마지막 수정 {date}',
-		reasonPostponed: '{days}일 전에 미룸 ({date})',
+		reasonNeverRead: '읽은 기록 없음 · 파일 수정 {date}',
+		reasonRead: '{days}일 전에 읽음 ({date})',
 		reasonOrphan: '들어오는 링크 없음',
 		laterButton: '나중에',
 		laterTooltip: '며칠 뒤에 다시 목록에 올릴지 고릅니다',
@@ -368,7 +369,8 @@ const ko = {
 		undoArchiveFailed: '되돌리지 못했습니다. 그사이 노트가 옮겨지거나 지워졌거나, 원래 자리에 같은 이름의 노트가 있습니다.',
 		undoDeleteTooLate: '이미 휴지통으로 보내서 되돌리지 못했습니다. 휴지통에서 되살리세요.',
 		chatButton: '챗봇으로 열기',
-		chatTooltip: '노트를 열고 새 대화를 시작해 입력칸 위에 칩으로 올립니다 (질문은 직접 써서 보냅니다)',
+		chatTooltip:
+			'노트를 열고 새 대화를 시작해 입력칸 위에 칩으로 올리며, 읽은 날 속성에 오늘 날짜를 적습니다 (질문은 직접 써서 보냅니다)',
 		archiveButton: '보관함',
 		archiveTooltip: '보관 폴더({folder})로 옮깁니다',
 		archiveExists: '보관 폴더에 같은 이름의 노트가 있어 옮기지 못했습니다: {path}',
@@ -377,15 +379,17 @@ const ko = {
 		deleteConfirmButton: '한 번 더 눌러 삭제',
 		deleteTooltip: '두 번 눌러 확정하면 되돌리기 알림 시간 뒤에 휴지통으로 보냅니다',
 		deleteFailed: '노트를 삭제하지 못했습니다.',
+		propertyWriteFailed: '노트 속성(날짜)을 적지 못했습니다.',
+		undoPropertiesFailed: '되돌리지 못했습니다. 노트 속성의 날짜를 직접 고쳐 주세요.',
 		dailyNotice: '리마인더: 오늘 다시 볼 노트가 {count}개 있습니다. 여기를 눌러 열기',
 		targetsIntro:
 			'이 플러그인이 설치된 볼트 안의 모든 노트(.md)를 살펴봅니다. 다른 볼트나 볼트 밖의 파일은 보지 않으며, 노트 내용이나 목록을 어디로도 보내지 않습니다. ' +
-			'제외 폴더·보관 폴더 안의 노트와 만든 지 유예 기간이 안 된 노트는 목록에 올리지 않으며, 켜 둔 코어 템플릿·Templater 플러그인의 템플릿 폴더와 Excalidraw 그림도 자동으로 뺍니다.',
+			'제외 폴더·보관 폴더 안의 노트와 작성일부터 유예 기간이 안 된 노트는 목록에 올리지 않으며, 켜 둔 코어 템플릿·Templater 플러그인의 템플릿 폴더와 Excalidraw 그림도 자동으로 뺍니다.',
 		excludedFoldersName: '제외 폴더',
 		excludedFoldersDesc: '쉼표(,)로 구분합니다. 하위 폴더도 함께 빠지며, 대소문자는 가리지 않습니다. 예: Templates, Daily',
 		graceDaysName: '새 노트 유예 기간(일)',
 		graceDaysDesc:
-			'만든 지 이 기간이 지나지 않은 노트는 목록에 올리지 않습니다(만든 날짜와 수정일 중 이른 날 기준). 0이면 바로 올립니다. 비워두면 기본값(7)으로 돌아갑니다.',
+			'작성일 속성부터 이 기간이 지나지 않은 노트는 목록에 올리지 않습니다(작성일 속성이 없으면 파일의 만든 날짜와 수정일 중 이른 날 기준). 0이면 바로 올립니다. 비워두면 기본값(7)으로 돌아갑니다.',
 		deferTagsName: '미룸 태그',
 		deferTagsDesc:
 			'다시 볼 노트 중 이 태그가 붙은 노트를 목록 앞쪽에 보여 줍니다. 쉼표로 구분하고 #은 빼고 적습니다. 하위 태그(예: todo/업무)도 포함되며, 대소문자는 가리지 않습니다.',
@@ -394,10 +398,10 @@ const ko = {
 			'노트 카드의 [보관함]을 누르면 노트를 이 폴더로 옮깁니다(링크는 Obsidian이 알아서 고칩니다). 폴더가 없으면 만들고, 이 폴더의 노트는 목록에 올리지 않습니다. 비워두면 기본값(Archive)으로 돌아갑니다.',
 		scheduleIntro:
 			'[나중에]에서 고를 기간, 하루에 챙길 노트 수, 되돌리기 알림 시간, 하루 한 번 알림을 정합니다. ' +
-			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트가 앞에 오고(둘 다면 맨 앞), 나머지는 오래 손대지 않은 순서(미룬 적 있으면 미룬 때, 없으면 마지막으로 고친 때 기준)입니다.',
+			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트가 앞에 오고(둘 다면 맨 앞), 나머지는 오래 손대지 않은 순서(읽은 기록이 있으면 마지막으로 읽은 날, 없으면 파일 수정일 기준)입니다.',
 		snoozeName: '나중에 기본 기간(일)',
 		snoozeDesc:
-			'[나중에]를 누르면 나오는 기간 중 맨 위(기본)입니다. 누른 날부터 고른 기간이 지나면 노트가 다시 목록에 올라오며, 이미 미뤄 둔 노트에는 그때 고른 기간이 그대로 적용됩니다. 비워두면 기본값(7)으로 돌아갑니다.',
+			'[나중에]를 누르면 나오는 기간 중 맨 위(기본)입니다. 또 읽은 날([챗봇으로 열기]·챗봇 수정 [적용] 포함)부터 이 기간이 지나기 전에는 노트를 다시 올리지 않습니다. [나중에]로 적힌 다시 볼 날은 이 값을 바꿔도 그대로입니다. 비워두면 기본값(7)으로 돌아갑니다.',
 		snooze2Name: '나중에 기간 2(일)',
 		snooze2Desc: '[나중에]에서 두 번째로 고를 수 있는 기간입니다. 비워두면 기본값(30)으로 돌아갑니다.',
 		snooze3Name: '나중에 기간 3(일)',
@@ -405,10 +409,24 @@ const ko = {
 			'[나중에]에서 세 번째로 고를 수 있는 기간입니다. 다 읽은 노트를 오래 미룰 때 씁니다. 비워두면 기본값(90)으로 돌아갑니다.',
 		dailyLimitName: '하루 표시 개수',
 		dailyLimitDesc:
-			'하루에 챙길 노트 수입니다. [나중에]·[보관함]·[삭제]로 처리한 노트가 이 수에 들어가며(되돌리면 빠집니다), 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
+			'하루에 챙길 노트 수입니다. [나중에]·[챗봇으로 열기]·[보관함]·[삭제]로 처리한 노트가 이 수에 들어가며([되돌리기]하면 빠집니다), 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
 		undoSecondsName: '되돌리기 알림 시간(초)',
 		undoSecondsDesc:
 			'[나중에]·[보관함]·[삭제]를 누른 뒤 [되돌리기]가 있는 알림을 보여 주는 시간입니다. 알림에 남은 시간이 함께 보이며, [삭제]한 노트는 이 시간이 지나야 휴지통으로 보냅니다. 비워두면 기본값(6)으로 돌아갑니다.',
+		propertiesIntro:
+			'리마인더는 기록을 노트 속성(frontmatter)에 날짜(YYYY-MM-DD)로 적습니다. 그래서 노트 이름을 바꾸거나 옮겨도 날짜가 따라가고, 노트를 열면 언제 쓰고·읽고·고쳤는지 보입니다. ' +
+			'[나중에]는 읽은 날·다시 볼 날을, [챗봇으로 열기]는 읽은 날을, 챗봇 수정 [적용]은 수정일·읽은 날을 적고, 작성일이 비어 있으면 파일 날짜로 함께 채웁니다(있으면 덮어쓰지 않음). ' +
+			'다른 플러그인이 이미 쓰는 속성이 있으면 아래에서 그 이름으로 맞추세요. 이름을 바꿔도 예전 이름으로 적힌 날짜는 옮기지 않습니다.',
+		propCreatedName: '작성일',
+		propCreatedDesc: '노트를 쓴 날. 비어 있을 때만 채우며, 새 노트 유예 기간의 기준입니다. 비워두면 기본값(created)으로 돌아갑니다.',
+		propReadName: '읽은 날',
+		propReadDesc:
+			'[나중에]·[챗봇으로 열기]·챗봇 수정 [적용]을 한 날. 수정일과 둘 중 늦은 날을 "마지막으로 읽은 날"로 봅니다. 비워두면 기본값(read)으로 돌아갑니다.',
+		propUpdatedName: '수정일',
+		propUpdatedDesc: '챗봇 수정을 [적용]한 날. 고쳤으면 읽은 것으로 봅니다. 비워두면 기본값(updated)으로 돌아갑니다.',
+		propReviewName: '다시 볼 날',
+		propReviewDesc:
+			'[나중에]에서 고른 기간으로 정한 날. 이날부터 다시 목록에 올라오며, 직접 고쳐도 됩니다. 비워두면 기본값(review)으로 돌아갑니다.',
 		notifyName: '하루 한 번 알림',
 		notifyDesc:
 			'그날 처음 Obsidian을 켰을 때(켜 둔 채 날이 바뀌었다면 Obsidian 창을 보고 있을 때) 다시 볼 노트가 있으면 알림을 한 번 띄웁니다.',
@@ -472,6 +490,7 @@ const en: Dictionary = {
 		mcp: 'MCP connections',
 		reminderTargets: 'Target notes',
 		schedule: 'Schedule & alerts',
+		reminderProperties: 'Note properties',
 	},
 	upcoming: {
 		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
@@ -748,8 +767,8 @@ const en: Dictionary = {
 		doneToday: "You have gone through today's notes. To read more, select [Show more] below.",
 		nothingDue: 'No notes to revisit right now.',
 		moreButton: 'Show more ({count})',
-		reasonNeverPostponed: 'Never postponed · last modified {date}',
-		reasonPostponed: 'Postponed {days} days ago ({date})',
+		reasonNeverRead: 'Never read · file modified {date}',
+		reasonRead: 'Read {days} days ago ({date})',
 		reasonOrphan: 'No incoming links',
 		laterButton: 'Later',
 		laterTooltip: 'Choose how many days until it returns to the list',
@@ -763,7 +782,8 @@ const en: Dictionary = {
 			'Could not undo. The note was moved or deleted in the meantime, or a note with the same name is at the original location.',
 		undoDeleteTooLate: 'Could not undo because the note is already in the trash. Restore it from the trash.',
 		chatButton: 'Open in chatbot',
-		chatTooltip: 'Open the note, start a new conversation, and add the note as a chip above the input (you write and send the question)',
+		chatTooltip:
+			"Open the note, start a new conversation, add the note as a chip above the input, and write today's date to the read property (you write and send the question)",
 		archiveButton: 'Archive',
 		archiveTooltip: 'Move to the archive folder ({folder})',
 		archiveExists: 'A note with the same name is already in the archive folder: {path}',
@@ -772,15 +792,17 @@ const en: Dictionary = {
 		deleteConfirmButton: 'Click again to delete',
 		deleteTooltip: 'Click twice to confirm; the note goes to the trash after the undo notice time',
 		deleteFailed: 'Could not delete the note.',
+		propertyWriteFailed: 'Could not write the date properties to the note.',
+		undoPropertiesFailed: 'Could not undo. Fix the dates in the note properties yourself.',
 		dailyNotice: 'Reminder: {count} notes to revisit today. Click here to open.',
 		targetsIntro:
 			'Checks every note (.md) in the vault where this plugin is installed. Other vaults and files outside the vault are never read, and neither note content nor the list is sent anywhere. ' +
-			'Notes in the excluded or archive folders and notes younger than the grace period are not listed, and template folders of the enabled core Templates or Templater plugin and Excalidraw drawings are left out automatically.',
+			'Notes in the excluded or archive folders and notes whose created date is within the grace period are not listed, and template folders of the enabled core Templates or Templater plugin and Excalidraw drawings are left out automatically.',
 		excludedFoldersName: 'Excluded folders',
 		excludedFoldersDesc: 'Separate with commas. Subfolders are excluded too, and case is ignored, e.g. Templates, Daily',
 		graceDaysName: 'Grace period for new notes (days)',
 		graceDaysDesc:
-			'Notes younger than this are not listed (based on the earlier of the created and modified dates). 0 lists them right away. Leave empty to restore the default (7).',
+			'Notes are not listed until this many days after the created property (or, without it, the earlier of the file created and modified dates). 0 lists them right away. Leave empty to restore the default (7).',
 		deferTagsName: 'Deferral tags',
 		deferTagsDesc:
 			'Among notes to revisit, those with these tags are shown first. Separate with commas and leave out the #. Nested tags (e.g. todo/work) count too, and case is ignored.',
@@ -789,10 +811,10 @@ const en: Dictionary = {
 			'[Archive] on a note card moves the note here (Obsidian updates links to it). The folder is created if missing, and notes in it are not listed. Leave empty to restore the default (Archive).',
 		scheduleIntro:
 			'Set the periods offered by [Later], how many notes to go through each day, the undo notice time, and the daily notification. ' +
-			'Notes without incoming links or with a deferral tag come first (both puts a note at the top), then the ones left untouched longest (when postponed, or when last modified if never postponed).',
+			'Notes without incoming links or with a deferral tag come first (both puts a note at the top), then the ones left untouched longest (by the last read date, or the file modified date if never read).',
 		snoozeName: 'Default later period (days)',
 		snoozeDesc:
-			'The top (default) period offered by [Later]. The note returns to the list once the chosen period has passed since the day you pressed it; notes already postponed keep the period chosen then. Leave empty to restore the default (7).',
+			'The top (default) period offered by [Later]. A note is also not listed again until this many days after it was read (including [Open in chatbot] and applying a chatbot edit). Review dates already written by [Later] stay as they are when you change this. Leave empty to restore the default (7).',
 		snooze2Name: 'Later period 2 (days)',
 		snooze2Desc: 'The second period offered by [Later]. Leave empty to restore the default (30).',
 		snooze3Name: 'Later period 3 (days)',
@@ -800,10 +822,24 @@ const en: Dictionary = {
 			'The third period offered by [Later], for putting off notes you have already read for a long time. Leave empty to restore the default (90).',
 		dailyLimitName: 'Notes per day',
 		dailyLimitDesc:
-			'How many notes to go through each day. Notes handled with [Later], [Archive], or [Delete] count toward it (undoing removes them), and [Show more] below the list shows more. Leave empty to restore the default (5).',
+			'How many notes to go through each day. Notes handled with [Later], [Open in chatbot], [Archive], or [Delete] count toward it ([Undo] removes them), and [Show more] below the list shows more. Leave empty to restore the default (5).',
 		undoSecondsName: 'Undo notice time (seconds)',
 		undoSecondsDesc:
 			'How long the notice with [Undo] stays after [Later], [Archive], or [Delete]. The remaining time is shown in the notice, and a deleted note goes to the trash only after this time. Leave empty to restore the default (6).',
+		propertiesIntro:
+			'Reminder records dates (YYYY-MM-DD) in note properties (frontmatter), so they follow the note when it is renamed or moved, and you can see when it was created, read, and updated. ' +
+			'[Later] writes the read and review dates, [Open in chatbot] writes the read date, and applying a chatbot edit writes the updated and read dates; an empty created date is filled from the file dates (never overwritten). ' +
+			'If another plugin already uses such properties, match their names below. Renaming does not move dates written under the old name.',
+		propCreatedName: 'Created',
+		propCreatedDesc: 'The day the note was written. Filled only when empty; used for the grace period. Leave empty to restore the default (created).',
+		propReadName: 'Read',
+		propReadDesc:
+			'The day of [Later], [Open in chatbot], or applying a chatbot edit. The later of this and Updated is treated as the last read date. Leave empty to restore the default (read).',
+		propUpdatedName: 'Updated',
+		propUpdatedDesc: 'The day a chatbot edit was applied. An updated note counts as read. Leave empty to restore the default (updated).',
+		propReviewName: 'Review',
+		propReviewDesc:
+			'The day set by the period chosen in [Later]. The note returns to the list from this day, and you can edit it yourself. Leave empty to restore the default (review).',
 		notifyName: 'Daily notification',
 		notifyDesc:
 			'Show one notification when there are notes to revisit, the first time you open Obsidian each day (or, if Obsidian stays open past midnight, while you are using the Obsidian window).',

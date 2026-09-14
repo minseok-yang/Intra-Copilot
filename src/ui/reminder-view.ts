@@ -5,7 +5,6 @@ import {
 	getAllTags,
 	ItemView,
 	Menu,
-	moment,
 	normalizePath,
 	Notice,
 	setIcon,
@@ -14,9 +13,18 @@ import {
 	WorkspaceLeaf,
 } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
+import type { ReminderSettings } from '../settings';
 import { t, type ReminderStrings } from '../i18n';
 import { DueNote, DueReason, findDueNotes, NoteFacts } from '../reminder/due-notes';
-import { today } from '../reminder/reminder-store';
+import { today } from '../reminder/daily-count';
+import {
+	formatDate,
+	parseDate,
+	propertyNames,
+	restoreProperties,
+	stampNote,
+	type PropertySnapshot,
+} from '../reminder/note-properties';
 import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './chat-view';
 import { confirmTwice } from './delete-confirm';
 import { featureIcon } from './settings/features';
@@ -25,14 +33,20 @@ import { featureIcon } from './settings/features';
 //
 // 범위: 이 플러그인이 설치된 볼트 안의 노트(.md)만 살펴봅니다. Obsidian이 이미 모아 둔 정보(파일 목록·날짜,
 // 링크, 태그·속성)와 템플릿 플러그인의 폴더 설정을 읽을 뿐 노트 본문을 따로 읽지 않으며, 어디로도 보내지 않습니다.
-// 어떤 노트를 고르는지는 reminder/due-notes.ts, 기록은 reminder/reminder-store.ts에 있습니다.
+// 노트를 바꾸는 것은 사용자가 버튼을 눌렀을 때뿐입니다(속성에 날짜 적기, 보관 폴더로 옮기기, 휴지통으로 보내기).
+// 어떤 노트를 고르는지는 reminder/due-notes.ts, 날짜 속성은 reminder/note-properties.ts,
+// 오늘 챙긴 수 같은 하루 단위 값은 reminder/daily-count.ts에 있습니다.
 
 export const REMINDER_VIEW_TYPE = 'intra-copilot-reminder-view';
 
 type TodayList = { due: DueNote[]; shown: DueNote[] };
 
-// [삭제]를 눌렀지만 되돌리기 시간이 지나지 않아 아직 휴지통으로 보내지 않은 노트. 목록에서는 이미 빼 둡니다.
+// 목록에서 잠시 빼 두는 노트
+// - pendingTrash: [삭제]를 눌렀지만 되돌리기 시간이 지나지 않아 아직 휴지통으로 보내지 않은 노트
+// - awaitingProperties: 속성에 날짜를 썼지만 Obsidian이 아직 속성을 다시 읽지 않은 노트
+//   (다시 읽기 전에 목록을 그리면 방금 처리한 노트가 잠깐 다시 보이기 때문입니다)
 const pendingTrash = new Set<TFile>();
+const awaitingProperties = new Set<TFile>();
 
 export async function revealReminderView(plugin: IntraCopilotPlugin): Promise<void> {
 	await plugin.app.workspace.ensureSideLeaf(REMINDER_VIEW_TYPE, 'right', { active: true, reveal: true });
@@ -44,30 +58,25 @@ export function refreshReminderViews(plugin: IntraCopilotPlugin): void {
 	}
 }
 
-// 볼트에서 노트 이름이 바뀌거나 지워지면 기록도 따라가게 하고, 그날 처음이면 알림을 띄웁니다.
-// 리마인더 화면이 닫혀 있어도 기록은 맞아야 하므로 플러그인이 켜져 있는 동안 늘 듣습니다.
+// 노트 이름이 바뀌거나 지워지면 목록을 새로 그리고, 그날 처음이면 알림을 띄웁니다.
+// (날짜는 노트 속성에 있어서, 이름을 바꾸거나 옮겨도 따로 챙길 기록이 없습니다.)
 export function registerReminder(plugin: IntraCopilotPlugin): void {
-	const { vault, workspace } = plugin.app;
+	const { vault, workspace, metadataCache } = plugin.app;
 	plugin.registerView(REMINDER_VIEW_TYPE, (leaf) => new ReminderView(leaf, plugin));
 
 	// 폴더를 옮기거나 지우면 안의 파일마다 이벤트가 옵니다. 그때마다 볼트 전체를 다시 계산하면 멈추므로,
-	// 이벤트가 잠잠해진 뒤 한 번만 다시 그립니다(기록은 이벤트마다 바로 고침).
+	// 이벤트가 잠잠해진 뒤 한 번만 다시 그립니다.
 	const refreshSoon = debounce(() => refreshReminderViews(plugin), 300, true);
+	plugin.registerEvent(vault.on('rename', () => refreshSoon()));
+	plugin.registerEvent(vault.on('delete', () => refreshSoon()));
 	plugin.registerEvent(
-		vault.on('rename', (file, oldPath) => {
-			plugin.reminderStore.rename(oldPath, file.path);
-			refreshSoon();
-		}),
-	);
-	plugin.registerEvent(
-		vault.on('delete', (file) => {
-			plugin.reminderStore.remove(file.path);
-			refreshSoon();
+		metadataCache.on('changed', (file) => {
+			if (awaitingProperties.delete(file)) refreshSoon();
 		}),
 	);
 
-	// 알림에 쓰는 개수는 기록·날짜·폴더로 정해져서(링크·태그는 순서에만 쓰임), Obsidian이 링크 정보를
-	// 다 모으기 전에 세어도 맞습니다.
+	// 알림 개수는 Obsidian이 켤 때 불러오는 캐시(속성·태그·링크)로 셉니다. 꺼져 있는 동안 바뀐 노트는 조금 늦게
+	// 반영되어, 드물게 알림 개수가 목록과 다를 수 있습니다.
 	let checkedDay = today();
 	workspace.onLayoutReady(() => notifyDueNotes(plugin));
 	// Obsidian을 켜 둔 채 날이 바뀌는 경우(사무실에서 흔함): 10분마다, 그리고 창으로 돌아올 때 날짜를 봅니다.
@@ -87,7 +96,7 @@ export function registerReminder(plugin: IntraCopilotPlugin): void {
 function notifyDueNotes(plugin: IntraCopilotPlugin): void {
 	if (!plugin.settings.reminder.dailyNotice) return;
 	const count = todayList(plugin).shown.length;
-	if (count === 0 || !plugin.reminderStore.takeDailyNotice()) return;
+	if (count === 0 || !plugin.reminderCount.takeDailyNotice()) return;
 	const text = t(plugin.settings.general.language).reminder.dailyNotice.replace('{count}', String(count));
 	new Notice(
 		createFragment((fragment) => {
@@ -149,8 +158,9 @@ function templateFolders(app: App): string[] {
 		.filter((folder) => folder !== '');
 }
 
-// Obsidian이 모아 둔 정보로 노트마다 필요한 값만 뽑습니다(노트 내용은 읽지 않음).
-function collectNotes(app: App): NoteFacts[] {
+// Obsidian이 모아 둔 정보로 노트마다 필요한 값만 뽑습니다(노트 본문은 읽지 않음).
+function collectNotes(app: App, settings: ReminderSettings): NoteFacts[] {
+	const names = propertyNames(settings);
 	const incoming = new Map<string, number>();
 	for (const [source, targets] of Object.entries(app.metadataCache.resolvedLinks)) {
 		for (const target of Object.keys(targets)) {
@@ -159,8 +169,9 @@ function collectNotes(app: App): NoteFacts[] {
 	}
 	return app.vault.getMarkdownFiles().flatMap((file) => {
 		const cache = app.metadataCache.getFileCache(file);
+		const frontmatter = cache?.frontmatter;
 		// Excalidraw 그림은 .md로 저장되지만 노트가 아니므로 뺍니다.
-		if (file.path.endsWith('.excalidraw.md') || cache?.frontmatter?.['excalidraw-plugin'] !== undefined) return [];
+		if (file.path.endsWith('.excalidraw.md') || frontmatter?.['excalidraw-plugin'] !== undefined) return [];
 		return [
 			{
 				path: file.path,
@@ -168,6 +179,10 @@ function collectNotes(app: App): NoteFacts[] {
 				mtime: file.stat.mtime,
 				tags: ((cache && getAllTags(cache)) ?? []).map((tag) => tag.replace(/^#/, '')),
 				incomingLinks: incoming.get(file.path) ?? 0,
+				created: parseDate(frontmatter?.[names.created]),
+				read: parseDate(frontmatter?.[names.read]),
+				updated: parseDate(frontmatter?.[names.updated]),
+				review: parseDate(frontmatter?.[names.review]),
 			},
 		];
 	});
@@ -177,11 +192,11 @@ function collectNotes(app: App): NoteFacts[] {
 function todayList(plugin: IntraCopilotPlugin): TodayList {
 	const { reminder } = plugin.settings;
 	const rules = { ...reminder, excludedFolders: [...reminder.excludedFolders, ...templateFolders(plugin.app)] };
-	const pendingPaths = new Set([...pendingTrash].map((file) => file.path));
-	const due = findDueNotes(collectNotes(plugin.app), plugin.reminderStore.records, rules, Date.now()).filter(
-		(note) => !pendingPaths.has(note.path),
+	const hidden = new Set([...pendingTrash, ...awaitingProperties].map((file) => file.path));
+	const due = findDueNotes(collectNotes(plugin.app, reminder), rules, Date.now()).filter(
+		(note) => !hidden.has(note.path),
 	);
-	return { due, shown: due.slice(0, plugin.reminderStore.remainingToday(reminder.dailyLimit)) };
+	return { due, shown: due.slice(0, plugin.reminderCount.remainingToday(reminder.dailyLimit)) };
 }
 
 // 화면에 보이는 것을 정하는 값(오늘 보여 줄 노트와 그 이유, 다시 볼 노트 전체 수)이 달라졌는지 비교하는 열쇠
@@ -189,18 +204,14 @@ function listKey(list: TodayList): string {
 	return JSON.stringify([list.shown, list.due.length]);
 }
 
-function formatDate(ms: number): string {
-	return moment(ms).format('YYYY-MM-DD');
-}
-
 function describeReason(reason: DueReason, strings: ReminderStrings): string {
 	switch (reason.kind) {
-		case 'neverPostponed':
-			return strings.reasonNeverPostponed.replace('{date}', formatDate(reason.modifiedAt));
-		case 'postponed':
-			return strings.reasonPostponed
+		case 'neverRead':
+			return strings.reasonNeverRead.replace('{date}', formatDate(reason.modifiedAt));
+		case 'read':
+			return strings.reasonRead
 				.replace('{days}', String(reason.days))
-				.replace('{date}', formatDate(reason.postponedAt));
+				.replace('{date}', formatDate(reason.readAt));
 		case 'orphan':
 			return strings.reasonOrphan;
 		case 'tag':
@@ -249,8 +260,8 @@ export class ReminderView extends ItemView {
 	onOpen(): Promise<void> {
 		this.contentEl.addClass('intra-copilot-reminder-view');
 		this.render();
-		// 노트에 태그·링크를 더하거나 새 노트를 만들면 목록이 바뀔 수 있습니다. Obsidian이 링크 정보를 다시 모으면
-		// 잠잠해진 뒤 한 번 계산합니다(켜자마자 열려 링크 정보가 덜 모였던 목록도 이걸로 바로잡힙니다).
+		// 노트의 태그·링크·속성을 바꾸거나 새 노트를 만들면 목록이 바뀔 수 있습니다. Obsidian이 링크 정보를 다시
+		// 모으면 잠잠해진 뒤 한 번 계산합니다(켜자마자 열려 링크 정보가 덜 모였던 목록도 이걸로 바로잡힙니다).
 		const refresh = debounce(() => this.refreshIfChanged(), 1000, true);
 		this.registerEvent(this.app.metadataCache.on('resolved', refresh));
 		return Promise.resolve();
@@ -301,7 +312,7 @@ export class ReminderView extends ItemView {
 			new ButtonComponent(contentEl)
 				.setButtonText(strings.moreButton.replace('{count}', String(more)))
 				.onClick(() => {
-					this.plugin.reminderStore.showMore(more);
+					this.plugin.reminderCount.showMore(more);
 					refreshReminderViews(this.plugin);
 				});
 		}
@@ -367,25 +378,52 @@ export class ReminderView extends ItemView {
 		const { snoozeDays, snoozeDays2, snoozeDays3 } = this.plugin.settings.reminder;
 		for (const days of new Set([snoozeDays, snoozeDays2, snoozeDays3])) {
 			menu.addItem((item) =>
-				item.setTitle(strings.laterChoice.replace('{days}', String(days))).onClick(() => this.postpone(file, days)),
+				item
+					.setTitle(strings.laterChoice.replace('{days}', String(days)))
+					.onClick(() => void this.postpone(file, days)),
 			);
 		}
 		const rect = button.getBoundingClientRect();
 		menu.showAtPosition({ x: rect.left, y: rect.bottom });
 	}
 
-	private postpone(file: TFile, days: number): void {
-		const strings = this.strings();
-		const undo = this.plugin.reminderStore.postpone(file.path, days);
-		refreshReminderViews(this.plugin);
+	// 노트 속성에 날짜를 적고 오늘 챙긴 수에 넣습니다. Obsidian이 속성을 다시 읽을 때까지 목록에서 빼 둡니다.
+	// 실패하면 알리고 null을 돌려줍니다.
+	private async stamp(file: TFile, options: { reviewDays?: number }): Promise<PropertySnapshot | null> {
+		awaitingProperties.add(file);
+		try {
+			const previous = await stampNote(this.app, file, this.plugin.settings.reminder, options);
+			this.plugin.reminderCount.countHandled();
+			return previous;
+		} catch {
+			awaitingProperties.delete(file);
+			new Notice(this.strings().propertyWriteFailed);
+			return null;
+		} finally {
+			refreshReminderViews(this.plugin);
+		}
+	}
+
+	// [나중에]: 읽은 날을 오늘로, 다시 볼 날을 고른 기간 뒤로 적습니다.
+	private async postpone(file: TFile, days: number): Promise<void> {
+		const previous = await this.stamp(file, { reviewDays: days });
+		if (!previous) return;
 		showUndoNotice(
 			this.plugin,
-			strings.postponedNotice.replace('{name}', file.basename).replace('{days}', String(days)),
-			() => {
-				undo();
-				refreshReminderViews(this.plugin);
-			},
+			this.strings().postponedNotice.replace('{name}', file.basename).replace('{days}', String(days)),
+			() => void this.undoStamp(file, previous),
 		);
+	}
+
+	// [나중에] 되돌리기: 속성을 누르기 전 값으로 돌리고(없던 속성은 지움) 오늘 챙긴 수에서 뺍니다.
+	private async undoStamp(file: TFile, previous: PropertySnapshot): Promise<void> {
+		try {
+			await restoreProperties(this.app, file, previous);
+			this.plugin.reminderCount.uncountHandled();
+		} catch {
+			new Notice(this.strings().undoPropertiesFailed);
+		}
+		refreshReminderViews(this.plugin);
 	}
 
 	private async openNote(file: TFile): Promise<void> {
@@ -395,6 +433,7 @@ export class ReminderView extends ItemView {
 	// 노트를 열고 새 대화를 시작해 그 노트를 칩으로 올립니다. 챗봇은 질문할 때 열려 있는 노트만 고칠 수 있어서
 	// 노트도 함께 엽니다. 질문은 사용자가 직접 써서 보냅니다(누르는 것만으로는 아무것도 전송하지 않음).
 	// 챗봇이 답변을 기다리는 중이면 새 대화를 시작하지 않고 안내만 합니다(노트는 열림).
+	// 챗봇으로 연 노트는 읽은 것으로 보고 읽은 날 속성에 오늘 날짜를 적습니다(오늘 챙긴 수에도 들어감).
 	private async openInNewChat(file: TFile): Promise<void> {
 		await this.openNote(file);
 		await revealChatView(this.plugin);
@@ -402,6 +441,7 @@ export class ReminderView extends ItemView {
 		// 열어 둔 경우 나머지 창에서 진행 중인 대화까지 비우면 안 되기 때문입니다.
 		const view = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view;
 		if (view instanceof ChatView) view.startConversationWithCurrentNote();
+		await this.stamp(file, {});
 	}
 
 	private async archive(file: TFile): Promise<void> {
@@ -416,7 +456,7 @@ export class ReminderView extends ItemView {
 				if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
 				// fileManager로 옮기면 이 노트를 가리키던 링크도 Obsidian이 함께 고칩니다.
 				await this.app.fileManager.renameFile(file, dest);
-				this.plugin.reminderStore.countHandled();
+				this.plugin.reminderCount.countHandled();
 				showUndoNotice(
 					this.plugin,
 					strings.archivedNotice.replace('{name}', file.basename).replace('{folder}', folder),
@@ -431,7 +471,7 @@ export class ReminderView extends ItemView {
 	}
 
 	// [보관함] 되돌리기: 원래 자리로 옮기고 오늘 챙긴 수에서 뺍니다. 그사이 원래 자리에 같은 이름의 노트가
-	// 생겼으면 덮어쓰지 않고 실패로 알립니다. (기록은 이름 바뀜 이벤트로 함께 따라옵니다.)
+	// 생겼으면 덮어쓰지 않고 실패로 알립니다. (날짜 속성은 노트 안에 있어 함께 돌아옵니다.)
 	private async unarchive(file: TFile, originalPath: string): Promise<void> {
 		const { vault, fileManager } = this.app;
 		const originalFolder = originalPath.includes('/') ? originalPath.slice(0, originalPath.lastIndexOf('/')) : '';
@@ -439,7 +479,7 @@ export class ReminderView extends ItemView {
 			if (vault.getAbstractFileByPath(originalPath)) throw new Error('A note already exists at the original path');
 			if (originalFolder && !vault.getAbstractFileByPath(originalFolder)) await vault.createFolder(originalFolder);
 			await fileManager.renameFile(file, originalPath);
-			this.plugin.reminderStore.uncountHandled();
+			this.plugin.reminderCount.uncountHandled();
 		} catch {
 			new Notice(this.strings().undoArchiveFailed);
 		}
@@ -450,17 +490,17 @@ export class ReminderView extends ItemView {
 	// 휴지통으로 보냅니다(Obsidian의 "삭제한 파일" 설정을 따름). 휴지통에서 되살리는 공개 API가 없어서 이렇게 미룹니다.
 	// 그 전에 Obsidian을 끄거나 플러그인을 끄면 노트는 지워지지 않고 남습니다(지우는 쪽보다 남기는 쪽이 안전).
 	private trash(file: TFile): void {
-		const { reminderStore } = this.plugin;
+		const { reminderCount } = this.plugin;
 		const strings = this.strings();
 		pendingTrash.add(file);
-		reminderStore.countHandled();
+		reminderCount.countHandled();
 		refreshReminderViews(this.plugin);
 
 		const timer = window.setTimeout(() => {
 			pendingTrash.delete(file);
 			this.app.fileManager.trashFile(file).catch(() => {
 				new Notice(strings.deleteFailed);
-				reminderStore.uncountHandled();
+				reminderCount.uncountHandled();
 				refreshReminderViews(this.plugin);
 			});
 		}, this.plugin.settings.reminder.undoSeconds * 1000);
@@ -473,7 +513,7 @@ export class ReminderView extends ItemView {
 				return;
 			}
 			window.clearTimeout(timer);
-			reminderStore.uncountHandled();
+			reminderCount.uncountHandled();
 			refreshReminderViews(this.plugin);
 		});
 	}

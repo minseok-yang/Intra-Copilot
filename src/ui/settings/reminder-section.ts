@@ -123,3 +123,33 @@ export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: Set
 			}),
 		);
 }
+
+// 리마인더 → 노트 속성: 날짜를 적는 속성 이름. 비우면 처음 이름으로 돌아갑니다.
+// 이름을 바꾸면 그 뒤로 새 이름에 적고 새 이름에서 읽습니다(예전 이름으로 적힌 날짜는 옮기지 않음).
+export function renderReminderPropertiesSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+	const strings = ctx.strings.reminder;
+	const reminder = ctx.plugin.settings.reminder;
+
+	containerEl.createEl('p', { text: strings.propertiesIntro });
+
+	const rows = [
+		['propCreated', strings.propCreatedName, strings.propCreatedDesc],
+		['propRead', strings.propReadName, strings.propReadDesc],
+		['propUpdated', strings.propUpdatedName, strings.propUpdatedDesc],
+		['propReview', strings.propReviewName, strings.propReviewDesc],
+	] as const;
+	for (const [key, name, desc] of rows) {
+		new Setting(containerEl)
+			.setName(name)
+			.setDesc(desc)
+			.addText((text) => {
+				text.setValue(reminder[key]).onChange((value) => {
+					reminder[key] = value.trim() || defaults[key];
+					ctx.saveSoon();
+				});
+				text.inputEl.addEventListener('blur', () => {
+					text.setValue(reminder[key]);
+				});
+			});
+	}
+}

@@ -33,6 +33,7 @@ import {
 import { composeRequestConversation } from '../chat/request-builder';
 import { applyProposal, EditProposal, isEditable } from '../chat/edit-proposal';
 import { saveBackup } from '../chat/edit-backup';
+import { stampNote } from '../reminder/note-properties';
 import { listSkills, Skill } from '../skills/skill-store';
 import { SessionHistoryModal } from './session-history-modal';
 import { ChatComposer } from './chat/composer';
@@ -508,7 +509,21 @@ export class ChatView extends ItemView {
 		];
 		this.saveEditMark(message);
 		new Notice(strings.editApplied.replace('{path}', proposal.path));
+		await this.stampEditedNote(proposal.path);
 		return { ok: true };
+	}
+
+	// 고쳤으면 읽은 것이므로 노트 속성에 수정일·읽은 날을 오늘 날짜로 적습니다(작성일이 없으면 함께 채움).
+	// 리마인더가 이 날짜로 다시 보여 줄 때를 정합니다. 되돌려도 날짜는 그대로 둡니다(노트를 읽고 손댄 날이므로).
+	// 제안이 속성 부분 자체를 고친 경우, 속성을 다시 쓰면서 모양이 바뀌어 [되돌리기]가 원문을 못 찾을 수 있습니다.
+	private async stampEditedNote(path: string): Promise<void> {
+		const file = this.app.vault.getFileByPath(path);
+		if (!file) return;
+		try {
+			await stampNote(this.app, file, this.plugin.settings.reminder, { updated: true });
+		} catch {
+			new Notice(t(this.plugin.settings.general.language).reminder.propertyWriteFailed);
+		}
 	}
 
 	private async revertEdit(

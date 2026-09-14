@@ -4,7 +4,7 @@ import { IntraCopilotSettingTab } from './ui/settings-tab';
 import { CHAT_VIEW_TYPE, ChatView, refreshChatViews, revealChatView } from './ui/chat-view';
 import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
 import { refreshReminderViews, registerReminder, revealReminderView } from './ui/reminder-view';
-import { ReminderStore } from './reminder/reminder-store';
+import { DailyCount } from './reminder/daily-count';
 import { t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
 import type { StatusState } from './ui/status-light';
@@ -21,8 +21,8 @@ function isStringArray(value: unknown): value is string[] {
 
 export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
-	// 리마인더 기록([나중에]를 누른 때·고른 기간, 오늘 챙긴 수, 알림 띄운 날 — reminder.json)
-	reminderStore!: ReminderStore;
+	// 리마인더의 하루 단위 값(오늘 챙긴 수, [더 보기]로 늘린 수, 알림 띄운 날 — data.json의 reminderDaily)
+	readonly reminderCount = new DailyCount(this);
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
 	private chatRibbonEl!: HTMLElement;
@@ -30,7 +30,6 @@ export default class IntraCopilotPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-		this.reminderStore = await ReminderStore.load(this);
 		// 리본·챗봇 탭·설정 화면이 쓰는 기능 아이콘을 가장 먼저 등록합니다.
 		registerFeatureIcons();
 		this.addSettingTab(new IntraCopilotSettingTab(this.app, this));
@@ -118,6 +117,7 @@ export default class IntraCopilotPlugin extends Plugin {
 			general: { ...DEFAULT_SETTINGS.general, ...loaded?.general },
 			llm: { ...DEFAULT_SETTINGS.llm, ...loaded?.llm },
 			reminder: { ...DEFAULT_SETTINGS.reminder, ...loaded?.reminder },
+			reminderDaily: { ...DEFAULT_SETTINGS.reminderDaily, ...loaded?.reminderDaily },
 		};
 
 		const { general, llm, reminder } = this.settings;
@@ -152,6 +152,18 @@ export default class IntraCopilotPlugin extends Plugin {
 		if (typeof reminder.dailyNotice !== 'boolean') {
 			reminder.dailyNotice = reminderDefaults.dailyNotice;
 		}
+		// 속성 이름이 비면 날짜를 어디에 적을지 알 수 없으므로 처음 이름으로 되돌립니다.
+		for (const key of ['propCreated', 'propRead', 'propUpdated', 'propReview'] as const) {
+			if (typeof reminder[key] !== 'string' || !reminder[key].trim()) reminder[key] = reminderDefaults[key];
+		}
+
+		const daily = this.settings.reminderDaily;
+		const dailyDefaults = DEFAULT_SETTINGS.reminderDaily;
+		for (const key of ['day', 'notifiedDay'] as const) {
+			if (typeof daily[key] !== 'string') daily[key] = dailyDefaults[key];
+		}
+		daily.handled = nonNegativeInt(daily.handled, dailyDefaults.handled);
+		daily.extra = nonNegativeInt(daily.extra, dailyDefaults.extra);
 	}
 
 	async saveSettings() {

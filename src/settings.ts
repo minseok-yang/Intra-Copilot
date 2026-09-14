@@ -28,25 +28,39 @@ export interface LlmSettings {
 	lastVerified?: LlmVerification;
 }
 
-// 리마인더 설정입니다. [나중에] 기록은 설정이 아니라 reminder.json에 따로 저장합니다.
+// 리마인더 설정입니다. 노트별 날짜는 설정이 아니라 노트 속성(reminder/note-properties.ts)에 적습니다.
 export interface ReminderSettings {
 	excludedFolders: string[]; // 볼트 기준 폴더 경로. 하위 폴더도 함께 빠지며, 대소문자는 가리지 않습니다.
-	graceDays: number; // 만든 지 이 일수가 안 된 노트는 대상에서 뺍니다(만든 날짜·수정일 중 이른 날 기준, 0이면 바로 대상).
+	graceDays: number; // 만든 지 이 일수가 안 된 노트는 대상에서 뺍니다(작성일 속성, 없으면 만든 날짜·수정일 중 이른 날 기준, 0이면 바로 대상).
 	deferTags: string[]; // '#' 없이. 이 태그(와 하위 태그)가 붙은 노트를 다시 볼 노트 중 앞에 보여 줍니다.
 	archiveFolder: string; // [보관함]으로 옮길 폴더. 이 폴더의 노트는 대상에서 빠집니다.
-	// [나중에 ▾]에서 고르는 세 기간(일). snoozeDays가 맨 위(기본)이고, 기간을 따로 기록하지 않은 노트에도 씁니다.
+	// [나중에 ▾]에서 고르는 세 기간(일). snoozeDays가 맨 위(기본)이고, 읽은 날부터 다시 띄울 때까지의 최소 기간으로도 씁니다.
 	snoozeDays: number;
 	snoozeDays2: number;
 	snoozeDays3: number;
 	undoSeconds: number; // [나중에]·[보관함]·[삭제] 뒤 [되돌리기] 알림을 보여 주는 시간(초). [삭제]는 이 시간 뒤에 휴지통으로 보냄
 	dailyLimit: number; // 하루에 챙길 노트 수
 	dailyNotice: boolean; // 하루 한 번 알림(그날 처음 켤 때, 켜 둔 채 날이 바뀌면 창을 보고 있을 때)
+	// 날짜를 적는 노트 속성 이름(작성일·읽은 날·수정일·다시 볼 날). 다른 플러그인이 쓰는 이름에 맞출 수 있습니다.
+	propCreated: string;
+	propRead: string;
+	propUpdated: string;
+	propReview: string;
+}
+
+// 리마인더의 하루 단위 값입니다. 설정이 아니라 상태지만 노트와 상관없어 data.json에 함께 둡니다(reminder/daily-count.ts).
+export interface ReminderDaily {
+	day: string; // handled·extra를 센 날(YYYY-MM-DD). 날짜가 바뀌면 0부터 다시 셉니다.
+	handled: number; // 그날 챙긴 노트 수
+	extra: number; // 그날 [더 보기]로 늘린 개수
+	notifiedDay: string; // 하루 한 번 알림을 마지막으로 띄운 날
 }
 
 export interface IntraCopilotSettings {
 	general: GeneralSettings;
 	llm: LlmSettings;
 	reminder: ReminderSettings;
+	reminderDaily: ReminderDaily;
 }
 
 export const DEFAULT_SETTINGS: IntraCopilotSettings = {
@@ -79,7 +93,12 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		undoSeconds: 6,
 		dailyLimit: 5,
 		dailyNotice: true,
+		propCreated: 'created',
+		propRead: 'read',
+		propUpdated: 'updated',
+		propReview: 'review',
 	},
+	reminderDaily: { day: '', handled: 0, extra: 0, notifiedDay: '' },
 };
 
 // 타임아웃이 너무 짧으면 거의 모든 답변이 실패하므로 최소값을 둡니다.
