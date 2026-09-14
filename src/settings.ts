@@ -38,7 +38,7 @@ export interface ReminderSettings {
 	snoozeDays: number;
 	snoozeDays2: number;
 	snoozeDays3: number;
-	undoSeconds: number; // [나중에]·[보관함] 뒤 [되돌리기] 알림을 보여 주는 시간(초)
+	undoSeconds: number; // [나중에]·[보관함]·[삭제] 뒤 [되돌리기] 알림을 보여 주는 시간(초). [삭제]는 이 시간 뒤에 실제로 지움
 	dailyLimit: number; // 하루에 챙길 노트 수
 	notifyOnStartup: boolean; // 그날 처음 Obsidian을 켤 때 알림
 }

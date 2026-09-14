@@ -31,6 +31,9 @@ export const REMINDER_VIEW_TYPE = 'intra-copilot-reminder-view';
 
 type TodayList = { due: DueNote[]; shown: DueNote[] };
 
+// [삭제]를 눌렀지만 되돌리기 시간이 지나지 않아 아직 휴지통으로 보내지 않은 노트. 목록에서는 이미 빼 둡니다.
+const pendingTrash = new Set<TFile>();
+
 export async function revealReminderView(plugin: IntraCopilotPlugin): Promise<void> {
 	await plugin.app.workspace.ensureSideLeaf(REMINDER_VIEW_TYPE, 'right', { active: true, reveal: true });
 }
@@ -174,7 +177,10 @@ function collectNotes(app: App): NoteFacts[] {
 function todayList(plugin: IntraCopilotPlugin): TodayList {
 	const { reminder } = plugin.settings;
 	const rules = { ...reminder, excludedFolders: [...reminder.excludedFolders, ...templateFolders(plugin.app)] };
-	const due = findDueNotes(collectNotes(plugin.app), plugin.reminderStore.records, rules, Date.now());
+	const pendingPaths = new Set([...pendingTrash].map((file) => file.path));
+	const due = findDueNotes(collectNotes(plugin.app), plugin.reminderStore.records, rules, Date.now()).filter(
+		(note) => !pendingPaths.has(note.path),
+	);
 	return { due, shown: due.slice(0, plugin.reminderStore.remainingToday(reminder.dailyLimit)) };
 }
 
@@ -342,10 +348,7 @@ export class ReminderView extends ItemView {
 				arm: () => trash.label.setText(strings.deleteConfirmButton),
 				reset: () => trash.label.setText(strings.deleteButton),
 			},
-			() => {
-				trash.button.disabled = true;
-				return this.trash(file);
-			},
+			() => this.trash(file),
 		);
 		trash.button.addEventListener('click', () => void onTrash());
 	}
@@ -436,14 +439,35 @@ export class ReminderView extends ItemView {
 		refreshReminderViews(this.plugin);
 	}
 
-	// Obsidian의 "삭제한 파일" 설정(시스템 휴지통 / .trash 폴더)을 따릅니다.
-	private async trash(file: TFile): Promise<void> {
-		try {
-			await this.app.fileManager.trashFile(file);
-			this.plugin.reminderStore.countHandled();
-		} catch {
-			new Notice(this.strings().deleteFailed);
-		}
+	// [삭제]도 사람이 실수할 수 있어서 바로 지우지 않습니다. 목록에서 먼저 빼고, 되돌리기 알림 시간이 지나면
+	// 휴지통으로 보냅니다(Obsidian의 "삭제한 파일" 설정을 따름). 휴지통에서 되살리는 공개 API가 없어서 이렇게 미룹니다.
+	// 그 전에 Obsidian을 끄거나 플러그인을 끄면 노트는 지워지지 않고 남습니다(지우는 쪽보다 남기는 쪽이 안전).
+	private trash(file: TFile): void {
+		const { reminderStore } = this.plugin;
+		const strings = this.strings();
+		pendingTrash.add(file);
+		reminderStore.countHandled();
 		refreshReminderViews(this.plugin);
+
+		const timer = window.setTimeout(() => {
+			pendingTrash.delete(file);
+			this.app.fileManager.trashFile(file).catch(() => {
+				new Notice(strings.deleteFailed);
+				reminderStore.uncountHandled();
+				refreshReminderViews(this.plugin);
+			});
+		}, this.plugin.settings.reminder.undoSeconds * 1000);
+		this.plugin.register(() => window.clearTimeout(timer));
+
+		showUndoNotice(this.plugin, strings.deletedNotice.replace('{name}', file.basename), () => {
+			// 시간이 막 지나 이미 휴지통으로 보냈다면 되돌릴 수 없습니다.
+			if (!pendingTrash.delete(file)) {
+				new Notice(strings.undoFailed);
+				return;
+			}
+			window.clearTimeout(timer);
+			reminderStore.uncountHandled();
+			refreshReminderViews(this.plugin);
+		});
 	}
 }

@@ -362,6 +362,7 @@ const ko = {
 		laterChoice: '{days}일 뒤에 다시 보기',
 		postponedNotice: '{name} — {days}일 뒤에 다시 보여 드립니다.',
 		archivedNotice: '{name} — {folder} 폴더로 옮겼습니다.',
+		deletedNotice: '{name} — 알림이 사라지면 휴지통으로 보냅니다.',
 		undoButton: '되돌리기',
 		undoCountdown: '({seconds}초)',
 		undoFailed: '되돌리지 못했습니다. 노트가 이미 옮겨졌거나, 원래 자리에 같은 이름의 노트가 있습니다.',
@@ -405,7 +406,7 @@ const ko = {
 			'하루에 챙길 노트 수입니다. [나중에]를 누르거나 보관·삭제한 노트가 이 수에 들어가며, 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
 		undoSecondsName: '되돌리기 알림 시간(초)',
 		undoSecondsDesc:
-			'[나중에]·[보관함]을 누른 뒤 [되돌리기]가 있는 알림을 보여 주는 시간입니다. 알림에 남은 시간이 함께 보입니다. 비워두면 기본값(6)으로 돌아갑니다.',
+			'[나중에]·[보관함]·[삭제]를 누른 뒤 [되돌리기]가 있는 알림을 보여 주는 시간입니다. 알림에 남은 시간이 함께 보이며, [삭제]한 노트는 이 시간이 지나야 휴지통으로 보냅니다. 비워두면 기본값(6)으로 돌아갑니다.',
 		notifyName: '켤 때 알림',
 		notifyDesc:
 			'그날 처음 Obsidian을 켰을 때 다시 볼 노트가 있으면 알림을 한 번 띄웁니다. 켜 둔 채 날이 바뀌면 Obsidian 창을 보고 있을 때 띄웁니다.',
@@ -753,6 +754,7 @@ const en: Dictionary = {
 		laterChoice: 'Show again in {days} days',
 		postponedNotice: '{name} — it will show up again in {days} days.',
 		archivedNotice: '{name} — moved to the {folder} folder.',
+		deletedNotice: '{name} — it goes to the trash when this notice closes.',
 		undoButton: 'Undo',
 		undoCountdown: '({seconds}s)',
 		undoFailed: 'Could not undo. The note was already moved, or a note with the same name is at the original location.',
@@ -796,7 +798,7 @@ const en: Dictionary = {
 			'How many notes to go through each day. Notes marked [Later], archived, or deleted count toward it, and [Show more] below the list shows more. Leave empty to restore the default (5).',
 		undoSecondsName: 'Undo notice time (seconds)',
 		undoSecondsDesc:
-			'How long the notice with [Undo] stays after [Later] or [Archive]. The remaining time is shown in the notice. Leave empty to restore the default (6).',
+			'How long the notice with [Undo] stays after [Later], [Archive], or [Delete]. The remaining time is shown in the notice, and a deleted note goes to the trash only after this time. Leave empty to restore the default (6).',
 		notifyName: 'Notify on startup',
 		notifyDesc:
 			'The first time you open Obsidian each day, show one notification if there are notes to revisit. If Obsidian stays open past midnight, it appears while you are using the Obsidian window.',
