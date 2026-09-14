@@ -344,7 +344,7 @@ const ko = {
 		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_BOOK).
 		summaryHeading: '라이선스 및 정책',
 		versionLabel: '버전',
-		releaseDateLabel: '배포일',
+		buildLabel: '빌드',
 		publisherLabel: '제작자',
 	},
 };
@@ -667,7 +667,7 @@ const en: Dictionary = {
 	license: {
 		summaryHeading: 'License & policy',
 		versionLabel: 'Version',
-		releaseDateLabel: 'Release date',
+		buildLabel: 'Build',
 		publisherLabel: 'Author',
 	},
 };

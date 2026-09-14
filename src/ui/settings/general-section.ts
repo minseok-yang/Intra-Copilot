@@ -4,11 +4,11 @@ import { openGuideWindow } from '../guide-view';
 import type { SettingsContext } from './context';
 import { FEATURE_ORDER, FEATURE_STATUS, featureIcon } from './features';
 
-// esbuild.config.mjs가 빌드할 때 날짜를 넣어 줍니다.
-declare const BUILD_DATE: string;
+// esbuild.config.mjs가 빌드할 때 일시(한국 시간)를 넣어 줍니다.
+declare const BUILD_TIME: string;
 
 // 설정 처음 화면 = 이 플러그인의 첫인상입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록
-//   ① 이게 뭔지(이름·설명 + 사용자 가이드·라이선스 버튼 + 버전·배포일·제작자) — 한 상자에 간략하게
+//   ① 이게 뭔지(이름·설명 + 사용자 가이드·라이선스 버튼 + 버전·빌드 일시·제작자) — 한 상자에 간략하게
 //   ② 기능별 설정 바로가기(기능 네 개를 가로로 — 리본과 같은 아이콘·한 줄 설명, 누르면 그 기능의 설정으로)
 //   ③ 처음이면 어떻게 시작하는지(서버를 아직 설정하지 않았을 때만)
 //   ④ 설정값(표시 언어)
@@ -37,7 +37,7 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 	const meta = intro.createDiv({ cls: 'intra-copilot-intro-meta' });
 	for (const [label, value] of [
 		[strings.license.versionLabel, plugin.manifest.version],
-		[strings.license.releaseDateLabel, BUILD_DATE],
+		[strings.license.buildLabel, BUILD_TIME],
 		[strings.license.publisherLabel, plugin.manifest.author ?? ''],
 	]) {
 		const item = meta.createSpan();

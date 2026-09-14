@@ -39,8 +39,10 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: 'main.js',
 	minify: prod,
-	// 설정 화면에 보여줄 배포일. 빌드한 날(이 PC의 날짜, YYYY-MM-DD)이 들어갑니다.
-	define: { BUILD_DATE: JSON.stringify(new Date().toLocaleDateString('sv-SE')) },
+	// 설정 화면에 보여줄 빌드 일시(YYYY-MM-DD HH:mm, 한국 시간). GitHub 서버(UTC)에서 빌드해도 한국 시간으로 찍힙니다.
+	define: {
+		BUILD_TIME: JSON.stringify(new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16)),
+	},
 });
 
 if (prod) {

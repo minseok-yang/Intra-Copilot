@@ -156,8 +156,8 @@ src/
 
 1. `manifest.json`의 `version`과 `minAppVersion`을 갱신합니다.
 2. `versions.json`에 새 버전과 그에 대응하는 최소 Obsidian 버전을 추가합니다.
-3. GitHub에서 새 버전 번호로 Release를 생성하고(`v` 접두사 없이, 예: `1.0.1`), `main.js`, `manifest.json`, `styles.css`를 첨부합니다.
-4. 릴리즈 노트는 한국어로 작성합니다.
+3. 커밋·푸시한 뒤 버전 번호로 태그를 올립니다(`v` 접두사 없이, 예: `git tag 1.0.1 && git push origin 1.0.1`). GitHub Actions가 빌드해서 `main.js`, `manifest.json`, `styles.css`가 첨부된 **초안(draft) 릴리즈**를 만듭니다.
+4. 초안에 한국어 릴리즈 노트를 쓰고 공개합니다. 한 번 공개한 버전 번호(태그)는 다시 쓰지 않습니다.
 5. 라이선스·정책 문서를 고쳤다면 "문서 정보·문의" 쪽의 개정일과 변경 이력도 갱신합니다.
 
 > `npm version patch|minor|major`로 `manifest.json`, `package.json`, `versions.json` 갱신을 한 번에 처리할 수 있습니다.
