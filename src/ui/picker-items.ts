@@ -96,7 +96,7 @@ export function buildSkillItems(skills: Skill[], onPick: (skill: Skill) => void)
 
 // ─── 칩 ──────────────────────────────────────────────────────────
 
-export function describeTarget(
+function describeTarget(
 	target: ChatTarget,
 	wholeVaultLabel: string,
 ): { icon: string; label: string } {

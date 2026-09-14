@@ -11,13 +11,12 @@ interface SessionHistoryCallbacks {
 
 // 저장된 대화 목록을 보여주고, 고르면 콜백으로 그 id를 넘깁니다.
 export class SessionHistoryModal extends Modal {
-	private plugin: IntraCopilotPlugin;
-	private callbacks: SessionHistoryCallbacks;
-
-	constructor(app: App, plugin: IntraCopilotPlugin, callbacks: SessionHistoryCallbacks) {
+	constructor(
+		app: App,
+		private readonly plugin: IntraCopilotPlugin,
+		private readonly callbacks: SessionHistoryCallbacks,
+	) {
 		super(app);
-		this.plugin = plugin;
-		this.callbacks = callbacks;
 	}
 
 	async onOpen(): Promise<void> {

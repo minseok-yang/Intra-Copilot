@@ -26,7 +26,7 @@ export interface Skill {
 	instructions: string; // 지시문(본문)
 }
 
-export const SKILL_DIR_NAME = 'SKILL';
+const SKILL_DIR_NAME = 'SKILL';
 // 지시문 안에서 입력칸의 글로 바뀌는 자리
 export const INPUT_PLACEHOLDER = '{{input}}';
 
@@ -64,7 +64,7 @@ function textField(value: unknown): string {
 
 // 파일 내용을 스킬로 읽습니다. 머리말이 없거나 깨졌으면 파일 이름을 스킬 이름으로 쓰고,
 // 파일 전체(또는 머리말 뒤)를 지시문으로 봅니다.
-export function parseSkill(raw: string, id: string): Skill {
+function parseSkill(raw: string, id: string): Skill {
 	let name = '';
 	let description = '';
 	let body = raw;
@@ -85,7 +85,7 @@ export function parseSkill(raw: string, id: string): Skill {
 	return { id, name: name || id, description, instructions: body.trim() };
 }
 
-export function serializeSkill(skill: Skill): string {
+function serializeSkill(skill: Skill): string {
 	const header = stringifyYaml({ name: skill.name, description: skill.description }).trimEnd();
 	return `---\n${header}\n---\n\n${skill.instructions.trim()}\n`;
 }

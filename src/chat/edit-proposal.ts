@@ -161,7 +161,7 @@ function findLineMatches(
 }
 
 // 노트 내용에서 고칠 자리를 찾습니다. 못 찾거나 여러 곳이면 그 이유를 돌려줍니다.
-export function findRange(
+function findRange(
 	body: string,
 	before: string,
 ): { start: number; end: number } | ProposalProblem {

@@ -21,10 +21,6 @@ function backupsDir(plugin: IntraCopilotPlugin): string {
 	return `${pluginDir(plugin)}/backups`;
 }
 
-export function backupPath(plugin: IntraCopilotPlugin, name: string): string {
-	return `${backupsDir(plugin)}/${name}`;
-}
-
 // 노트 경로를 파일 이름으로 씁니다. 폴더 구분선(/)까지 남겨서(-로 바꿔서) 같은 이름의 노트가 여러
 // 폴더에 있어도 어느 것의 백업인지 알 수 있습니다. 파일 이름에 쓸 수 없는 글자와 앞뒤 공백·점은
 // 지우고, 너무 길면 뒤쪽(파일 이름에 가까운 쪽)을 남깁니다 — 윈도우의 경로 길이 제한 때문입니다.
@@ -66,7 +62,7 @@ export async function saveBackup(
 		if (!(await plugin.app.vault.adapter.exists(dir))) {
 			await plugin.app.vault.adapter.mkdir(dir);
 		}
-		await plugin.app.vault.adapter.write(backupPath(plugin, name), body);
+		await plugin.app.vault.adapter.write(`${dir}/${name}`, body);
 	} catch {
 		return null;
 	}

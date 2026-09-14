@@ -17,7 +17,7 @@ export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
-	private ribbonIconEl: HTMLElement | null = null;
+	private ribbonIconEl!: HTMLElement;
 
 	async onload() {
 		await this.loadSettings();
@@ -48,9 +48,7 @@ export default class IntraCopilotPlugin extends Plugin {
 	// 설정 화면에서 언어·모델·서버 주소가 바뀐 뒤 호출합니다. 설정 밖의 화면들
 	// (리본 아이콘 툴팁, 열려 있는 챗봇)이 바뀐 설정을 바로 따라가게 합니다.
 	notifySettingsChanged(): void {
-		if (this.ribbonIconEl) {
-			setTooltip(this.ribbonIconEl, this.ribbonTooltip());
-		}
+		setTooltip(this.ribbonIconEl, this.ribbonTooltip());
 		refreshChatViews(this);
 	}
 

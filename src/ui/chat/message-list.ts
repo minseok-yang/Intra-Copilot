@@ -10,6 +10,7 @@ import {
 } from '../../chat/edit-proposal';
 import type { ChatStrings } from '../../i18n';
 import type { Skill } from '../../skills/skill-store';
+import { confirmTwice } from '../delete-confirm';
 import { createSkillChip, createTargetChip } from '../picker-items';
 import { EditActionResult, EditCard } from './edit-card';
 
@@ -20,9 +21,6 @@ import { EditActionResult, EditCard } from './edit-card';
 const NEAR_BOTTOM_PX = 80;
 // 긴 답변의 시작 부분으로 옮길 때 위쪽에 남겨 둘 여백(px)
 const ANSWER_TOP_MARGIN_PX = 8;
-// [모두 적용]을 한 번 누른 뒤, 다시 눌러 확정할 수 있는 시간(밀리초). 지나면 원래대로 돌아갑니다.
-// (스킬·대화를 지울 때 쓰는 ui/delete-confirm.ts와 같은 방식입니다.)
-const APPLY_ALL_CONFIRM_MS = 4000;
 
 // 실패한 질문을 [다시 시도]로 다시 보낼 때 필요한 것(글 + 그때 쓴 스킬)
 export interface SentMessage {
@@ -229,29 +227,17 @@ export class ChatMessageList {
 			text: strings.editSummaryCount.replace('{count}', String(cards.length)),
 		});
 
-		let armed: number | null = null;
-		const button = summaryEl.createEl('button', {
-			cls: 'intra-copilot-edit-summary-apply',
-			text: strings.editApplyAllButton,
-		});
+		const button = summaryEl.createEl('button', { cls: 'intra-copilot-edit-summary-apply' });
 		setTooltip(button, strings.editApplyAllTooltip);
-
-		const reset = () => {
-			armed = null;
-			button.setText(strings.editApplyAllButton);
-			button.removeClass('intra-copilot-delete-armed');
-		};
-		button.onclick = () => {
-			if (armed === null) {
-				armed = window.setTimeout(reset, APPLY_ALL_CONFIRM_MS);
-				button.setText(strings.editApplyAllConfirm);
-				button.addClass('intra-copilot-delete-armed');
-				return;
-			}
-			window.clearTimeout(armed);
-			reset();
-			void this.applyAll(cards);
-		};
+		const onClick = confirmTwice(
+			button,
+			{
+				arm: () => button.setText(strings.editApplyAllConfirm),
+				reset: () => button.setText(strings.editApplyAllButton),
+			},
+			() => this.applyAll(cards),
+		);
+		button.onclick = () => void onClick();
 	}
 
 	// 적용할 수 있는 카드를 위에서부터 하나씩 적용합니다. 한꺼번에 보내지 않고 순서대로 하는 이유는,

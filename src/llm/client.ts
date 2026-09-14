@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import * as http from 'http';
 import { requestUrl } from 'obsidian';
-import { clampChatTimeout, LlmSettings } from '../settings';
+import type { LlmSettings } from '../settings';
 
 // 서버가 응답을 주지 않고 매달려 있으면 버튼이 "확인 중..."에서, 챗봇은 입력창이
 // 잠긴 채로 영원히 멈춥니다. 그래서 정해진 시간이 지나면 실패로 처리합니다.
@@ -196,7 +196,7 @@ function extractServerMessage(text: string): string {
 	return summarizeBody(text);
 }
 
-export function classifyHttpError(status: number, body: string): LlmErrorKind {
+function classifyHttpError(status: number, body: string): LlmErrorKind {
 	if (status >= 300 && status < 400) return 'redirect';
 	const text = body.toLowerCase();
 	if (/maximum context length|context_length_exceeded|reduce the length|too many tokens/.test(text)) {
@@ -219,7 +219,7 @@ export function classifyHttpError(status: number, body: string): LlmErrorKind {
 	return 'unknown';
 }
 
-export function classifyException(error: unknown): LlmErrorKind {
+function classifyException(error: unknown): LlmErrorKind {
 	if (error instanceof RequestTimeoutError) return 'timeout';
 	if (error instanceof RequestCancelledError) return 'cancelled';
 	const message = error instanceof Error ? error.message : String(error);
@@ -307,7 +307,7 @@ interface ChatCompletionResponse {
 
 // Qwen3, DeepSeek-R1 같은 추론형 모델은 답 앞에 <think>...</think>로 생각 과정을 붙여 보내기도 합니다.
 // 여는 태그가 서버 쪽 템플릿에 들어가 있어서 닫는 태그(</think>)만 오는 경우도 함께 처리합니다.
-export function splitReasoning(content: string): { reasoning: string; answer: string } {
+function splitReasoning(content: string): { reasoning: string; answer: string } {
 	const OPEN = '<think>';
 	const CLOSE = '</think>';
 	const trimmed = content.trimStart();
@@ -609,7 +609,7 @@ export async function sendChatMessage(
 ): Promise<ChatCompletionResult> {
 	const maxTokens = settings.maxResponseTokens > 0 ? settings.maxResponseTokens : undefined;
 	const messages = buildRequestMessages(settings, conversation);
-	const timeoutSeconds = clampChatTimeout(settings.chatTimeoutSeconds);
+	const timeoutSeconds = settings.chatTimeoutSeconds; // 불러올 때·입력할 때 이미 범위를 맞춰 둡니다.
 
 	if (settings.streaming && onProgress) {
 		const { result, received } = await streamChatCompletion(

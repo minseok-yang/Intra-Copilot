@@ -80,7 +80,7 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 			dropdown
 				.addOption('ko', '한국어')
 				.addOption('en', 'English')
-				.setValue(ctx.language)
+				.setValue(plugin.settings.general.language)
 				.onChange(async (value) => {
 					plugin.settings.general.language = value as UiLanguage;
 					await plugin.saveSettings();

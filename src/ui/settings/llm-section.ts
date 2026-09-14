@@ -79,7 +79,8 @@ export class LlmSettingsSection {
 	// 마지막 확인 결과. 서버 주소·키가 바뀌거나 설정 창을 닫으면 지웁니다.
 	private lastModelList: ModelListOutcome | null = null;
 	private lastTest: CheckOutcome | null = null;
-	private ctx: SettingsContext | null = null;
+	// render()가 채웁니다. 아래 메서드들은 모두 render()가 그린 화면에서만 불립니다.
+	private ctx!: SettingsContext;
 
 	// 설정 창을 닫을 때 부릅니다. 다시 열면 자동으로 새로 확인하므로 지난 결과는 버립니다.
 	reset(): void {
@@ -89,12 +90,7 @@ export class LlmSettingsSection {
 	}
 
 	private get plugin(): IntraCopilotPlugin {
-		return this.context.plugin;
-	}
-
-	private get context(): SettingsContext {
-		if (!this.ctx) throw new Error('LlmSettingsSection.render()가 먼저 호출되어야 합니다.');
-		return this.ctx;
+		return this.ctx.plugin;
 	}
 
 	render(containerEl: HTMLElement, ctx: SettingsContext): void {
@@ -306,7 +302,7 @@ export class LlmSettingsSection {
 			.addText((text) => {
 				text.setValue(String(options.get())).onChange((value) => {
 					options.set(options.parse(value));
-					this.context.saveSoon();
+					this.ctx.saveSoon();
 				});
 				text.inputEl.type = 'number';
 				text.inputEl.min = String(options.min);
@@ -324,7 +320,7 @@ export class LlmSettingsSection {
 		statusDot: HTMLElement,
 		statusText: HTMLElement,
 	): Promise<void> {
-		const strings = this.context.strings.llm;
+		const strings = this.ctx.strings.llm;
 		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
 
 		const server = this.plugin.serverSnapshot();
@@ -362,7 +358,7 @@ export class LlmSettingsSection {
 		statusText: HTMLElement,
 		connectionStatusEl: HTMLElement,
 	): Promise<void> {
-		const { strings: allStrings } = this.context;
+		const { strings: allStrings } = this.ctx;
 		const strings = allStrings.llm;
 		const { baseUrl, model } = this.plugin.settings.llm;
 

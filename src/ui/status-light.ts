@@ -4,11 +4,11 @@ export type StatusState = 'idle' | 'ok' | 'error';
 export function createStatusLight(
 	container: HTMLElement,
 	initialText: string,
-): { el: HTMLElement; dot: HTMLElement; text: HTMLElement } {
+): { dot: HTMLElement; text: HTMLElement } {
 	const el = container.createDiv({ cls: 'intra-copilot-status' });
 	const dot = el.createSpan({ cls: 'intra-copilot-status-dot' });
 	const text = el.createSpan({ cls: 'intra-copilot-status-text', text: initialText });
-	return { el, dot, text };
+	return { dot, text };
 }
 
 export function setStatusLight(

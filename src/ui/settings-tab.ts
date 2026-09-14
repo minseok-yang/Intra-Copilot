@@ -67,13 +67,9 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		const language = this.plugin.settings.general.language;
-		const strings = t(language);
 		const ctx: SettingsContext = {
-			app: this.app,
 			plugin: this.plugin,
-			language,
-			strings,
+			strings: t(this.plugin.settings.general.language),
 			saveSoon: () => this.saveSoon(),
 			redraw: () => this.display(),
 			openTab: (tab, section) => this.openTab(tab, section),

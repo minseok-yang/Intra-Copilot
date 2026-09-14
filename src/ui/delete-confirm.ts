@@ -1,9 +1,8 @@
 import { Setting } from 'obsidian';
 
-// 목록 행(Setting)에 붙이는 "두 번 눌러 삭제" 버튼입니다. 지난 대화 목록과 스킬 목록이 함께 씁니다.
-// 삭제는 되돌릴 수 없으므로, 한 번 누르면 경고 문구·아이콘으로 바뀌고 이 시간 안에 다시 눌러야 지웁니다.
-// 시간이 지나면 원래 모습(설명 글 포함)으로 돌아갑니다.
-const DELETE_CONFIRM_MS = 4000;
+// "두 번 눌러 확정" 버튼입니다. 되돌릴 수 없는 일(지난 대화·스킬 삭제, 수정 제안 [모두 적용])에 씁니다.
+// 한 번 누르면 경고 모습으로 바뀌고, 이 시간 안에 다시 눌러야 실행합니다. 시간이 지나면 원래 모습으로 돌아갑니다.
+const CONFIRM_MS = 4000;
 
 export interface DeleteConfirmLabels {
 	deleteTooltip: string; // 평소 상태의 툴팁
@@ -11,32 +10,56 @@ export interface DeleteConfirmLabels {
 	confirmDesc: string; // 한 번 누른 뒤 행 설명 자리에 보여줄 경고 문구
 }
 
+// 버튼에 연결할 클릭 처리를 만듭니다. look의 arm/reset은 버튼 글자·아이콘 같은 모습만 바꿉니다
+// (경고 색 클래스는 여기서 붙이고 뗍니다).
+export function confirmTwice(
+	buttonEl: HTMLElement,
+	look: { arm: () => void; reset: () => void },
+	onConfirm: () => void | Promise<void>,
+): () => Promise<void> {
+	let timer: number | null = null;
+	const reset = () => {
+		timer = null;
+		buttonEl.removeClass('intra-copilot-delete-armed');
+		look.reset();
+	};
+	reset();
+	return async () => {
+		if (timer === null) {
+			buttonEl.addClass('intra-copilot-delete-armed');
+			look.arm();
+			timer = window.setTimeout(reset, CONFIRM_MS);
+			return;
+		}
+		window.clearTimeout(timer);
+		reset();
+		await onConfirm();
+	};
+}
+
+// 목록 행(Setting)에 붙이는 삭제 버튼입니다. 한 번 누르면 행 설명 자리에 경고 문구가 보입니다.
 export function addDeleteConfirmButton(
 	row: Setting,
 	restoreDesc: string, // 경고를 되돌릴 때 복원할 원래 설명
 	labels: DeleteConfirmLabels,
 	onDelete: () => void | Promise<void>,
 ): void {
-	let confirmTimer: number | null = null;
 	row.addExtraButton((button) => {
-		const reset = () => {
-			confirmTimer = null;
-			button.setIcon('trash-2').setTooltip(labels.deleteTooltip);
-			button.extraSettingsEl.removeClass('intra-copilot-delete-armed');
-			row.setDesc(restoreDesc);
-		};
-		reset();
-		button.onClick(async () => {
-			if (confirmTimer === null) {
-				button.setIcon('alert-triangle').setTooltip(labels.confirmTooltip);
-				button.extraSettingsEl.addClass('intra-copilot-delete-armed');
-				row.setDesc(labels.confirmDesc);
-				confirmTimer = window.setTimeout(reset, DELETE_CONFIRM_MS);
-				return;
-			}
-			window.clearTimeout(confirmTimer);
-			confirmTimer = null;
-			await onDelete();
-		});
+		button.onClick(
+			confirmTwice(
+				button.extraSettingsEl,
+				{
+					arm: () => {
+						button.setIcon('alert-triangle').setTooltip(labels.confirmTooltip);
+						row.setDesc(labels.confirmDesc);
+					},
+					reset: () => {
+						button.setIcon('trash-2').setTooltip(labels.deleteTooltip);
+						row.setDesc(restoreDesc);
+					},
+				},
+				onDelete,
+			),
+		);
 	});
 }

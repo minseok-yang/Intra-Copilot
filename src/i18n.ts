@@ -268,7 +268,6 @@ const ko = {
 		emptyTitle: '(빈 대화)',
 
 		// 승인형 Diff — 답변 속 노트 수정 제안 카드(ui/chat/edit-card.ts)
-		editCardHeading: '노트 수정 제안',
 		editApplyButton: '적용',
 		editApplyTooltip: '이 내용대로 노트를 고칩니다. 고치기 직전 원본은 따로 보관합니다.',
 		editRevertButton: '되돌리기',
@@ -602,7 +601,6 @@ const en: Dictionary = {
 		errorDetails: 'Details (raw error message)',
 		emptyTitle: '(empty conversation)',
 
-		editCardHeading: 'Suggested note edit',
 		editApplyButton: 'Apply',
 		editApplyTooltip: 'Edit the note as shown. The note is backed up first.',
 		editRevertButton: 'Undo',

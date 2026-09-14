@@ -36,7 +36,7 @@ export function renderSkillsSection(containerEl: HTMLElement, ctx: SettingsConte
 // 스킬 폴더를 파일 탐색기로 엽니다. 데스크톱 전용 플러그인이라 볼트는 늘 실제 폴더에 있습니다.
 // (폴더는 목록을 그릴 때 listSkills가 이미 만들어 둡니다.)
 async function openSkillFolder(ctx: SettingsContext, folder: string): Promise<void> {
-	const { adapter } = ctx.app.vault;
+	const { adapter } = ctx.plugin.app.vault;
 	const error =
 		adapter instanceof FileSystemAdapter ? await shell.openPath(adapter.getFullPath(folder)) : 'no folder';
 	if (error) new Notice(ctx.strings.skills.openFolderFailed);
@@ -95,5 +95,5 @@ async function fillSkillList(listEl: HTMLElement, ctx: SettingsContext): Promise
 }
 
 function openSkillEditor(ctx: SettingsContext, skill: Skill | null): void {
-	new SkillEditModal(ctx.app, ctx.plugin, skill, () => ctx.redraw()).open();
+	new SkillEditModal(ctx.plugin.app, ctx.plugin, skill, () => ctx.redraw()).open();
 }
