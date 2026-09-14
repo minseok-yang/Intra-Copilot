@@ -14,13 +14,17 @@ const ko = {
 	general: {
 		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지(이름·설명·문서·버전) → 기능별 설정 바로가기 →
 		// (처음이면) 어떻게 시작하는지 → 설정값"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
+		// 무엇을 위한 플러그인인지(지식 관리), 어떤 환경을 위해 만들었는지(제한된 사내 환경·로컬 AI)를 먼저 알립니다.
+		// (이 문자열은 공개 저장소에 올라가므로 회사명 같은 사내 정보는 넣지 않습니다.)
+		// \n 줄바꿈은 styles.css의 .intra-copilot-intro-text(white-space: pre-wrap)가 살려 줍니다(\t 들여쓰기 포함).
 		introText:
-			'사내 폐쇄망에서 쓰는 Obsidian 도우미입니다. 챗봇·링크·템플레이터·리마인더 네 가지 기능을 한곳에 묶었고, ' +
-			'기능마다 아래 [설정]의 카드를 눌러 따로 설정합니다.',
-		// 소개 아래 한 줄. 전송 정책의 핵심만 짧게 — 자세한 내용은 [라이선스 및 정책] 버튼으로 봅니다.
-		// (링크의 임베딩 서버, 템플레이터의 MCP 연결처럼 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.)
-		privacyNote:
-			'노트 내용은 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
+			'흩어진 정보를 지식으로 만들고, 연결하고, 다시 활용하세요.\n' +
+			'지식관리에 필요한 핵심 기능을 하나의 플러그인에 담았습니다.\n' +
+			'\t1. AI 기반 노트 작성·편집 및 변경 사항 검토\n' +
+			'\t2. 연관 지식 노트 간 링크 추천\n' +
+			'\t3. 문서·이메일·PDF 자동 요약 및 노트 생성\n' +
+			'\t4. 오래되었거나 업데이트가 필요한 지식 노트 리마인더\n' +
+			'외부 인터넷 접속이 제한된 사내 환경에서도 사용할 수 있도록 개발되었으며, 사내 서버 또는 개인 로컬 환경의 AI 모델을 활용할 수 있습니다.',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
 		// 기능 네 개로 가는 바로가기 줄의 제목(톱니바퀴 아이콘과 함께)
@@ -42,11 +46,11 @@ const ko = {
 		upcoming: '준비 중',
 		chatbot: {
 			name: '챗봇',
-			desc: '사내 LLM과 대화하고, 노트를 읽혀 묻고, 제안받은 수정을 확인한 뒤 노트에 반영합니다.',
+			desc: 'AI와 대화하며 노트를 작성·편집하고, 제안된 변경 사항을 검토한 뒤 반영합니다.',
 		},
-		link: { name: '링크', desc: '임베딩으로 내용이 비슷한 노트를 찾아 서로 연결합니다.' },
-		templater: { name: '템플레이터', desc: '받은 파일과 양식을 바탕으로 새 노트를 만들어 줍니다.' },
-		reminder: { name: '리마인더', desc: '노트를 정해 둔 주기로 다시 읽게 해, 지식이 낡지 않게 합니다.' },
+		link: { name: '링크', desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.' },
+		templater: { name: '템플레이터', desc: '문서·이메일·PDF를 자동으로 요약해 새 노트로 만들어 줍니다.' },
+		reminder: { name: '리마인더', desc: '오래되었거나 업데이트가 필요한 지식 노트를 알려 줍니다.' },
 	},
 	// 기능 탭 안의 섹션(하위 탭) 이름
 	sections: {
@@ -95,6 +99,9 @@ const ko = {
 	},
 	llm: {
 		heading: 'LLM 서버 연결',
+		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
+		privacyNote:
+			'노트 내용은 여기서 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
 		intro:
 			'챗봇이 사용할 LLM 서버를 설정합니다. OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
@@ -357,10 +364,13 @@ export type ChatStrings = Dictionary['chat'];
 const en: Dictionary = {
 	general: {
 		introText:
-			'An Obsidian assistant for use inside a closed company network. It bundles four features (Chatbot, Link, Templater, Reminder), ' +
-			'each configured from its card under [Settings] below.',
-		privacyNote:
-			'Note content never leaves the LLM server you configured, and only what is shown as a chip above the chat box is sent.',
+			'Turn scattered information into knowledge, connect it, and put it to use again.\n' +
+			'The core features you need for knowledge management, together in one plugin.\n' +
+			'\t1. AI-assisted note writing and editing, with review of changes\n' +
+			'\t2. Link suggestions between related knowledge notes\n' +
+			'\t3. Automatic summaries of documents, emails, and PDFs turned into notes\n' +
+			'\t4. Reminders for knowledge notes that are outdated or need updating\n' +
+			'Built to work even in company environments with restricted internet access, it can use AI models on your company server or on your own local machine.',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
 		settingsHeading: 'Settings',
@@ -378,11 +388,11 @@ const en: Dictionary = {
 		upcoming: 'Coming soon',
 		chatbot: {
 			name: 'Chatbot',
-			desc: 'Talk to your company LLM, give it notes to read, and review suggested edits before applying them.',
+			desc: 'Write and edit notes with AI, and review suggested changes before applying them.',
 		},
-		link: { name: 'Link', desc: 'Find notes with similar content using embeddings and link them together.' },
-		templater: { name: 'Templater', desc: 'Create new notes from received files and templates.' },
-		reminder: { name: 'Reminder', desc: 'Have notes read again on a set schedule so knowledge stays fresh.' },
+		link: { name: 'Link', desc: 'Suggest links between related knowledge notes.' },
+		templater: { name: 'Templater', desc: 'Automatically summarize documents, emails, and PDFs into new notes.' },
+		reminder: { name: 'Reminder', desc: 'Remind you of knowledge notes that are outdated or need updating.' },
 	},
 	sections: {
 		llm: 'LLM connection',
@@ -427,6 +437,8 @@ const en: Dictionary = {
 	},
 	llm: {
 		heading: 'LLM server connection',
+		privacyNote:
+			'Note content never leaves the LLM server you configure here, and only what is shown as a chip above the chat box is sent.',
 		intro:
 			'Set up the LLM server the chatbot uses. Supports OpenAI-compatible APIs ' +
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +

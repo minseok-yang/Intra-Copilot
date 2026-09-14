@@ -203,7 +203,7 @@ const GUIDE_SAFETY = `## 안전장치
 export const USER_GUIDE_BOOK: DocBook = {
 	intro: `# Intra Copilot 사용자 가이드
 
-사내 LLM 서버와 함께 쓰는 Obsidian 도우미입니다. **궁금한 항목을 눌러 보세요.**
+흩어진 정보를 지식으로 만들고, 연결하고, 다시 활용하도록 돕는 Obsidian 지식관리 플러그인입니다. **궁금한 항목을 눌러 보세요.**
 
 > 초안입니다. 기능이 늘어나면 이 가이드도 함께 채워집니다.
 `,
@@ -227,9 +227,9 @@ export const USER_GUIDE_BOOK: DocBook = {
 			// 아직 만들지 않은 기능. 만들면 markdown을 채우고 알맞은 묶음으로 옮깁니다.
 			label: '준비 중인 기능',
 			pages: [
-				{ id: 'link', title: '링크', summary: '내용이 비슷한 노트를 찾아 연결' },
-				{ id: 'templater', title: '템플레이터', summary: '받은 파일과 양식으로 새 노트 만들기' },
-				{ id: 'reminder', title: '리마인더', summary: '노트를 주기적으로 다시 읽게 하기' },
+				{ id: 'link', title: '링크', summary: '연관 지식 노트 간 링크 추천' },
+				{ id: 'templater', title: '템플레이터', summary: '문서·이메일·PDF 자동 요약 및 노트 생성' },
+				{ id: 'reminder', title: '리마인더', summary: '오래되었거나 업데이트가 필요한 노트 알림' },
 			],
 		},
 		{

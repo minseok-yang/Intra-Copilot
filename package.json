@@ -1,7 +1,7 @@
 {
 	"name": "intra-copilot",
 	"version": "1.0.0",
-	"description": "사내 폐쇄망 환경에서 쓰는 Obsidian 챗봇·노트 도우미입니다.",
+	"description": "AI로 노트를 작성·편집하고, 연결하고, 요약하고, 다시 챙기는 사내 환경용 Obsidian 지식관리 플러그인입니다.",
 	"main": "main.js",
 	"type": "module",
 	"author": "Minseok Yang <intoin121@gmail.com>",

@@ -21,8 +21,6 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 	const intro = containerEl.createDiv({ cls: 'intra-copilot-intro' });
 	intro.createDiv({ cls: 'intra-copilot-intro-name', text: plugin.manifest.name });
 	intro.createEl('p', { cls: 'intra-copilot-intro-text', text: general.introText });
-	// 무엇이 서버로 나가는지는 사내에서 가장 중요한 정보라, 문서 안에 묻지 않고 여기 한 줄로 둡니다.
-	intro.createEl('p', { cls: 'intra-copilot-intro-privacy', text: general.privacyNote });
 
 	const docButtons = intro.createDiv({ cls: 'intra-copilot-intro-buttons' });
 	new ButtonComponent(docButtons)

@@ -687,7 +687,7 @@
 }
 
 /* ─── 설정 "일반" 탭 맨 위의 플러그인 소개 상자 ─────────────────────
-   처음 쓰는 동료가 보는 첫 화면입니다. 이름 → 무엇을 하는지 → 무엇이 전송되는지 →
+   처음 쓰는 동료가 보는 첫 화면입니다. 이름 → 무엇을 위해 만들었는지 →
    문서 버튼 → 버전 정보 순서로, 한 상자 안에서 간략하게 읽히도록 둡니다. */
 .intra-copilot-intro {
 	margin-bottom: 18px;
@@ -724,10 +724,11 @@
 	color: var(--text-normal);
 	font-size: var(--font-ui-small);
 	line-height: 1.5;
+	white-space: pre-wrap;
 }
 
 /* 무엇이 서버로 나가는지 — 사내에서 가장 중요한 정보라 자물쇠 표시와 함께 눈에 띄게 둡니다. */
-.intra-copilot-intro-privacy {
+.intra-copilot-privacy-note {
 	margin: 0 0 12px;
 	padding-left: 20px;
 	position: relative;
@@ -736,7 +737,7 @@
 	line-height: 1.5;
 }
 
-.intra-copilot-intro-privacy::before {
+.intra-copilot-privacy-note::before {
 	content: '🔒';
 	position: absolute;
 	left: 0;

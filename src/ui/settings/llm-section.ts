@@ -85,6 +85,8 @@ export class LlmSettingsSection {
 
 		new Setting(containerEl).setName(strings.heading).setHeading();
 		containerEl.createEl('p', { text: strings.intro });
+		// 노트가 어디로 나가는지는 서버를 정하는 바로 이 화면에서 알아야 하므로 자물쇠 표시와 함께 둡니다.
+		containerEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
 
 		// 서버 주소나 키를 고치면 이전 확인 결과(초록불)는 더 이상 믿을 수 없으므로 되돌립니다.
 		// 상태등은 아래에서 만들어지므로, 만들어진 뒤에 실제 동작을 채워 넣습니다.
