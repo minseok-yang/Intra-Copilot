@@ -24,7 +24,7 @@ const ko = {
 			'\t1. AI 기반 노트 작성·편집 및 변경 사항 검토\n' +
 			'\t2. 연관 지식 노트 간 링크 추천\n' +
 			'\t3. 문서·이메일·PDF 자동 요약 및 노트 생성\n' +
-			'\t4. 오래되었거나 업데이트가 필요한 지식 노트 리마인더\n\n' +
+			'\t4. 오래 다시 보지 않은 지식 노트 리마인더\n\n' +
 			'외부 인터넷 접속이 제한된 사내 환경에서도 사용할 수 있도록 개발되었으며, 사내 서버 또는 개인 로컬 환경의 AI 모델을 활용할 수 있습니다.\n',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
@@ -51,7 +51,7 @@ const ko = {
 		},
 		link: { name: '링크', desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.' },
 		templater: { name: '템플레이터', desc: '문서·이메일·PDF를 자동으로 요약해 새 노트로 만들어 줍니다.' },
-		reminder: { name: '리마인더', desc: '오래되었거나 업데이트가 필요한 지식 노트를 알려 줍니다.' },
+		reminder: { name: '리마인더', desc: '오래 다시 보지 않은 지식 노트를 하루 몇 개씩 다시 꺼내 보여 줍니다.' },
 	},
 	// 기능 탭 안의 섹션(하위 탭) 이름
 	sections: {
@@ -353,49 +353,51 @@ const ko = {
 		scopeNote: '이 볼트 안의 노트만 살펴보며, 노트 내용이나 목록을 어디로도 보내지 않습니다.',
 		doneToday: '오늘 챙길 노트를 모두 챙겼습니다. 더 읽고 싶으면 아래 [더 보기]를 누르세요.',
 		nothingDue: '지금 다시 볼 노트가 없습니다.',
-		moreButton: '{count}개 더 보기',
-		reasonNew: '처음 올라온 노트',
+		moreButton: '더 보기 ({count}개)',
+		reasonNeverPostponed: '미룬 적 없음',
 		reasonPostponed: '{days}일 전에 미룸',
 		reasonOrphan: '들어오는 링크 없음',
 		laterButton: '나중에',
-		laterTooltip: '언제 다시 보여 줄지 고릅니다',
-		laterChoice: '{days}일 뒤에 다시 보기',
-		postponedNotice: '{name} — {days}일 뒤에 다시 보여 드립니다.',
+		laterTooltip: '며칠 뒤에 다시 목록에 올릴지 고릅니다',
+		laterChoice: '{days}일 뒤',
+		postponedNotice: '{name} — {days}일 뒤에 다시 목록에 올립니다.',
 		archivedNotice: '{name} — {folder} 폴더로 옮겼습니다.',
-		deletedNotice: '{name} — 알림이 사라지면 휴지통으로 보냅니다.',
+		deletedNotice: '{name} — 남은 시간이 지나면 휴지통으로 보냅니다.',
 		undoButton: '되돌리기',
 		undoCountdown: '({seconds}초)',
-		undoFailed: '되돌리지 못했습니다. 노트가 이미 옮겨졌거나, 원래 자리에 같은 이름의 노트가 있습니다.',
+		undoArchiveFailed: '되돌리지 못했습니다. 그사이 노트가 옮겨지거나 지워졌거나, 원래 자리에 같은 이름의 노트가 있습니다.',
+		undoDeleteTooLate: '이미 휴지통으로 보내서 되돌리지 못했습니다. 휴지통에서 되살리세요.',
 		chatButton: '챗봇으로 열기',
-		chatTooltip: '노트를 열고 새 대화의 입력칸 위에 올립니다 (질문은 직접 써서 보냅니다)',
+		chatTooltip: '노트를 열고 새 대화를 시작해 입력칸 위에 칩으로 올립니다 (질문은 직접 써서 보냅니다)',
 		archiveButton: '보관함',
 		archiveTooltip: '보관 폴더({folder})로 옮깁니다',
 		archiveExists: '보관 폴더에 같은 이름의 노트가 있어 옮기지 못했습니다: {path}',
 		archiveFailed: '노트를 보관 폴더로 옮기지 못했습니다.',
 		deleteButton: '삭제',
 		deleteConfirmButton: '한 번 더 눌러 삭제',
-		deleteTooltip: '휴지통으로 보냅니다 (두 번 눌러 확정)',
+		deleteTooltip: '두 번 눌러 확정하면 되돌리기 알림 시간 뒤에 휴지통으로 보냅니다',
 		deleteFailed: '노트를 삭제하지 못했습니다.',
-		startupNotice: '리마인더: 오늘 다시 볼 노트가 {count}개 있습니다. 여기를 눌러 열기',
+		dailyNotice: '리마인더: 오늘 다시 볼 노트가 {count}개 있습니다. 여기를 눌러 열기',
 		targetsIntro:
 			'이 플러그인이 설치된 볼트 안의 모든 노트(.md)를 살펴봅니다. 다른 볼트나 볼트 밖의 파일은 보지 않으며, 노트 내용이나 목록을 어디로도 보내지 않습니다. ' +
-			'아래 조건에 해당하는 노트는 목록에 올리지 않으며, 템플릿 폴더(코어 템플릿·Templater 플러그인에 지정한 폴더)와 Excalidraw 그림은 자동으로 뺍니다.',
+			'제외 폴더·보관 폴더 안의 노트와 만든 지 유예 기간이 안 된 노트는 목록에 올리지 않으며, 켜 둔 코어 템플릿·Templater 플러그인의 템플릿 폴더와 Excalidraw 그림도 자동으로 뺍니다.',
 		excludedFoldersName: '제외 폴더',
-		excludedFoldersDesc: '쉼표(,)로 구분합니다. 하위 폴더도 함께 빠집니다. 예: Templates, Daily',
+		excludedFoldersDesc: '쉼표(,)로 구분합니다. 하위 폴더도 함께 빠지며, 대소문자는 가리지 않습니다. 예: Templates, Daily',
 		graceDaysName: '새 노트 유예 기간(일)',
-		graceDaysDesc: '만든 지 이 기간이 지나지 않은 노트는 목록에 올리지 않습니다. 0이면 바로 올립니다. 비워두면 기본값(7)으로 돌아갑니다.',
+		graceDaysDesc:
+			'만든 지 이 기간이 지나지 않은 노트는 목록에 올리지 않습니다(만든 날짜와 수정일 중 이른 날 기준). 0이면 바로 올립니다. 비워두면 기본값(7)으로 돌아갑니다.',
 		deferTagsName: '미룸 태그',
 		deferTagsDesc:
-			'이 태그가 붙은 노트를 목록 앞쪽에 보여 줍니다. 쉼표로 구분하고 #은 빼고 적습니다. 하위 태그(예: todo/업무)도 포함됩니다.',
+			'다시 볼 노트 중 이 태그가 붙은 노트를 목록 앞쪽에 보여 줍니다. 쉼표로 구분하고 #은 빼고 적습니다. 하위 태그(예: todo/업무)도 포함되며, 대소문자는 가리지 않습니다.',
 		archiveFolderName: '보관 폴더',
 		archiveFolderDesc:
 			'노트 카드의 [보관함]을 누르면 노트를 이 폴더로 옮깁니다(링크는 Obsidian이 알아서 고칩니다). 폴더가 없으면 만들고, 이 폴더의 노트는 목록에 올리지 않습니다. 비워두면 기본값(Archive)으로 돌아갑니다.',
 		scheduleIntro:
-			'[나중에]를 누른 노트를 언제 다시 보여 줄지, 하루에 몇 개씩 챙길지 정합니다. ' +
-			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트부터, 그다음 오래전에 미룬 순서로 보여 줍니다.',
+			'[나중에]에서 고를 기간, 하루에 챙길 노트 수, 되돌리기 알림 시간, 하루 한 번 알림을 정합니다. ' +
+			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트가 앞에 오고(둘 다면 맨 앞), 나머지는 오래 손대지 않은 순서(미룬 적 있으면 미룬 때, 없으면 마지막으로 고친 때 기준)입니다.',
 		snoozeName: '나중에 기본 기간(일)',
 		snoozeDesc:
-			'[나중에]를 누르면 나오는 기간 중 맨 위(기본)입니다. 고른 기간이 지나면 노트가 다시 목록에 올라옵니다. 비워두면 기본값(7)으로 돌아갑니다.',
+			'[나중에]를 누르면 나오는 기간 중 맨 위(기본)입니다. 누른 날부터 고른 기간이 지나면 노트가 다시 목록에 올라오며, 이미 미뤄 둔 노트에는 그때 고른 기간이 그대로 적용됩니다. 비워두면 기본값(7)으로 돌아갑니다.',
 		snooze2Name: '나중에 기간 2(일)',
 		snooze2Desc: '[나중에]에서 두 번째로 고를 수 있는 기간입니다. 비워두면 기본값(30)으로 돌아갑니다.',
 		snooze3Name: '나중에 기간 3(일)',
@@ -403,13 +405,13 @@ const ko = {
 			'[나중에]에서 세 번째로 고를 수 있는 기간입니다. 다 읽은 노트를 오래 미룰 때 씁니다. 비워두면 기본값(90)으로 돌아갑니다.',
 		dailyLimitName: '하루 표시 개수',
 		dailyLimitDesc:
-			'하루에 챙길 노트 수입니다. [나중에]를 누르거나 보관·삭제한 노트가 이 수에 들어가며, 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
+			'하루에 챙길 노트 수입니다. [나중에]·[보관함]·[삭제]로 처리한 노트가 이 수에 들어가며(되돌리면 빠집니다), 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
 		undoSecondsName: '되돌리기 알림 시간(초)',
 		undoSecondsDesc:
 			'[나중에]·[보관함]·[삭제]를 누른 뒤 [되돌리기]가 있는 알림을 보여 주는 시간입니다. 알림에 남은 시간이 함께 보이며, [삭제]한 노트는 이 시간이 지나야 휴지통으로 보냅니다. 비워두면 기본값(6)으로 돌아갑니다.',
-		notifyName: '켤 때 알림',
+		notifyName: '하루 한 번 알림',
 		notifyDesc:
-			'그날 처음 Obsidian을 켰을 때 다시 볼 노트가 있으면 알림을 한 번 띄웁니다. 켜 둔 채 날이 바뀌면 Obsidian 창을 보고 있을 때 띄웁니다.',
+			'그날 처음 Obsidian을 켰을 때(켜 둔 채 날이 바뀌었다면 Obsidian 창을 보고 있을 때) 다시 볼 노트가 있으면 알림을 한 번 띄웁니다.',
 	},
 	license: {
 		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_BOOK).
@@ -434,7 +436,7 @@ const en: Dictionary = {
 			'\t1. AI-assisted note writing and editing, with review of changes\n' +
 			'\t2. Link suggestions between related knowledge notes\n' +
 			'\t3. Automatic summaries of documents, emails, and PDFs turned into notes\n' +
-			'\t4. Reminders for knowledge notes that are outdated or need updating\n\n' +
+			'\t4. Reminders for knowledge notes you have not revisited in a while\n\n' +
 			'Built to work even in company environments with restricted internet access, it can use AI models on your company server or on your own local machine.\n',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
@@ -457,7 +459,7 @@ const en: Dictionary = {
 		},
 		link: { name: 'Link', desc: 'Suggest links between related knowledge notes.' },
 		templater: { name: 'Templater', desc: 'Automatically summarize documents, emails, and PDFs into new notes.' },
-		reminder: { name: 'Reminder', desc: 'Remind you of knowledge notes that are outdated or need updating.' },
+		reminder: { name: 'Reminder', desc: 'Bring back a few knowledge notes you have not revisited in a while, every day.' },
 	},
 	sections: {
 		llm: 'LLM connection',
@@ -745,49 +747,52 @@ const en: Dictionary = {
 		scopeNote: 'Only notes in this vault are checked, and neither their content nor the list is sent anywhere.',
 		doneToday: "You have gone through today's notes. To read more, select [Show more] below.",
 		nothingDue: 'No notes to revisit right now.',
-		moreButton: 'Show {count} more',
-		reasonNew: 'New in the list',
+		moreButton: 'Show more ({count})',
+		reasonNeverPostponed: 'Never postponed',
 		reasonPostponed: 'Postponed {days} days ago',
 		reasonOrphan: 'No incoming links',
 		laterButton: 'Later',
-		laterTooltip: 'Choose when to show it again',
-		laterChoice: 'Show again in {days} days',
-		postponedNotice: '{name} — it will show up again in {days} days.',
+		laterTooltip: 'Choose how many days until it returns to the list',
+		laterChoice: 'In {days} days',
+		postponedNotice: '{name} — it returns to the list in {days} days.',
 		archivedNotice: '{name} — moved to the {folder} folder.',
-		deletedNotice: '{name} — it goes to the trash when this notice closes.',
+		deletedNotice: '{name} — it goes to the trash when the time runs out.',
 		undoButton: 'Undo',
 		undoCountdown: '({seconds}s)',
-		undoFailed: 'Could not undo. The note was already moved, or a note with the same name is at the original location.',
+		undoArchiveFailed:
+			'Could not undo. The note was moved or deleted in the meantime, or a note with the same name is at the original location.',
+		undoDeleteTooLate: 'Could not undo because the note is already in the trash. Restore it from the trash.',
 		chatButton: 'Open in chatbot',
-		chatTooltip: 'Open the note and put it above the input of a new conversation (you write and send the question)',
+		chatTooltip: 'Open the note, start a new conversation, and add the note as a chip above the input (you write and send the question)',
 		archiveButton: 'Archive',
 		archiveTooltip: 'Move to the archive folder ({folder})',
 		archiveExists: 'A note with the same name is already in the archive folder: {path}',
 		archiveFailed: 'Could not move the note to the archive folder.',
 		deleteButton: 'Delete',
 		deleteConfirmButton: 'Click again to delete',
-		deleteTooltip: 'Move to trash (click twice to confirm)',
+		deleteTooltip: 'Click twice to confirm; the note goes to the trash after the undo notice time',
 		deleteFailed: 'Could not delete the note.',
-		startupNotice: 'Reminder: {count} notes to revisit today. Click here to open.',
+		dailyNotice: 'Reminder: {count} notes to revisit today. Click here to open.',
 		targetsIntro:
 			'Checks every note (.md) in the vault where this plugin is installed. Other vaults and files outside the vault are never read, and neither note content nor the list is sent anywhere. ' +
-			'Notes matching the conditions below are left out of the list, and template folders (set in the core Templates or Templater plugin) and Excalidraw drawings are left out automatically.',
+			'Notes in the excluded or archive folders and notes younger than the grace period are not listed, and template folders of the enabled core Templates or Templater plugin and Excalidraw drawings are left out automatically.',
 		excludedFoldersName: 'Excluded folders',
-		excludedFoldersDesc: 'Separate with commas. Subfolders are excluded too, e.g. Templates, Daily',
+		excludedFoldersDesc: 'Separate with commas. Subfolders are excluded too, and case is ignored, e.g. Templates, Daily',
 		graceDaysName: 'Grace period for new notes (days)',
-		graceDaysDesc: 'Notes younger than this are not listed. 0 lists them right away. Leave empty to restore the default (7).',
+		graceDaysDesc:
+			'Notes younger than this are not listed (based on the earlier of the created and modified dates). 0 lists them right away. Leave empty to restore the default (7).',
 		deferTagsName: 'Deferral tags',
 		deferTagsDesc:
-			'Notes with these tags are shown first. Separate with commas and leave out the #. Nested tags (e.g. todo/work) count too.',
+			'Among notes to revisit, those with these tags are shown first. Separate with commas and leave out the #. Nested tags (e.g. todo/work) count too, and case is ignored.',
 		archiveFolderName: 'Archive folder',
 		archiveFolderDesc:
 			'[Archive] on a note card moves the note here (Obsidian updates links to it). The folder is created if missing, and notes in it are not listed. Leave empty to restore the default (Archive).',
 		scheduleIntro:
-			'Choose when a note marked [Later] comes back and how many notes to go through each day. ' +
-			'Notes without incoming links or with a deferral tag come first, then the ones postponed longest ago.',
+			'Set the periods offered by [Later], how many notes to go through each day, the undo notice time, and the daily notification. ' +
+			'Notes without incoming links or with a deferral tag come first (both puts a note at the top), then the ones left untouched longest (when postponed, or when last modified if never postponed).',
 		snoozeName: 'Default later period (days)',
 		snoozeDesc:
-			'The top (default) period offered by [Later]. The note comes back after the chosen period. Leave empty to restore the default (7).',
+			'The top (default) period offered by [Later]. The note returns to the list once the chosen period has passed since the day you pressed it; notes already postponed keep the period chosen then. Leave empty to restore the default (7).',
 		snooze2Name: 'Later period 2 (days)',
 		snooze2Desc: 'The second period offered by [Later]. Leave empty to restore the default (30).',
 		snooze3Name: 'Later period 3 (days)',
@@ -795,13 +800,13 @@ const en: Dictionary = {
 			'The third period offered by [Later], for putting off notes you have already read for a long time. Leave empty to restore the default (90).',
 		dailyLimitName: 'Notes per day',
 		dailyLimitDesc:
-			'How many notes to go through each day. Notes marked [Later], archived, or deleted count toward it, and [Show more] below the list shows more. Leave empty to restore the default (5).',
+			'How many notes to go through each day. Notes handled with [Later], [Archive], or [Delete] count toward it (undoing removes them), and [Show more] below the list shows more. Leave empty to restore the default (5).',
 		undoSecondsName: 'Undo notice time (seconds)',
 		undoSecondsDesc:
 			'How long the notice with [Undo] stays after [Later], [Archive], or [Delete]. The remaining time is shown in the notice, and a deleted note goes to the trash only after this time. Leave empty to restore the default (6).',
-		notifyName: 'Notify on startup',
+		notifyName: 'Daily notification',
 		notifyDesc:
-			'The first time you open Obsidian each day, show one notification if there are notes to revisit. If Obsidian stays open past midnight, it appears while you are using the Obsidian window.',
+			'Show one notification when there are notes to revisit, the first time you open Obsidian each day (or, if Obsidian stays open past midnight, while you are using the Obsidian window).',
 	},
 	license: {
 		summaryHeading: 'License & policy',

@@ -93,7 +93,7 @@ export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: Set
 
 	containerEl.createEl('p', { text: strings.scheduleIntro });
 
-	// 0일·0개는 뜻이 없으므로 1 이상으로 맞춥니다.
+	// 0일·0개·0초는 뜻이 없으므로 1 이상으로 맞춥니다.
 	const addAtLeastOne = (
 		key: 'snoozeDays' | 'snoozeDays2' | 'snoozeDays3' | 'dailyLimit' | 'undoSeconds',
 		name: string,
@@ -117,8 +117,8 @@ export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: Set
 		.setName(strings.notifyName)
 		.setDesc(strings.notifyDesc)
 		.addToggle((toggle) =>
-			toggle.setValue(reminder.notifyOnStartup).onChange((value) => {
-				reminder.notifyOnStartup = value;
+			toggle.setValue(reminder.dailyNotice).onChange((value) => {
+				reminder.dailyNotice = value;
 				ctx.saveSoon();
 			}),
 		);

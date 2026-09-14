@@ -21,7 +21,7 @@ function isStringArray(value: unknown): value is string[] {
 
 export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
-	// 리마인더의 [나중에] 기록(reminder.json)
+	// 리마인더 기록([나중에]를 누른 때·고른 기간, 오늘 챙긴 수, 알림 띄운 날 — reminder.json)
 	reminderStore!: ReminderStore;
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
@@ -149,8 +149,8 @@ export default class IntraCopilotPlugin extends Plugin {
 		for (const key of ['snoozeDays', 'snoozeDays2', 'snoozeDays3', 'dailyLimit', 'undoSeconds'] as const) {
 			reminder[key] = Math.max(1, nonNegativeInt(reminder[key], reminderDefaults[key]));
 		}
-		if (typeof reminder.notifyOnStartup !== 'boolean') {
-			reminder.notifyOnStartup = reminderDefaults.notifyOnStartup;
+		if (typeof reminder.dailyNotice !== 'boolean') {
+			reminder.dailyNotice = reminderDefaults.dailyNotice;
 		}
 	}
 

@@ -22,12 +22,11 @@ import { featureIcon } from './settings/features';
 
 // 리마인더 화면(오른쪽 사이드바)입니다. 한 번 써 두고 묻힌 노트를 하루 몇 개씩 다시 보여 줍니다.
 //
-// 범위: 이 플러그인이 설치된 볼트 안의 노트(.md)만 살펴봅니다. Obsidian이 이미 모아 둔 정보(파일 목록,
-// 링크, 태그)를 읽을 뿐 노트 내용을 따로 읽지 않으며, 어디로도 보내지 않습니다.
+// 범위: 이 플러그인이 설치된 볼트 안의 노트(.md)만 살펴봅니다. Obsidian이 이미 모아 둔 정보(파일 목록·날짜,
+// 링크, 태그·속성)와 템플릿 플러그인의 폴더 설정을 읽을 뿐 노트 본문을 따로 읽지 않으며, 어디로도 보내지 않습니다.
 // 어떤 노트를 고르는지는 reminder/due-notes.ts, 기록은 reminder/reminder-store.ts에 있습니다.
 
 export const REMINDER_VIEW_TYPE = 'intra-copilot-reminder-view';
-
 
 type TodayList = { due: DueNote[]; shown: DueNote[] };
 
@@ -66,7 +65,7 @@ export function registerReminder(plugin: IntraCopilotPlugin): void {
 		}),
 	);
 
-	// 알림에 쓰는 개수는 기록·만든 날짜로만 정해져서(링크·태그는 순서에만 쓰임), Obsidian이 링크 정보를
+	// 알림에 쓰는 개수는 기록·날짜·폴더로 정해져서(링크·태그는 순서에만 쓰임), Obsidian이 링크 정보를
 	// 다 모으기 전에 세어도 맞습니다.
 	let checkedDay = today();
 	workspace.onLayoutReady(() => notifyDueNotes(plugin));
@@ -85,10 +84,10 @@ export function registerReminder(plugin: IntraCopilotPlugin): void {
 }
 
 function notifyDueNotes(plugin: IntraCopilotPlugin): void {
-	if (!plugin.settings.reminder.notifyOnStartup) return;
+	if (!plugin.settings.reminder.dailyNotice) return;
 	const count = todayList(plugin).shown.length;
 	if (count === 0 || !plugin.reminderStore.takeDailyNotice()) return;
-	const text = t(plugin.settings.general.language).reminder.startupNotice.replace('{count}', String(count));
+	const text = t(plugin.settings.general.language).reminder.dailyNotice.replace('{count}', String(count));
 	new Notice(
 		createFragment((fragment) => {
 			fragment.createSpan({ text }).addEventListener('click', () => void revealReminderView(plugin));
@@ -133,7 +132,7 @@ function folderPath(value: unknown): string {
 	return path === '/' ? '' : path;
 }
 
-// 템플릿을 모아 둔 폴더(코어 "템플릿" 플러그인, Templater). 템플릿은 다시 읽을 지식 노트가 아니라서 자동으로 뺍니다.
+// 켜 둔 코어 "템플릿" 플러그인·Templater에 지정한 템플릿 폴더. 템플릿은 다시 읽을 지식 노트가 아니라서 자동으로 뺍니다.
 // 두 플러그인 모두 설정을 읽는 공개 API가 없어 내부 값을 읽으며, 구조가 바뀌어 못 읽으면 조용히 건너뜁니다.
 function templateFolders(app: App): string[] {
 	const internal = app as unknown as {
@@ -184,15 +183,15 @@ function todayList(plugin: IntraCopilotPlugin): TodayList {
 	return { due, shown: due.slice(0, plugin.reminderStore.remainingToday(reminder.dailyLimit)) };
 }
 
-// 화면에 보이는 것(오늘 보여 줄 노트와 그 이유, 더 보기 개수)이 달라졌는지 비교하는 열쇠
+// 화면에 보이는 것을 정하는 값(오늘 보여 줄 노트와 그 이유, 다시 볼 노트 전체 수)이 달라졌는지 비교하는 열쇠
 function listKey(list: TodayList): string {
 	return JSON.stringify([list.shown, list.due.length]);
 }
 
 function describeReason(reason: DueReason, strings: ReminderStrings): string {
 	switch (reason.kind) {
-		case 'new':
-			return strings.reasonNew;
+		case 'neverPostponed':
+			return strings.reasonNeverPostponed;
 		case 'postponed':
 			return strings.reasonPostponed.replace('{days}', String(reason.days));
 		case 'orphan':
@@ -254,7 +253,7 @@ export class ReminderView extends ItemView {
 		return t(this.plugin.settings.general.language).reminder;
 	}
 
-	// 버튼을 누르거나 노트 이름이 바뀌거나 설정이 바뀔 때 목록을 새로 계산해 그립니다.
+	// 카드 버튼을 누르거나, 노트 이름이 바뀌거나 지워지거나, 설정·날짜가 바뀔 때 목록을 새로 계산해 그립니다.
 	render(): void {
 		this.draw(todayList(this.plugin));
 	}
@@ -289,7 +288,7 @@ export class ReminderView extends ItemView {
 			if (file) this.renderCard(contentEl, file, note, strings);
 		}
 
-		// 오늘 몫을 넘어 더 읽고 싶을 때: 남은 노트를 하루 표시 개수만큼 더 보여 줍니다(그날 동안 유지).
+		// 오늘 몫을 넘어 더 읽고 싶을 때: 남은 노트를 하루 표시 개수까지 더 보여 줍니다(그날 동안 유지).
 		const more = Math.min(reminder.dailyLimit, due.length - shown.length);
 		if (more > 0) {
 			new ButtonComponent(contentEl)
@@ -327,7 +326,7 @@ export class ReminderView extends ItemView {
 			() => void this.openInNewChat(file),
 		);
 
-		// 보관·삭제는 파일을 옮기는 동안 시간이 걸립니다. 그사이 한 번 더 눌려 같은 일을 두 번 하지 않게 버튼을 잠급니다
+		// [보관함]은 파일을 옮기는 동안 시간이 걸립니다. 그사이 한 번 더 눌려 같은 일을 두 번 하지 않게 버튼을 잠급니다
 		// (끝나면 목록을 새로 그리므로 다시 풀 필요가 없습니다).
 		const archive = addAction(
 			actions,
@@ -388,6 +387,7 @@ export class ReminderView extends ItemView {
 
 	// 노트를 열고 새 대화를 시작해 그 노트를 칩으로 올립니다. 챗봇은 질문할 때 열려 있는 노트만 고칠 수 있어서
 	// 노트도 함께 엽니다. 질문은 사용자가 직접 써서 보냅니다(누르는 것만으로는 아무것도 전송하지 않음).
+	// 챗봇이 답변을 기다리는 중이면 새 대화를 시작하지 않고 안내만 합니다(노트는 열림).
 	private async openInNewChat(file: TFile): Promise<void> {
 		await this.openNote(file);
 		await revealChatView(this.plugin);
@@ -434,7 +434,7 @@ export class ReminderView extends ItemView {
 			await fileManager.renameFile(file, originalPath);
 			this.plugin.reminderStore.uncountHandled();
 		} catch {
-			new Notice(this.strings().undoFailed);
+			new Notice(this.strings().undoArchiveFailed);
 		}
 		refreshReminderViews(this.plugin);
 	}
@@ -462,7 +462,7 @@ export class ReminderView extends ItemView {
 		showUndoNotice(this.plugin, strings.deletedNotice.replace('{name}', file.basename), () => {
 			// 시간이 막 지나 이미 휴지통으로 보냈다면 되돌릴 수 없습니다.
 			if (!pendingTrash.delete(file)) {
-				new Notice(strings.undoFailed);
+				new Notice(strings.undoDeleteTooLate);
 				return;
 			}
 			window.clearTimeout(timer);

@@ -5,14 +5,14 @@ import type { NoteRecord } from './due-notes';
 
 // 리마인더 기록입니다. 플러그인 폴더의 reminder.json에 저장하고, 노트 파일에는 아무것도 쓰지 않습니다.
 // 노트에 날짜를 적으면 [나중에]만 눌러도 노트가 "수정"되어 수정일·동기화·백업에 흔적이 남기 때문입니다.
-// 대신 플러그인 폴더를 통째로 지우면 기록도 사라집니다(모든 노트가 "처음 올라온 노트"로 돌아감).
+// 대신 플러그인 폴더를 통째로 지우면 기록도 사라집니다(모든 노트가 "미룬 적 없음"으로 돌아감).
 
 interface ReminderData {
 	notes: Record<string, NoteRecord>; // 노트 경로 → [나중에]를 누른 때·고른 기간
 	day: string; // 아래 두 수를 센 날(YYYY-MM-DD). 날짜가 바뀌면 0부터 다시 셉니다.
 	handled: number; // 그날 챙긴 노트 수([나중에]·보관·삭제)
 	extra: number; // 그날 [더 보기]로 늘린 개수
-	notifiedDay: string; // 켤 때 알림을 마지막으로 띄운 날
+	notifiedDay: string; // 하루 한 번 알림을 마지막으로 띄운 날
 }
 
 export function today(): string {
@@ -93,7 +93,7 @@ export class ReminderStore {
 		this.save();
 	}
 
-	// 되돌리기: 오늘 챙긴 수에서 하나 뺍니다(날짜가 이미 바뀌었으면 셀 것이 없음).
+	// [되돌리기]나 삭제 실패 때: 오늘 챙긴 수에서 하나 뺍니다(날짜가 이미 바뀌었으면 뺄 것이 없음).
 	uncountHandled(): void {
 		if (this.data.day === today() && this.data.handled > 0) this.data.handled -= 1;
 		this.save();
@@ -104,7 +104,7 @@ export class ReminderStore {
 		this.save();
 	}
 
-	// 오늘 아직 켤 때 알림을 띄우지 않았으면 true를 돌려주고, 띄운 것으로 기록합니다.
+	// 오늘 아직 하루 한 번 알림을 띄우지 않았으면 true를 돌려주고, 띄운 것으로 기록합니다.
 	takeDailyNotice(): boolean {
 		const day = today();
 		if (this.data.notifiedDay === day) return false;
@@ -113,8 +113,8 @@ export class ReminderStore {
 		return true;
 	}
 
-	// Obsidian 안에서 노트·폴더 이름을 바꾸거나 지우면 그 아래 노트의 기록도 따라 바꾸거나 지웁니다.
-	// (Obsidian 밖에서 바꾸면 기록이 끊겨 "처음 올라온 노트"로 다시 올라옵니다.)
+	// Obsidian 안에서 노트·폴더 이름을 바꾸거나 옮기거나 지우면 그 아래 노트의 기록도 따라 바꾸거나 지웁니다.
+	// (Obsidian 밖에서 바꾸면 기록이 끊겨 "미룬 적 없음"으로 다시 올라옵니다.)
 	rename(oldPath: string, newPath: string): void {
 		this.move(oldPath, newPath);
 	}

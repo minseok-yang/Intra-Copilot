@@ -30,17 +30,17 @@ export interface LlmSettings {
 
 // 리마인더 설정입니다. [나중에] 기록은 설정이 아니라 reminder.json에 따로 저장합니다.
 export interface ReminderSettings {
-	excludedFolders: string[]; // 볼트 기준 폴더 경로. 하위 폴더도 함께 빠집니다.
-	graceDays: number; // 만든 지 이 일수가 안 된 노트는 대상에서 뺍니다(0이면 바로 대상).
-	deferTags: string[]; // '#' 없이. 이 태그(와 하위 태그)가 붙은 노트를 앞에 보여 줍니다.
-	archiveFolder: string; // [보관]으로 옮길 폴더. 이 폴더의 노트는 대상에서 빠집니다.
+	excludedFolders: string[]; // 볼트 기준 폴더 경로. 하위 폴더도 함께 빠지며, 대소문자는 가리지 않습니다.
+	graceDays: number; // 만든 지 이 일수가 안 된 노트는 대상에서 뺍니다(만든 날짜·수정일 중 이른 날 기준, 0이면 바로 대상).
+	deferTags: string[]; // '#' 없이. 이 태그(와 하위 태그)가 붙은 노트를 다시 볼 노트 중 앞에 보여 줍니다.
+	archiveFolder: string; // [보관함]으로 옮길 폴더. 이 폴더의 노트는 대상에서 빠집니다.
 	// [나중에 ▾]에서 고르는 세 기간(일). snoozeDays가 맨 위(기본)이고, 기간을 따로 기록하지 않은 노트에도 씁니다.
 	snoozeDays: number;
 	snoozeDays2: number;
 	snoozeDays3: number;
-	undoSeconds: number; // [나중에]·[보관함]·[삭제] 뒤 [되돌리기] 알림을 보여 주는 시간(초). [삭제]는 이 시간 뒤에 실제로 지움
+	undoSeconds: number; // [나중에]·[보관함]·[삭제] 뒤 [되돌리기] 알림을 보여 주는 시간(초). [삭제]는 이 시간 뒤에 휴지통으로 보냄
 	dailyLimit: number; // 하루에 챙길 노트 수
-	notifyOnStartup: boolean; // 그날 처음 Obsidian을 켤 때 알림
+	dailyNotice: boolean; // 하루 한 번 알림(그날 처음 켤 때, 켜 둔 채 날이 바뀌면 창을 보고 있을 때)
 }
 
 export interface IntraCopilotSettings {
@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		snoozeDays3: 90,
 		undoSeconds: 6,
 		dailyLimit: 5,
-		notifyOnStartup: true,
+		dailyNotice: true,
 	},
 };
 
