@@ -697,9 +697,57 @@
 	font-size: var(--font-ui-small);
 }
 
-.intra-copilot-license-summary {
-	color: var(--text-muted);
+/* ─── 설정 "일반" 탭 맨 위의 플러그인 소개 ─────────────────────────
+   처음 쓰는 동료가 보는 첫 화면입니다. 이름 → 무엇을 하는지 → 무엇이 전송되는지 →
+   문서 버튼 순서로, 위에서부터 읽어 내려가면 되도록 둡니다. */
+.intra-copilot-intro {
+	margin-bottom: 18px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.intra-copilot-intro-text {
+	margin: 0 0 6px;
+	color: var(--text-normal);
 	font-size: var(--font-ui-small);
+	line-height: 1.5;
+}
+
+/* 무엇이 서버로 나가는지 — 사내에서 가장 중요한 정보라 자물쇠 표시와 함께 눈에 띄게 둡니다. */
+.intra-copilot-intro-privacy {
+	margin: 0 0 12px;
+	padding-left: 20px;
+	position: relative;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.5;
+}
+
+.intra-copilot-intro-privacy::before {
+	content: '🔒';
+	position: absolute;
+	left: 0;
+}
+
+.intra-copilot-intro-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* 서버를 아직 설정하지 않았을 때만 보이는 시작 안내 */
+.intra-copilot-setup-hint {
+	margin-bottom: 18px;
+	padding: 10px 12px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-setup-hint p {
+	margin: 4px 0 0;
+	color: var(--text-muted);
+	line-height: 1.5;
 }
 
 .intra-copilot-license-meta {

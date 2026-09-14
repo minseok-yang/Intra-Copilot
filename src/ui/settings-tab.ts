@@ -139,35 +139,38 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		activeTab.render(content);
 	}
 
+	// 일반 탭 = 이 플러그인의 첫인상입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록
+	// "이게 뭔지 → 어떻게 시작하는지 → 설정값 → 부차적인 정보(버전·라이선스)" 순서로 둡니다.
+	// (예전에는 라이선스 고지가 맨 위를 차지하고 사용법이 맨 아래에 묻혀 있었습니다.)
 	private renderGeneralTab(containerEl: HTMLElement): void {
 		const language = this.plugin.settings.general.language;
 		const strings = t(language).general;
-		const licenseStrings = t(language).license;
 
-		// 라이선스/정책 요약 — 일반 탭 맨 위. 세부 내용은 [자세히 보기]에서 새 창으로 봅니다.
-		new Setting(containerEl).setName(licenseStrings.summaryHeading).setHeading();
-		containerEl.createEl('p', {
-			cls: 'intra-copilot-license-summary',
-			text: licenseStrings.summaryText,
-		});
+		// ① 이게 뭔지 — 소개 한 문단과, 문서를 여는 버튼 두 개.
+		// (플러그인 이름은 Obsidian이 설정 화면 맨 위에 이미 보여주므로 따로 넣지 않습니다.)
+		const intro = containerEl.createDiv({ cls: 'intra-copilot-intro' });
+		intro.createEl('p', { cls: 'intra-copilot-intro-text', text: strings.introText });
+		// 무엇이 서버로 나가는지는 사내에서 가장 중요한 정보라, 문서 안에 묻지 않고 여기 한 줄로 둡니다.
+		intro.createEl('p', { cls: 'intra-copilot-intro-privacy', text: strings.privacyNote });
 
-		const meta = containerEl.createEl('dl', { cls: 'intra-copilot-license-meta' });
-		const addMetaRow = (label: string, value: string) => {
-			meta.createEl('dt', { text: label });
-			meta.createEl('dd', { text: value });
-		};
-		addMetaRow(licenseStrings.versionLabel, this.plugin.manifest.version);
-		addMetaRow(licenseStrings.descriptionLabel, this.plugin.manifest.description ?? '');
-		addMetaRow(licenseStrings.publisherLabel, this.plugin.manifest.author ?? '');
+		const docButtons = intro.createDiv({ cls: 'intra-copilot-intro-buttons' });
+		new ButtonComponent(docButtons)
+			.setButtonText(strings.guideButton)
+			.setCta()
+			.onClick(() => void openGuideWindow(this.plugin, 'guide'));
+		new ButtonComponent(docButtons)
+			.setButtonText(strings.licenseButton)
+			.onClick(() => void openGuideWindow(this.plugin, 'license'));
 
-		new Setting(containerEl).addButton((button) =>
-			button.setButtonText(licenseStrings.detailButton).onClick(() => {
-				void openGuideWindow(this.plugin, 'license');
-			}),
-		);
+		// ② 어떻게 시작하는지 — 아직 서버를 설정하지 않았을 때만 보여줍니다(설정한 뒤엔 군더더기).
+		if (!this.plugin.settings.llm.baseUrl) {
+			const setup = containerEl.createDiv({ cls: 'intra-copilot-setup-hint' });
+			setup.createEl('strong', { text: strings.setupHeading });
+			setup.createEl('p', { text: strings.setupSteps });
+		}
 
-		new Setting(containerEl).setName(strings.heading).setHeading();
-
+		// ③ 설정값
+		new Setting(containerEl).setName(strings.displayHeading).setHeading();
 		new Setting(containerEl)
 			.setName(strings.languageName)
 			.setDesc(strings.languageDesc)
@@ -184,14 +187,23 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		new Setting(containerEl)
-			.setName(strings.guideName)
-			.setDesc(strings.guideDesc)
-			.addButton((button) =>
-				button.setButtonText(strings.guideButton).onClick(() => {
-					void openGuideWindow(this.plugin, 'guide');
-				}),
-			);
+		// ④ 부차적인 정보 — 맨 아래
+		this.renderPluginInfo(containerEl, language);
+	}
+
+	// 버전·제작자. 평소에는 볼 일이 없지만 문제를 알릴 때 필요한 정보라 맨 아래에 작게 둡니다.
+	private renderPluginInfo(containerEl: HTMLElement, language: UiLanguage): void {
+		const strings = t(language).general;
+		const licenseStrings = t(language).license;
+
+		new Setting(containerEl).setName(strings.infoHeading).setHeading();
+		const meta = containerEl.createEl('dl', { cls: 'intra-copilot-license-meta' });
+		const addMetaRow = (label: string, value: string) => {
+			meta.createEl('dt', { text: label });
+			meta.createEl('dd', { text: value });
+		};
+		addMetaRow(licenseStrings.versionLabel, this.plugin.manifest.version);
+		addMetaRow(licenseStrings.publisherLabel, this.plugin.manifest.author ?? '');
 	}
 
 	private renderLlmTab(containerEl: HTMLElement): void {

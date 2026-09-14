@@ -17,13 +17,25 @@ const ko = {
 		skills: '스킬',
 	},
 	general: {
-		heading: '표시 및 도움말',
+		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지 → 어떻게 시작하는지 → 설정값 →
+		// 부차적인 정보(버전·라이선스)"입니다. 처음 쓰는 동료가 위에서부터 읽어 내려가면 되도록.
+		introText:
+			'사내 폐쇄망에서 쓰는 Obsidian 챗봇입니다. 사내 LLM 서버와 대화하고, 노트를 읽혀 묻고, ' +
+			'챗봇이 제안한 수정을 하나씩 확인한 뒤 [적용]을 눌러 노트에 반영합니다.',
+		// 소개 아래 한 줄. 전송 정책의 핵심만 짧게 — 자세한 내용은 [라이선스 및 정책] 버튼으로 봅니다.
+		privacyNote:
+			'노트 내용은 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
+		guideButton: '사용자 가이드',
+		licenseButton: '라이선스 및 정책',
+		// 아직 서버를 설정하지 않았을 때만 보이는 안내
+		setupHeading: '처음 설정하기',
+		setupSteps:
+			'① 위의 [LLM 연결] 탭에서 서버 주소를 입력하고 ② [연결 확인]으로 모델을 고른 뒤 ③ 왼쪽 리본의 봇 아이콘으로 챗봇을 엽니다.',
+		displayHeading: '표시',
 		languageName: '표시 언어',
 		languageDesc:
 			'플러그인 화면(설정·챗봇)에 쓰이는 언어를 바꿉니다. 사용자 가이드와 라이선스 문서는 한국어로만 제공됩니다.',
-		guideName: '사용자 가이드',
-		guideDesc: '플러그인 사용법 안내 문서를 새 창으로 엽니다. (초안)',
-		guideButton: '열기',
+		infoHeading: '정보',
 	},
 	llm: {
 		heading: 'LLM 서버 연결',
@@ -271,18 +283,10 @@ const ko = {
 		saved: '스킬을 저장했습니다.',
 	},
 	license: {
+		// 라이선스 문서 창의 제목입니다(본문은 content/docs.ts의 LICENSE_MD).
 		summaryHeading: '라이선스 및 정책',
-		summaryText:
-			'사내 폐쇄망 전용으로 만든 플러그인입니다. 설정에서 지정한 LLM 서버와만 통신하며, 보내는 내용은 사용자가 채팅에 입력한 글' +
-			'(이전 대화, 기본 지시문, 선택한 스킬의 지시문 포함), 챗봇 입력칸 위에 칩으로 올라와 있는 폴더·노트의 내용, 연결 확인용 테스트 문장뿐입니다. ' +
-			'칩에는 @로 직접 고른 것과, 지금 열려 있는 노트가 자동으로 올라옵니다. 즉 노트를 열어 둔 채 질문하면 그 노트 내용이 함께 전송되며, 칩의 ×로 빼면 전송하지 않습니다. ' +
-			'칩에 없는 노트는 전송되지 않습니다. ' +
-			'노트를 고치는 것은 챗봇 답변의 수정 카드에서 사용자가 [적용]을 누를 때뿐이며, 고치기 직전 원본은 플러그인 폴더에 보관됩니다. ' +
-			'(초안 — 정식 배포 전 검토가 필요합니다.)',
 		versionLabel: '버전',
-		descriptionLabel: '설명',
 		publisherLabel: '제작자',
-		detailButton: '자세히 보기',
 	},
 };
 
@@ -298,13 +302,21 @@ const en: Dictionary = {
 		skills: 'Skills',
 	},
 	general: {
-		heading: 'Display & help',
+		introText:
+			'An Obsidian chatbot for use inside a closed company network. Talk to your company LLM server, give it notes to read, ' +
+			'and review each suggested edit before pressing [Apply] to change the note.',
+		privacyNote:
+			'Note content never leaves the LLM server you configured, and only what is shown as a chip above the chat box is sent.',
+		guideButton: 'User guide',
+		licenseButton: 'License & policy',
+		setupHeading: 'Getting started',
+		setupSteps:
+			'① Enter the server address in the [LLM connection] tab above, ② pick a model with [Check connection], then ③ open the chatbot with the bot icon in the left ribbon.',
+		displayHeading: 'Display',
+		languageName: 'Display language',
 		languageDesc:
 			'Change the language used in this plugin (settings and chatbot). The user guide and license documents are available in Korean only.',
-		languageName: 'Display language',
-		guideName: 'User guide',
-		guideDesc: 'Open the plugin usage guide in a new window. (Draft)',
-		guideButton: 'Open',
+		infoHeading: 'About',
 	},
 	llm: {
 		heading: 'LLM server connection',
@@ -545,17 +557,8 @@ const en: Dictionary = {
 	},
 	license: {
 		summaryHeading: 'License & policy',
-		summaryText:
-			'Built for use inside a closed company network. The plugin only talks to the LLM server set in the settings, and sends only what you type in the chat ' +
-			'(including earlier messages, the default instructions, and the instructions of the skill you picked), the content of the folders and notes shown as chips above the chat box, and a test sentence when checking the connection. ' +
-			'Chips hold what you picked with @, plus the note you currently have open, which is added automatically. So asking a question while a note is open sends that note; remove the chip with × to stop sending it. ' +
-			'Notes that are not in a chip are never sent. ' +
-			'Notes are only edited when you press [Apply] on a suggested edit in a chat answer, and the note is backed up in the plugin folder first. ' +
-			'(Draft — review before real deployment.)',
 		versionLabel: 'Version',
-		descriptionLabel: 'Description',
 		publisherLabel: 'Author',
-		detailButton: 'View details',
 	},
 };
 

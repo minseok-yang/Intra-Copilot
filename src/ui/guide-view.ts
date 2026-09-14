@@ -27,7 +27,7 @@ function resolveDoc(plugin: IntraCopilotPlugin, docId: GuideDocId): { title: str
 		case 'license':
 			return { title: strings.license.summaryHeading, markdown: LICENSE_MD };
 		case 'guide':
-			return { title: strings.general.guideName, markdown: USER_GUIDE_MD };
+			return { title: strings.general.guideButton, markdown: USER_GUIDE_MD };
 	}
 }
 
