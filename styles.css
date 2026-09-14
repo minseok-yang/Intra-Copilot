@@ -1365,6 +1365,13 @@ button.intra-copilot-doc-card:hover {
 	height: 14px;
 }
 
+/* [되돌리기] 알림의 남은 초. 숫자 폭을 고정해 줄어들 때 글자가 흔들리지 않게 합니다. */
+.intra-copilot-undo-countdown {
+	margin-left: 4px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
 /* 두 번 눌러 확정 상태의 붉은 글자(delete-armed)가 붉은 배경에 묻히지 않게 합니다. */
 .intra-copilot-reminder-action.mod-warning.intra-copilot-delete-armed {
 	color: var(--text-on-accent);

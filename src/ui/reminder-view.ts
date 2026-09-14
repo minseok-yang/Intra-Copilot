@@ -28,9 +28,6 @@ import { featureIcon } from './settings/features';
 
 export const REMINDER_VIEW_TYPE = 'intra-copilot-reminder-view';
 
-// [나중에]에서 고를 수 있는 기간(일). 설정의 나중에 기본 기간이 맨 위에 붙습니다.
-const LATER_CHOICES = [30, 90];
-const UNDO_NOTICE_MS = 6000;
 
 type TodayList = { due: DueNote[]; shown: DueNote[] };
 
@@ -97,18 +94,33 @@ function notifyDueNotes(plugin: IntraCopilotPlugin): void {
 	);
 }
 
-// 방금 한 일을 알리고 [되돌리기]를 잠깐 보여 줍니다. 목록에서 사라진 노트를 다시 찾을 방법이 따로 없기 때문입니다.
-function showUndoNotice(message: string, undoLabel: string, undo: () => void): void {
+// 방금 한 일을 알리고 [되돌리기]를 설정한 시간 동안 보여 줍니다. 목록에서 사라진 노트를 다시 찾을 방법이
+// 따로 없기 때문입니다. 언제 사라지는지 알 수 있게 남은 초를 1초마다 줄여 보여 줍니다.
+function showUndoNotice(plugin: IntraCopilotPlugin, message: string, undo: () => void): void {
+	const strings = t(plugin.settings.general.language).reminder;
+	let secondsLeft = plugin.settings.reminder.undoSeconds;
+	const countdownText = () => strings.undoCountdown.replace('{seconds}', String(secondsLeft));
+	const countdown = createSpan({ cls: 'intra-copilot-undo-countdown', text: countdownText() });
 	new Notice(
 		createFragment((fragment) => {
 			fragment.appendText(`${message} `);
-			fragment.createEl('a', { text: undoLabel, href: '#' }).addEventListener('click', (evt) => {
+			fragment.createEl('a', { text: strings.undoButton, href: '#' }).addEventListener('click', (evt) => {
 				evt.preventDefault();
 				undo();
 			});
+			fragment.append(countdown);
 		}),
-		UNDO_NOTICE_MS,
+		secondsLeft * 1000,
 	);
+	// 시간이 다 됐거나, 알림을 눌러 먼저 닫혀 화면에서 빠졌으면 멈춥니다.
+	const timer = window.setInterval(() => {
+		secondsLeft -= 1;
+		if (secondsLeft <= 0 || !countdown.isConnected) {
+			window.clearInterval(timer);
+			return;
+		}
+		countdown.setText(countdownText());
+	}, 1000);
 }
 
 // 폴더 설정값을 볼트 기준 경로로 맞춥니다. 비었거나 볼트 맨 위('/')면 ''(뺄 폴더 없음)입니다.
@@ -342,7 +354,9 @@ export class ReminderView extends ItemView {
 	private showLaterMenu(button: HTMLElement, file: TFile): void {
 		const strings = this.strings();
 		const menu = new Menu();
-		for (const days of new Set([this.plugin.settings.reminder.snoozeDays, ...LATER_CHOICES])) {
+		// 설정의 세 기간을 순서대로 보여 줍니다. 같은 값을 두 번 적었으면 한 번만 보입니다.
+		const { snoozeDays, snoozeDays2, snoozeDays3 } = this.plugin.settings.reminder;
+		for (const days of new Set([snoozeDays, snoozeDays2, snoozeDays3])) {
 			menu.addItem((item) =>
 				item.setTitle(strings.laterChoice.replace('{days}', String(days))).onClick(() => this.postpone(file, days)),
 			);
@@ -356,8 +370,8 @@ export class ReminderView extends ItemView {
 		const undo = this.plugin.reminderStore.postpone(file.path, days);
 		refreshReminderViews(this.plugin);
 		showUndoNotice(
+			this.plugin,
 			strings.postponedNotice.replace('{name}', file.basename).replace('{days}', String(days)),
-			strings.undoButton,
 			() => {
 				undo();
 				refreshReminderViews(this.plugin);
@@ -394,8 +408,8 @@ export class ReminderView extends ItemView {
 				await this.app.fileManager.renameFile(file, dest);
 				this.plugin.reminderStore.countHandled();
 				showUndoNotice(
+					this.plugin,
 					strings.archivedNotice.replace('{name}', file.basename).replace('{folder}', folder),
-					strings.undoButton,
 					() => void this.unarchive(file, originalPath),
 				);
 			} catch {

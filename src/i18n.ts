@@ -363,6 +363,7 @@ const ko = {
 		postponedNotice: '{name} — {days}일 뒤에 다시 보여 드립니다.',
 		archivedNotice: '{name} — {folder} 폴더로 옮겼습니다.',
 		undoButton: '되돌리기',
+		undoCountdown: '({seconds}초)',
 		undoFailed: '되돌리지 못했습니다. 노트가 이미 옮겨졌거나, 원래 자리에 같은 이름의 노트가 있습니다.',
 		chatButton: '챗봇으로 열기',
 		chatTooltip: '노트를 열고 새 대화의 입력칸 위에 올립니다 (질문은 직접 써서 보냅니다)',
@@ -393,10 +394,18 @@ const ko = {
 			'목록은 들어오는 링크가 없거나 미룸 태그가 붙은 노트부터, 그다음 오래전에 미룬 순서로 보여 줍니다.',
 		snoozeName: '나중에 기본 기간(일)',
 		snoozeDesc:
-			'[나중에]를 누르면 이 기간과 30일·90일 중에서 고르며, 이 기간이 맨 위에 옵니다. 고른 기간이 지나면 다시 목록에 올라옵니다. 비워두면 기본값(7)으로 돌아갑니다.',
+			'[나중에]를 누르면 나오는 기간 중 맨 위(기본)입니다. 고른 기간이 지나면 노트가 다시 목록에 올라옵니다. 비워두면 기본값(7)으로 돌아갑니다.',
+		snooze2Name: '나중에 기간 2(일)',
+		snooze2Desc: '[나중에]에서 두 번째로 고를 수 있는 기간입니다. 비워두면 기본값(30)으로 돌아갑니다.',
+		snooze3Name: '나중에 기간 3(일)',
+		snooze3Desc:
+			'[나중에]에서 세 번째로 고를 수 있는 기간입니다. 다 읽은 노트를 오래 미룰 때 씁니다. 비워두면 기본값(90)으로 돌아갑니다.',
 		dailyLimitName: '하루 표시 개수',
 		dailyLimitDesc:
 			'하루에 챙길 노트 수입니다. [나중에]를 누르거나 보관·삭제한 노트가 이 수에 들어가며, 목록 아래 [더 보기]로 더 볼 수 있습니다. 비워두면 기본값(5)으로 돌아갑니다.',
+		undoSecondsName: '되돌리기 알림 시간(초)',
+		undoSecondsDesc:
+			'[나중에]·[보관함]을 누른 뒤 [되돌리기]가 있는 알림을 보여 주는 시간입니다. 알림에 남은 시간이 함께 보입니다. 비워두면 기본값(6)으로 돌아갑니다.',
 		notifyName: '켤 때 알림',
 		notifyDesc:
 			'그날 처음 Obsidian을 켰을 때 다시 볼 노트가 있으면 알림을 한 번 띄웁니다. 켜 둔 채 날이 바뀌면 Obsidian 창을 보고 있을 때 띄웁니다.',
@@ -745,6 +754,7 @@ const en: Dictionary = {
 		postponedNotice: '{name} — it will show up again in {days} days.',
 		archivedNotice: '{name} — moved to the {folder} folder.',
 		undoButton: 'Undo',
+		undoCountdown: '({seconds}s)',
 		undoFailed: 'Could not undo. The note was already moved, or a note with the same name is at the original location.',
 		chatButton: 'Open in chatbot',
 		chatTooltip: 'Open the note and put it above the input of a new conversation (you write and send the question)',
@@ -775,10 +785,18 @@ const en: Dictionary = {
 			'Notes without incoming links or with a deferral tag come first, then the ones postponed longest ago.',
 		snoozeName: 'Default later period (days)',
 		snoozeDesc:
-			'[Later] lets you choose this period, 30 days, or 90 days, with this period at the top. The note comes back after the chosen period. Leave empty to restore the default (7).',
+			'The top (default) period offered by [Later]. The note comes back after the chosen period. Leave empty to restore the default (7).',
+		snooze2Name: 'Later period 2 (days)',
+		snooze2Desc: 'The second period offered by [Later]. Leave empty to restore the default (30).',
+		snooze3Name: 'Later period 3 (days)',
+		snooze3Desc:
+			'The third period offered by [Later], for putting off notes you have already read for a long time. Leave empty to restore the default (90).',
 		dailyLimitName: 'Notes per day',
 		dailyLimitDesc:
 			'How many notes to go through each day. Notes marked [Later], archived, or deleted count toward it, and [Show more] below the list shows more. Leave empty to restore the default (5).',
+		undoSecondsName: 'Undo notice time (seconds)',
+		undoSecondsDesc:
+			'How long the notice with [Undo] stays after [Later] or [Archive]. The remaining time is shown in the notice. Leave empty to restore the default (6).',
 		notifyName: 'Notify on startup',
 		notifyDesc:
 			'The first time you open Obsidian each day, show one notification if there are notes to revisit. If Obsidian stays open past midnight, it appears while you are using the Obsidian window.',

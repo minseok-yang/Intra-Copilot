@@ -146,7 +146,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		}
 		reminder.graceDays = nonNegativeInt(reminder.graceDays, reminderDefaults.graceDays);
 		// 0일·0개는 뜻이 없으므로 1 이상으로 맞춥니다.
-		for (const key of ['snoozeDays', 'dailyLimit'] as const) {
+		for (const key of ['snoozeDays', 'snoozeDays2', 'snoozeDays3', 'dailyLimit', 'undoSeconds'] as const) {
 			reminder[key] = Math.max(1, nonNegativeInt(reminder[key], reminderDefaults[key]));
 		}
 		if (typeof reminder.notifyOnStartup !== 'boolean') {
