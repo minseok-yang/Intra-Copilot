@@ -28,13 +28,12 @@ export interface LlmSettings {
 	lastVerified?: LlmVerification;
 }
 
-// 리마인더 설정입니다. [확인함]·[나중에] 기록은 설정이 아니라 reminder.json에 따로 저장합니다.
+// 리마인더 설정입니다. [나중에] 기록은 설정이 아니라 reminder.json에 따로 저장합니다.
 export interface ReminderSettings {
 	excludedFolders: string[]; // 볼트 기준 폴더 경로. 하위 폴더도 함께 빠집니다.
 	graceDays: number; // 만든 지 이 일수가 안 된 노트는 대상에서 뺍니다(0이면 바로 대상).
 	deferTags: string[]; // '#' 없이. 이 태그(와 하위 태그)가 붙은 노트를 앞에 보여 줍니다.
 	archiveFolder: string; // [보관]으로 옮길 폴더. 이 폴더의 노트는 대상에서 빠집니다.
-	intervalDays: number; // [확인함]을 누른 뒤 다시 보여 줄 때까지(일)
 	snoozeDays: number; // [나중에]를 누른 뒤 다시 보여 줄 때까지(일)
 	dailyLimit: number; // 하루에 챙길 노트 수
 	notifyOnStartup: boolean; // 그날 처음 Obsidian을 켤 때 알림
@@ -70,7 +69,6 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		graceDays: 7,
 		deferTags: ['someday', 'todo'],
 		archiveFolder: 'Archive',
-		intervalDays: 90,
 		snoozeDays: 7,
 		dailyLimit: 5,
 		notifyOnStartup: true,

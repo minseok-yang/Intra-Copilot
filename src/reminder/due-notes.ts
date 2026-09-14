@@ -3,13 +3,13 @@ import type { ReminderSettings } from '../settings';
 // 리마인더가 "다시 볼 노트"를 고르는 규칙입니다. Obsidian 없이 값만 받아 계산하므로 규칙을 바꿀 때는
 // 이 파일만 보면 됩니다. (볼트에서 값을 모으는 일은 ui/reminder-view.ts가 맡습니다.)
 //
-// 1. 대상에서 빼기: 제외 폴더·보관 폴더 안, 만든 지 유예 기간이 안 됨, [나중에] 기한 전, [확인함] 뒤 간격 전
+// 1. 대상에서 빼기: 제외 폴더·보관 폴더 안, 만든 지 유예 기간이 안 됨, [나중에]를 누른 지 나중에 기간이 안 됨
 // 2. 남은 노트는 모두 "다시 볼 노트"입니다. 들어오는 링크가 없거나 미룸 태그가 붙은 노트를 앞에,
 //    그다음은 오래 손대지 않은 순서로 둡니다.
 //
-// 기준은 파일 수정일이 아니라 [확인함]을 누른 날입니다. 노트를 USB로 옮기거나 동기화하면 수정일이
+// 기준은 파일 수정일이 아니라 [나중에]를 누른 때입니다. 노트를 USB로 옮기거나 동기화하면 수정일이
 // 복사한 날로 바뀌어, 오래 묻힌 노트가 "방금 고친 노트"처럼 보일 수 있기 때문입니다.
-// (한 번도 확인하지 않은 노트끼리의 순서를 정할 때만 수정일을 참고합니다.)
+// (한 번도 [나중에]를 누르지 않은 노트끼리의 순서를 정할 때만 수정일을 참고합니다.)
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -22,13 +22,13 @@ export interface NoteFacts {
 }
 
 export interface NoteRecord {
-	reviewedAt?: number; // [확인함]을 누른 때(밀리초)
-	snoozedUntil?: number; // [나중에]로 미룬 기한(밀리초)
+	postponedAt?: number; // [나중에]를 누른 때(밀리초)
+	days?: number; // 그때 고른 기간(일). 없으면 설정의 나중에 기본 기간
 }
 
 export type DueReason =
-	| { kind: 'never' }
-	| { kind: 'stale'; days: number }
+	| { kind: 'new' }
+	| { kind: 'postponed'; days: number }
 	| { kind: 'orphan' }
 	| { kind: 'tag'; tag: string };
 
@@ -37,8 +37,15 @@ export interface DueNote {
 	reasons: DueReason[];
 }
 
+// path와 folder는 소문자로 받습니다. Windows는 폴더 이름의 대소문자를 구분하지 않아서, 설정에
+// "templates"라고 적어도 "Templates" 폴더가 빠지도록 대소문자를 무시하고 비교합니다.
 function inFolder(path: string, folder: string): boolean {
 	return folder !== '' && path.startsWith(`${folder}/`);
+}
+
+// 누른 시각이 아니라 누른 날의 0시(내 컴퓨터 시간대)입니다. 저녁에 미룬 노트가 7일 뒤 아침에도 뜨게 합니다.
+function startOfDay(ms: number): number {
+	return new Date(ms).setHours(0, 0, 0, 0);
 }
 
 export function findDueNotes(
@@ -47,21 +54,24 @@ export function findDueNotes(
 	rules: ReminderSettings,
 	now: number,
 ): DueNote[] {
-	const skipFolders = [...rules.excludedFolders, rules.archiveFolder];
+	const skipFolders = [...rules.excludedFolders, rules.archiveFolder].map((folder) => folder.toLowerCase());
 	const deferTags = rules.deferTags.map((tag) => tag.toLowerCase());
 	const due: { note: DueNote; since: number }[] = [];
 
 	for (const facts of notes) {
-		if (skipFolders.some((folder) => inFolder(facts.path, folder))) continue;
-		if (now - facts.ctime < rules.graceDays * DAY_MS) continue;
-		const record = records[facts.path] ?? {};
-		if (record.snoozedUntil !== undefined && now < record.snoozedUntil) continue;
-		if (record.reviewedAt !== undefined && now - record.reviewedAt < rules.intervalDays * DAY_MS) continue;
+		const lowerPath = facts.path.toLowerCase();
+		if (skipFolders.some((folder) => inFolder(lowerPath, folder))) continue;
+		// 볼트를 USB로 복사하면 만든 날짜는 복사한 날로 바뀌지만 수정일은 그대로 남습니다. 둘 중 이른 쪽을
+		// 만든 날로 봐야, 복사한 뒤 유예 기간 동안 모든 노트가 "새 노트"로 빠지는 일이 없습니다.
+		if (now - Math.min(facts.ctime, facts.mtime) < rules.graceDays * DAY_MS) continue;
+		const { postponedAt, days = rules.snoozeDays } = records[facts.path] ?? {};
+		const postponedDay = postponedAt === undefined ? undefined : startOfDay(postponedAt);
+		if (postponedDay !== undefined && now - postponedDay < days * DAY_MS) continue;
 
 		const reasons: DueReason[] = [
-			record.reviewedAt === undefined
-				? { kind: 'never' }
-				: { kind: 'stale', days: Math.floor((now - record.reviewedAt) / DAY_MS) },
+			postponedDay === undefined
+				? { kind: 'new' }
+				: { kind: 'postponed', days: Math.floor((now - postponedDay) / DAY_MS) },
 		];
 		if (facts.incomingLinks === 0) reasons.push({ kind: 'orphan' });
 		// 하위 태그(todo/업무)도 todo로 봅니다.
@@ -71,7 +81,7 @@ export function findDueNotes(
 		});
 		if (tag) reasons.push({ kind: 'tag', tag });
 
-		due.push({ note: { path: facts.path, reasons }, since: record.reviewedAt ?? facts.mtime });
+		due.push({ note: { path: facts.path, reasons }, since: postponedAt ?? facts.mtime });
 	}
 
 	due.sort((a, b) => b.note.reasons.length - a.note.reasons.length || a.since - b.since);

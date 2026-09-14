@@ -94,7 +94,7 @@ export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: Set
 	containerEl.createEl('p', { text: strings.scheduleIntro });
 
 	// 0일·0개는 뜻이 없으므로 1 이상으로 맞춥니다.
-	const addAtLeastOne = (key: 'intervalDays' | 'snoozeDays' | 'dailyLimit', name: string, desc: string) =>
+	const addAtLeastOne = (key: 'snoozeDays' | 'dailyLimit', name: string, desc: string) =>
 		addNumberSetting(containerEl, ctx, {
 			name,
 			desc,
@@ -103,7 +103,6 @@ export function renderReminderScheduleSection(containerEl: HTMLElement, ctx: Set
 			parse: (raw) => Math.max(1, parseLimit(raw, defaults[key])),
 			min: 1,
 		});
-	addAtLeastOne('intervalDays', strings.intervalName, strings.intervalDesc);
 	addAtLeastOne('snoozeDays', strings.snoozeName, strings.snoozeDesc);
 	addAtLeastOne('dailyLimit', strings.dailyLimitName, strings.dailyLimitDesc);
 

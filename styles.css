@@ -1306,17 +1306,10 @@ button.intra-copilot-doc-card:hover {
 	padding: 8px;
 }
 
-.intra-copilot-reminder-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 6px;
-	padding-bottom: 6px;
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
 .intra-copilot-reminder-title {
 	font-weight: var(--font-semibold);
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .intra-copilot-reminder-scope {
@@ -1346,11 +1339,33 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-smaller);
 }
 
-/* 사이드바가 좁으면 아이콘 버튼이 다음 줄로 내려갑니다. */
+/* 사이드바가 좁으면 버튼이 다음 줄로 내려갑니다. */
 .intra-copilot-reminder-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 4px;
 	margin-top: 6px;
+}
+
+/* 아이콘 + 글자 버튼. [삭제]는 Obsidian 기본 경고 버튼(mod-warning)이라 붉게 보입니다. */
+.intra-copilot-reminder-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-reminder-action-icon {
+	display: flex;
+}
+
+.intra-copilot-reminder-action-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* 두 번 눌러 확정 상태의 붉은 글자(delete-armed)가 붉은 배경에 묻히지 않게 합니다. */
+.intra-copilot-reminder-action.mod-warning.intra-copilot-delete-armed {
+	color: var(--text-on-accent);
 }
