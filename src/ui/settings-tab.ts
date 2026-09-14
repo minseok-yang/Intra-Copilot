@@ -15,9 +15,10 @@ import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-se
 //        ▼
 //   ← Intra Copilot                                  ← 처음 화면으로 돌아가기
 //   챗봇  [사용 가능]                          ← 기능 머리말
-//   사내 LLM과 대화하고…
-//   [LLM 연결] [스킬]                                 ← 기능 안의 섹션(둘 이상일 때만)
+//   [LLM 연결] [시스템 프롬프트] [스킬]               ← 기능 안의 섹션(둘 이상일 때만)
 //   …섹션 내용…
+//
+// 이미 누른 카드·탭의 글자(기능 설명, 섹션 이름)는 섹션 안에서 제목으로 되풀이하지 않습니다.
 //
 // 기능으로 가는 길은 처음 화면의 카드 하나뿐입니다(예전에는 맨 위 탭도 있어 같은 역할이 둘이었습니다).
 // 섹션이 실제로 무엇을 그리는지는 ui/settings/ 폴더에 나눠 두었고, 여기서는 화면 전환·저장·다시 그리기만
@@ -103,13 +104,12 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		});
 		back.onclick = () => this.openTab('general');
 
-		// 기능 머리말: 이름·상태·한 줄 설명. 지금 어느 기능의 설정을 보고 있는지 분명히 합니다.
+		// 기능 머리말: 이름·상태. 지금 어느 기능의 설정을 보고 있는지 분명히 합니다(설명은 카드에서 이미 봤으므로 생략).
 		const header = containerEl.createDiv({ cls: 'intra-copilot-feature-header' });
 		const title = header.createDiv({ cls: 'intra-copilot-feature-header-title' });
 		setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(feature));
 		title.createSpan({ cls: 'intra-copilot-feature-header-name', text: strings.features[feature].name });
 		title.createSpan({ cls: `intra-copilot-feature-badge is-${status}`, text: strings.features[status] });
-		header.createDiv({ cls: 'intra-copilot-feature-header-desc', text: strings.features[feature].desc });
 
 		const sections = this.sectionsFor(feature, ctx);
 		const active =

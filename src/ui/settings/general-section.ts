@@ -25,7 +25,6 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 	const docButtons = intro.createDiv({ cls: 'intra-copilot-intro-buttons' });
 	new ButtonComponent(docButtons)
 		.setButtonText(general.guideButton)
-		.setCta()
 		.onClick(() => void openGuideWindow(plugin, 'guide'));
 	new ButtonComponent(docButtons)
 		.setButtonText(general.licenseButton)

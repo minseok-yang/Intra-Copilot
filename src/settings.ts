@@ -14,7 +14,7 @@ export interface LlmSettings {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
-	// 모든 대화 앞에 붙는 기본 지시문입니다(예: "항상 한국어로 답해줘"). 비어 있으면 보내지 않습니다.
+	// 모든 대화 앞에 붙는 시스템 프롬프트입니다(예: "항상 한국어로 답해줘"). 비어 있으면 보내지 않습니다.
 	systemPrompt: string;
 	// 사내 공용 서버에 부담을 주지 않기 위한 제한값입니다. 0이면 제한 없음.
 	maxHistoryMessages: number; // 서버로 보낼 때 포함할 최근 대화 메시지 개수

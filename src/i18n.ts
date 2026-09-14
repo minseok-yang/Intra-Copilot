@@ -10,6 +10,7 @@ import type { LlmErrorKind } from './llm/client';
 // - 확인: 연결/모델 점검. "검증"과 섞어 쓰지 않습니다.
 // - 지정: @로 고른 폴더·노트(대화 대상). / 선택: /로 고른 스킬. 둘을 바꿔 쓰지 않습니다.
 // - 버튼·설정 이름은 실제 동작 그대로 부르고, 설명문에서 그 이름을 [대괄호]나 "따옴표"로 똑같이 인용합니다.
+// - 이미 누르고 들어온 카드·탭 이름을 그 안의 제목·항목 이름에서 되풀이하지 않습니다(예: [인덱스] 탭 안의 "인덱스 다시 만들기" → "다시 만들기").
 const ko = {
 	general: {
 		// 설정을 열면 가장 먼저 보이는 곳입니다. 순서는 "이게 뭔지(이름·설명·문서·버전) → 기능별 설정 바로가기 →
@@ -18,13 +19,13 @@ const ko = {
 		// (이 문자열은 공개 저장소에 올라가므로 회사명 같은 사내 정보는 넣지 않습니다.)
 		// \n 줄바꿈은 styles.css의 .intra-copilot-intro-text(white-space: pre-wrap)가 살려 줍니다(\t 들여쓰기 포함).
 		introText:
-			'흩어진 정보를 지식으로 만들고, 연결하고, 다시 활용하세요.\n' +
+			'흩어진 정보를 지식으로 만들고, 연결하고, 다시 활용하세요.\n\n' +
 			'지식관리에 필요한 핵심 기능을 하나의 플러그인에 담았습니다.\n' +
 			'\t1. AI 기반 노트 작성·편집 및 변경 사항 검토\n' +
 			'\t2. 연관 지식 노트 간 링크 추천\n' +
 			'\t3. 문서·이메일·PDF 자동 요약 및 노트 생성\n' +
-			'\t4. 오래되었거나 업데이트가 필요한 지식 노트 리마인더\n' +
-			'외부 인터넷 접속이 제한된 사내 환경에서도 사용할 수 있도록 개발되었으며, 사내 서버 또는 개인 로컬 환경의 AI 모델을 활용할 수 있습니다.',
+			'\t4. 오래되었거나 업데이트가 필요한 지식 노트 리마인더\n\n' +
+			'외부 인터넷 접속이 제한된 사내 환경에서도 사용할 수 있도록 개발되었으며, 사내 서버 또는 개인 로컬 환경의 AI 모델을 활용할 수 있습니다.\n',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
 		// 기능 네 개로 가는 바로가기 줄의 제목(톱니바퀴 아이콘과 함께)
@@ -55,7 +56,7 @@ const ko = {
 	// 기능 탭 안의 섹션(하위 탭) 이름
 	sections: {
 		llm: 'LLM 연결',
-		prompt: '기본 지시문',
+		prompt: '시스템 프롬프트',
 		skills: '스킬',
 		embedding: '임베딩 서버',
 		index: '인덱스',
@@ -71,23 +72,23 @@ const ko = {
 		embeddingIntro: '비슷한 노트를 찾는 데 쓸 임베딩 서버를 연결합니다. 챗봇의 LLM 서버와 따로 둘 수 있습니다.',
 		embeddingUrl: { name: '서버 주소', desc: '임베딩 모델을 제공하는 OpenAI 호환 서버 주소' },
 		embeddingKey: { name: 'API 키', desc: '서버에 접속할 때 쓰는 인증 키' },
-		embeddingModel: { name: '임베딩 모델', desc: '노트를 벡터로 바꿀 때 쓸 모델' },
+		embeddingModel: { name: '모델', desc: '노트를 벡터로 바꿀 때 쓸 모델' },
 		indexIntro: '어떤 노트를 색인할지 정하고, 색인을 관리합니다.',
 		indexFolders: { name: '색인할 폴더', desc: '비워 두면 볼트 전체를 색인합니다' },
 		indexExclude: { name: '제외할 폴더', desc: '색인하지 않을 폴더' },
-		indexRebuild: { name: '인덱스 다시 만들기', desc: '노트가 많이 바뀌었을 때 처음부터 다시 색인합니다' },
+		indexRebuild: { name: '다시 만들기', desc: '노트가 많이 바뀌었을 때 처음부터 다시 색인합니다' },
 		templatesIntro: '받은 파일로 새 노트를 만들 때 참고할 양식 노트를 관리합니다.',
-		templatesFolder: { name: '양식 폴더', desc: '양식 노트를 모아 둔 폴더' },
+		templatesFolder: { name: '폴더', desc: '양식 노트를 모아 둔 폴더' },
 		templatesDefault: { name: '기본 양식', desc: '따로 고르지 않을 때 쓸 양식' },
 		promptsIntro: '새 노트를 만들 때 모델에게 줄 지시문을 관리합니다.',
 		promptsInstructions: { name: '노트 생성 지시문', desc: '양식을 채울 때 모델이 따를 규칙' },
 		mcpIntro: '새 노트를 만들 때 쓸 외부 도구(MCP 서버) 연결을 관리합니다.',
-		mcpServers: { name: 'MCP 서버', desc: '연결할 MCP 서버 목록' },
+		mcpServers: { name: '서버', desc: '연결할 MCP 서버 목록' },
 		scheduleIntro: '어떤 노트를 얼마나 자주 다시 읽도록 알려 줄지 정합니다.',
 		scheduleFolders: { name: '대상 폴더', desc: '주기적으로 다시 읽을 노트가 있는 폴더' },
-		scheduleInterval: { name: '다시 읽기 주기', desc: '얼마나 자주 다시 읽을지' },
+		scheduleInterval: { name: '주기', desc: '얼마나 자주 다시 읽을지' },
 		scheduleNotify: { name: '알림 방식', desc: '다시 읽을 때가 된 노트를 알려 주는 방법' },
-		buttonRebuild: '다시 만들기',
+		buttonStart: '시작',
 		buttonAdd: '추가',
 	},
 	// 사용자 가이드·라이선스 창(ui/guide-view.ts)의 이동 버튼
@@ -98,12 +99,11 @@ const ko = {
 		upcoming: '준비 중',
 	},
 	llm: {
-		heading: 'LLM 서버 연결',
 		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
 		privacyNote:
 			'노트 내용은 여기서 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
 		intro:
-			'챗봇이 사용할 LLM 서버를 설정합니다. OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
+			'OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
 		baseUrlName: '서버 주소',
 		baseUrlDesc:
@@ -133,9 +133,12 @@ const ko = {
 			'챗봇 답변을 최대 몇 초까지 기다릴지 정합니다. 스트리밍을 켜면 마지막 조각이 온 뒤부터 다시 셉니다. 시간 초과로 실패하는 일이 잦으면 늘려보세요. ' +
 			'10~3600초 사이로 저장되고(범위를 벗어나면 가까운 끝값으로), 비워두면 기본값(120초)으로 돌아갑니다. ' +
 			'[모델 목록 불러오기]와 [연결 확인]은 이 값과 상관없이 30초까지 기다립니다.',
-		systemPromptName: '기본 지시문 (시스템 프롬프트)',
-		systemPromptDesc:
-			'챗봇에 질문할 때마다 대화 맨 앞에 붙여 보내는 지시문입니다. 예: "항상 한국어로 간결하게 답해줘." 비워두면 보내지 않습니다.',
+		systemPromptIntro:
+			'챗봇에 질문할 때마다 대화 맨 앞에 붙여 보내는 지시문입니다. 예: "항상 한국어로 간결하게 답해줘." 비워두면 보내지 않습니다. ' +
+			'고친 내용은 [저장]을 눌러야 반영되며, [취소]를 누르면 마지막으로 저장한 내용으로 돌아갑니다.',
+		systemPromptSave: '저장',
+		systemPromptCancel: '취소',
+		systemPromptSaved: '시스템 프롬프트를 저장했습니다.',
 		advancedName: '고급 설정',
 		modelCheckHeading: '모델 선택 및 연결 확인',
 		modelCheckDesc:
@@ -311,7 +314,6 @@ const ko = {
 			'⚠ 챗봇이 수정 제안 형식을 지키지 않아 [적용] 버튼을 만들지 못했습니다. "정해진 수정 형식을 그대로 지켜서 다시 알려 줘"라고 요청해 보세요.',
 	},
 	skills: {
-		heading: '스킬 관리',
 		intro:
 			'자주 쓰는 작업 지시를 스킬로 저장해 두고, 챗봇 입력칸에서 /를 입력해 불러 씁니다. 스킬마다 .md 파일 하나로 아래 폴더에 저장되므로, ' +
 			'사내에서도 메모장 같은 편집기로 직접 고치거나 파일을 복사해 동료와 나눌 수 있습니다. 파일을 직접 고쳤다면 [목록 새로고침]을 누르세요.',
@@ -364,13 +366,13 @@ export type ChatStrings = Dictionary['chat'];
 const en: Dictionary = {
 	general: {
 		introText:
-			'Turn scattered information into knowledge, connect it, and put it to use again.\n' +
+			'Turn scattered information into knowledge, connect it, and put it to use again.\n\n' +
 			'The core features you need for knowledge management, together in one plugin.\n' +
 			'\t1. AI-assisted note writing and editing, with review of changes\n' +
 			'\t2. Link suggestions between related knowledge notes\n' +
 			'\t3. Automatic summaries of documents, emails, and PDFs turned into notes\n' +
-			'\t4. Reminders for knowledge notes that are outdated or need updating\n' +
-			'Built to work even in company environments with restricted internet access, it can use AI models on your company server or on your own local machine.',
+			'\t4. Reminders for knowledge notes that are outdated or need updating\n\n' +
+			'Built to work even in company environments with restricted internet access, it can use AI models on your company server or on your own local machine.\n',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
 		settingsHeading: 'Settings',
@@ -410,23 +412,23 @@ const en: Dictionary = {
 		embeddingIntro: 'Connect the embedding server used to find similar notes. It can be separate from the chatbot LLM server.',
 		embeddingUrl: { name: 'Server address', desc: 'Address of an OpenAI-compatible server that provides embedding models' },
 		embeddingKey: { name: 'API key', desc: 'Key used to access the server' },
-		embeddingModel: { name: 'Embedding model', desc: 'Model used to turn notes into vectors' },
+		embeddingModel: { name: 'Model', desc: 'Model used to turn notes into vectors' },
 		indexIntro: 'Choose which notes to index and manage the index.',
-		indexFolders: { name: 'Folders to index', desc: 'Leave empty to index the whole vault' },
-		indexExclude: { name: 'Folders to exclude', desc: 'Folders that are never indexed' },
-		indexRebuild: { name: 'Rebuild index', desc: 'Index everything again from scratch after many changes' },
+		indexFolders: { name: 'Included folders', desc: 'Leave empty to index the whole vault' },
+		indexExclude: { name: 'Excluded folders', desc: 'Folders that are never indexed' },
+		indexRebuild: { name: 'Rebuild', desc: 'Index everything again from scratch after many changes' },
 		templatesIntro: 'Manage the template notes used when creating a new note from a received file.',
-		templatesFolder: { name: 'Template folder', desc: 'Folder that holds template notes' },
-		templatesDefault: { name: 'Default template', desc: 'Template used when none is chosen' },
+		templatesFolder: { name: 'Folder', desc: 'Folder that holds template notes' },
+		templatesDefault: { name: 'Default', desc: 'Template used when none is chosen' },
 		promptsIntro: 'Manage the instructions given to the model when creating a new note.',
 		promptsInstructions: { name: 'Note creation instructions', desc: 'Rules the model follows when filling in a template' },
 		mcpIntro: 'Manage connections to external tools (MCP servers) used when creating new notes.',
-		mcpServers: { name: 'MCP servers', desc: 'List of MCP servers to connect to' },
+		mcpServers: { name: 'Servers', desc: 'List of MCP servers to connect to' },
 		scheduleIntro: 'Choose which notes to read again and how often you are reminded.',
 		scheduleFolders: { name: 'Target folders', desc: 'Folders with notes to read again periodically' },
-		scheduleInterval: { name: 'Review interval', desc: 'How often to read them again' },
+		scheduleInterval: { name: 'Interval', desc: 'How often to read them again' },
 		scheduleNotify: { name: 'Notification', desc: 'How notes that are due are shown to you' },
-		buttonRebuild: 'Rebuild',
+		buttonStart: 'Start',
 		buttonAdd: 'Add',
 	},
 	docs: {
@@ -436,11 +438,10 @@ const en: Dictionary = {
 		upcoming: 'Coming soon',
 	},
 	llm: {
-		heading: 'LLM server connection',
 		privacyNote:
 			'Note content never leaves the LLM server you configure here, and only what is shown as a chip above the chat box is sent.',
 		intro:
-			'Set up the LLM server the chatbot uses. Supports OpenAI-compatible APIs ' +
+			'Supports OpenAI-compatible APIs ' +
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +
 			'note content — only a fixed test sentence.',
 		baseUrlName: 'Server address',
@@ -471,9 +472,12 @@ const en: Dictionary = {
 			'How long to wait for a chatbot answer. With streaming on, the wait restarts after each received chunk. Increase it if answers often fail with a timeout. ' +
 			'Saved between 10 and 3600 seconds (values outside are moved to the nearest end); leave empty to restore the default (120 seconds). ' +
 			'[Load model list] and [Check connection] always wait up to 30 seconds regardless of this value.',
-		systemPromptName: 'Default instructions (system prompt)',
-		systemPromptDesc:
-			'Instructions added to the start of the conversation every time you ask the chatbot, e.g. "Always answer briefly." Leave empty to send nothing.',
+		systemPromptIntro:
+			'Instructions added to the start of the conversation every time you ask the chatbot, e.g. "Always answer briefly." Leave empty to send nothing. ' +
+			'Changes apply only after you press [Save]; [Cancel] restores the last saved text.',
+		systemPromptSave: 'Save',
+		systemPromptCancel: 'Cancel',
+		systemPromptSaved: 'System prompt saved.',
 		advancedName: 'Advanced settings',
 		modelCheckHeading: 'Model selection & connection check',
 		modelCheckDesc:
@@ -640,7 +644,6 @@ const en: Dictionary = {
 			'⚠ The chatbot did not follow the edit format, so no [Apply] button could be created. Ask it to use the exact edit format and try again.',
 	},
 	skills: {
-		heading: 'Manage skills',
 		intro:
 			'Save task instructions you use often as skills, then type / in the chatbot input to use them. Each skill is saved as one .md file in the folder below, ' +
 			'so you can edit it directly in any text editor or copy the file to share it. If you edited a file directly, press [Reload list].',

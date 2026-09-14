@@ -1,4 +1,4 @@
-import { ButtonComponent, DropdownComponent, Setting, setIcon } from 'obsidian';
+import { ButtonComponent, DropdownComponent, Notice, Setting, setIcon, TextAreaComponent } from 'obsidian';
 import type IntraCopilotPlugin from '../../main';
 import {
 	clampChatTimeout,
@@ -31,20 +31,38 @@ function parseTimeoutSeconds(value: string): number {
 	return clampChatTimeout(parseLimit(value, DEFAULT_SETTINGS.llm.chatTimeoutSeconds));
 }
 
-// 챗봇 → 기본 지시문. 서버 연결이 아니라 "대화 내용"에 관한 설정이라 LLM 연결에서 따로 떼어 둡니다.
+// 챗봇 → 시스템 프롬프트. 서버 연결이 아니라 "대화 내용"에 관한 설정이라 LLM 연결에서 따로 떼어 둡니다.
+// 잘 써 둔 글을 실수로 지워도 [취소]로 되돌릴 수 있게, 자동 저장하지 않고 [저장]을 눌러야 반영합니다.
 export function renderSystemPromptSection(containerEl: HTMLElement, ctx: SettingsContext): void {
 	const strings = ctx.strings.llm;
 	const llm = ctx.plugin.settings.llm;
 
-	new Setting(containerEl).setName(strings.systemPromptName).setHeading();
-	new Setting(containerEl).setDesc(strings.systemPromptDesc).addTextArea((text) => {
-		text.setValue(llm.systemPrompt).onChange((value) => {
-			llm.systemPrompt = value;
-			ctx.saveSoon();
-		});
-		text.inputEl.rows = 8;
-		text.inputEl.addClass('intra-copilot-system-prompt');
+	containerEl.createEl('p', { text: strings.systemPromptIntro });
+	const text = new TextAreaComponent(containerEl).setValue(llm.systemPrompt);
+	text.inputEl.rows = 8;
+	text.inputEl.addClass('intra-copilot-system-prompt');
+
+	const buttons = containerEl.createDiv({ cls: 'intra-copilot-system-prompt-buttons' });
+	const cancel = new ButtonComponent(buttons).setButtonText(strings.systemPromptCancel);
+	const save = new ButtonComponent(buttons).setButtonText(strings.systemPromptSave).setCta();
+	// 저장된 내용과 다를 때만 두 버튼을 누를 수 있습니다.
+	const refresh = () => {
+		const unchanged = text.getValue() === llm.systemPrompt;
+		cancel.setDisabled(unchanged);
+		save.setDisabled(unchanged);
+	};
+	text.onChange(refresh);
+	cancel.onClick(() => {
+		text.setValue(llm.systemPrompt);
+		refresh();
 	});
+	save.onClick(async () => {
+		llm.systemPrompt = text.getValue();
+		refresh();
+		await ctx.plugin.saveSettings();
+		new Notice(strings.systemPromptSaved);
+	});
+	refresh();
 }
 
 // 챗봇 → LLM 연결: 서버 주소·API 키, 모델 목록·연결 확인, 고급 설정.
@@ -83,7 +101,6 @@ export class LlmSettingsSection {
 		this.ctx = ctx;
 		const strings = ctx.strings.llm;
 
-		new Setting(containerEl).setName(strings.heading).setHeading();
 		containerEl.createEl('p', { text: strings.intro });
 		// 노트가 어디로 나가는지는 서버를 정하는 바로 이 화면에서 알아야 하므로 자물쇠 표시와 함께 둡니다.
 		containerEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });

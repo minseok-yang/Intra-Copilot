@@ -15,9 +15,22 @@
 
 .intra-copilot-tab-content .setting-item-control input[type='text'],
 .intra-copilot-tab-content .setting-item-control input[type='password'],
-.intra-copilot-tab-content .setting-item-control select,
-.intra-copilot-tab-content .setting-item-control textarea.intra-copilot-system-prompt {
+.intra-copilot-tab-content .setting-item-control select {
 	width: 100%;
+}
+
+/* 시스템 프롬프트 입력칸: 섹션 너비에 꽉 차게, 크기 조절 손잡이 없이 */
+.intra-copilot-tab-content textarea.intra-copilot-system-prompt {
+	display: block;
+	width: 100%;
+	resize: none;
+}
+
+.intra-copilot-system-prompt-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
 }
 
 /* 버튼+상태등이 위 줄, 드롭다운 등 다음 요소가 아래 줄에 오도록 세로로 쌓습니다. */
@@ -755,12 +768,18 @@
 	padding: 10px 12px;
 	border-radius: var(--radius-s);
 	background: var(--background-secondary);
-	font-size: var(--font-ui-small);
+}
+
+/* 상자 안 작은 제목 — 기능 탭 머리말(.intra-copilot-feature-header-title)과 같은 크기 규칙을 따릅니다. */
+.intra-copilot-setup-hint strong {
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
 }
 
 .intra-copilot-setup-hint p {
 	margin: 4px 0 0;
 	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 	line-height: 1.5;
 }
 
@@ -1025,7 +1044,7 @@
 	font-size: var(--font-ui-small);
 }
 
-/* 기능 탭 맨 위의 머리말: 이름 · 상태 · 한 줄 설명 */
+/* 기능 탭 맨 위의 머리말: 이름 · 상태 */
 .intra-copilot-feature-header {
 	margin-bottom: 4px;
 }
@@ -1036,12 +1055,6 @@
 	gap: 8px;
 	font-size: var(--font-ui-medium);
 	font-weight: 600;
-}
-
-.intra-copilot-feature-header-desc {
-	margin-top: 2px;
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
 }
 
 /* 기능 안의 섹션(하위 탭) */
@@ -1142,15 +1155,17 @@
 	--icon-size: 32px;
 }
 
+/* 이름은 기능 탭 머리말(.intra-copilot-feature-header-title)과 같은 크기, 설명은 한 단계 작게 */
 .intra-copilot-feature-card-name {
 	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
 	font-weight: 600;
 	text-align: center;
 }
 
 .intra-copilot-feature-card-desc {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-ui-small);
 	line-height: 1.4;
 	text-align: center;
 }

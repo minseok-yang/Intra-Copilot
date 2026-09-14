@@ -358,7 +358,7 @@ export function buildRequestMessages(
 		}
 	}
 
-	// 5) 기본 지시문(시스템 프롬프트)이 있으면 맨 앞에 붙입니다.
+	// 5) 시스템 프롬프트가 있으면 맨 앞에 붙입니다.
 	const systemPrompt = settings.systemPrompt.trim();
 	return systemPrompt ? [{ role: 'system', content: systemPrompt }, ...merged] : merged;
 }

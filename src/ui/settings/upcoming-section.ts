@@ -42,7 +42,7 @@ function placeholderSections(u: Dictionary['upcoming']): Record<UpcomingSectionI
 			items: [
 				{ text: u.indexFolders, control: 'text' },
 				{ text: u.indexExclude, control: 'text' },
-				{ text: u.indexRebuild, control: 'button', button: u.buttonRebuild },
+				{ text: u.indexRebuild, control: 'button', button: u.buttonStart },
 			],
 		},
 		// ─── 템플레이터 ───
@@ -82,8 +82,6 @@ export function renderUpcomingSection(
 ): void {
 	const { strings } = ctx;
 	const section = placeholderSections(strings.upcoming)[id];
-
-	new Setting(containerEl).setName(strings.sections[id]).setHeading();
 
 	// 잠긴 칸을 보고 고장이라고 여기지 않도록, 왜 바꿀 수 없는지를 맨 위에 적습니다.
 	const notice = containerEl.createDiv({ cls: 'intra-copilot-upcoming-notice' });

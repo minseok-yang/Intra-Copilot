@@ -11,7 +11,6 @@ export function renderSkillsSection(containerEl: HTMLElement, ctx: SettingsConte
 	const strings = ctx.strings.skills;
 	const folder = skillsDir(ctx.plugin);
 
-	new Setting(containerEl).setName(strings.heading).setHeading();
 	containerEl.createEl('p', { text: strings.intro });
 
 	// 메모장으로 고치거나 동료와 파일을 나눌 때 바로 찾아갈 수 있게 [폴더 열기]를 경로 옆에 둡니다.
