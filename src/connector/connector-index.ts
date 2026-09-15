@@ -91,6 +91,12 @@ function sameServerUrl(url: string): string {
 	return url.replace(/\/+$/, '');
 }
 
+// oldPath(노트 또는 폴더)를 newPath로 옮겼을 때 path의 새 경로. 옮긴 대상이 아니면 null입니다.
+function movedPath(path: string, oldPath: string, newPath: string): string | null {
+	if (path === oldPath) return newPath;
+	return path.startsWith(`${oldPath}/`) ? newPath + path.slice(oldPath.length) : null;
+}
+
 export class ConnectorIndex {
 	private owner: Owner | null = null;
 	private notes = new Map<string, NoteEntry>();
@@ -100,6 +106,9 @@ export class ConnectorIndex {
 	private failure: LlmFailure | null = null;
 	private stopped = false;
 	private listeners = new Set<() => void>();
+	// 색인하는 중 서버로 보냈지만 벡터를 아직 다 받지 못한 노트. 그사이 이름을 바꾸거나 지우면 여기서 함께 고쳐,
+	// 받은 벡터가 옛 경로로 저장되지 않게 합니다(옛 경로로 저장되면 다음 맞추기에서 새 경로로 다시 전송됨).
+	private inFlight = new Set<{ path: string }>();
 	// 파일 쓰기를 한 줄로 세웁니다. 두 저장이 겹치면 같은 파일을 동시에 써서 내용이 깨질 수 있습니다.
 	private saving: Promise<void> = Promise.resolve();
 	// 임베딩 서버 상태등(커넥터 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
@@ -372,19 +381,24 @@ export class ConnectorIndex {
 	rename(oldPath: string, newPath: string): void {
 		let moved = false;
 		for (const [path, entry] of [...this.notes]) {
-			const target = path === oldPath ? newPath : path.startsWith(`${oldPath}/`) ? newPath + path.slice(oldPath.length) : null;
+			const target = movedPath(path, oldPath, newPath);
 			if (target === null) continue;
 			this.notes.delete(path);
 			this.notes.set(target, entry);
 			moved = true;
 		}
+		for (const note of this.inFlight) note.path = movedPath(note.path, oldPath, newPath) ?? note.path;
 		if (moved) this.settleSoon();
 	}
 
 	remove(path: string): void {
+		const isRemoved = (notePath: string) => notePath === path || notePath.startsWith(`${path}/`);
 		let removed = false;
 		for (const notePath of [...this.notes.keys()]) {
-			if (notePath === path || notePath.startsWith(`${path}/`)) removed = this.notes.delete(notePath) || removed;
+			if (isRemoved(notePath)) removed = this.notes.delete(notePath) || removed;
+		}
+		for (const note of [...this.inFlight]) {
+			if (isRemoved(note.path)) this.inFlight.delete(note);
 		}
 		if (removed) this.settleSoon();
 	}
@@ -530,6 +544,9 @@ export class ConnectorIndex {
 				batch.forEach((item, i) => item.note.vectors.push(result.vectors[i]!));
 				for (const note of new Set(batch.map((item) => item.note))) {
 					if (note.vectors.length < note.headings.length) continue;
+					this.progress.done++;
+					// 보내는 사이 지운 노트는 저장하지 않습니다(이름을 바꾼 노트는 rename이 path를 새 경로로 바꿔 둠).
+					if (!this.inFlight.delete(note)) continue;
 					const picked = noteVectors(note.vectors, vectorsPerNote);
 					// 벡터가 하나면 노트 전체라 섹션을 적지 않습니다.
 					const sections = picked.map(({ chunk }) => (picked.length > 1 ? (note.headings[chunk] ?? '') : ''));
@@ -539,7 +556,6 @@ export class ConnectorIndex {
 						vectors: picked.map(({ vector }) => vector),
 						sections,
 					});
-					this.progress.done++;
 				}
 				this.emit();
 				if (Date.now() - lastSave >= SAVE_INTERVAL_MS) {
@@ -571,6 +587,7 @@ export class ConnectorIndex {
 					headings: chunks.map((chunk) => chunk.heading),
 					vectors: [],
 				};
+				this.inFlight.add(note);
 				for (const chunk of chunks) queue.push({ note, text: chunk.text });
 				await send(false);
 			}
@@ -578,6 +595,7 @@ export class ConnectorIndex {
 		} catch (error) {
 			if (!(error instanceof Stopped)) throw error;
 		} finally {
+			this.inFlight.clear();
 			// 실패하거나 멈춰도 그때까지 받은 벡터는 남깁니다(다음에 이어서 색인).
 			if (this.owner === owner) await this.save();
 		}

@@ -621,6 +621,26 @@ async function main() {
 		index.stop();
 	});
 
+	await test('T46 a note renamed or deleted while its vectors are on the way is stored under the new path or not at all', async () => {
+		const { vault, index } = await setup(false);
+		reset({ delayMs: 150 });
+		const running = index.rebuild();
+		await sleep(60); // 첫 요청(apple1·apple2·car1·mixed 앞 조각)이 서버에 가 있는 동안
+		const car = vault.files.get('car1.md')!;
+		vault.files.delete('car1.md');
+		vault.files.set('Cars/car2.md', car);
+		index.rename('car1.md', 'Cars/car2.md');
+		vault.files.delete('apple2.md');
+		index.remove('apple2.md');
+		await running;
+		assert.notStrictEqual(index.search('Cars/car2.md', 10), null, 'renamed note not stored under the new path');
+		assert.strictEqual(index.search('car1.md', 10), null);
+		assert.strictEqual(index.search('apple2.md', 10), null);
+		reset();
+		await index.sync();
+		assert.deepStrictEqual(sentTexts, [], 'renamed note was sent again');
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;
