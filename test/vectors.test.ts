@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { splitChunks, noteVectors, noteSimilarity } from '../src/link/vectors';
+import { splitChunks, noteVectors, noteSimilarity } from '../src/connector/vectors';
 
 const texts = (text: string, max: number, chunks: number) => splitChunks(text, max, chunks).map((c) => c.text);
 

@@ -51,15 +51,15 @@ const ko = {
 			// 오른쪽 사이드바 창 맨 위 한 줄 소개(ui/settings/features.ts의 renderViewHeading)
 			tagline: '내 노트를 곁에 두고 AI와 함께 쓰고, 고치고, 묻습니다.',
 		},
-		link: {
-			name: '링크',
+		connector: {
+			name: '커넥터',
 			desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.',
 			tagline: '지금 노트와 뜻이 통하는 노트를 찾아 지식을 이어 줍니다.',
 		},
-		templater: {
-			name: '템플레이터',
-			desc: '문서·이메일·PDF를 자동으로 요약해 새 노트로 만들어 줍니다.',
-			tagline: '받은 문서·메일을 내 양식의 노트로 바꿔 줍니다.',
+		maker: {
+			name: '메이커',
+			desc: '붙여 넣은 글을 정해진 양식에 맞춰 새 노트로 써 줍니다.',
+			tagline: '받은 자료를 내 양식의 노트로 만들어 줍니다.',
 		},
 		reminder: {
 			name: '리마인더',
@@ -85,7 +85,7 @@ const ko = {
 	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
 	upcoming: {
 		notice: '이 기능은 아직 만드는 중입니다. 아래는 앞으로 들어갈 설정의 자리이며, 지금은 바꿀 수 없습니다.',
-		templatesIntro: '받은 파일로 새 노트를 만들 때 참고할 양식 노트를 관리합니다.',
+		templatesIntro: '붙여 넣은 글로 새 노트를 만들 때 따를 양식 노트를 관리합니다.',
 		templatesFolder: { name: '폴더', desc: '양식 노트를 모아 둔 폴더' },
 		templatesDefault: { name: '기본 양식', desc: '따로 고르지 않을 때 쓸 양식' },
 		promptsIntro: '새 노트를 만들 때 모델에게 줄 지시문을 관리합니다.',
@@ -104,7 +104,7 @@ const ko = {
 	llm: {
 		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
 		privacyNote:
-			'챗봇은 노트 내용을 여기서 설정한 LLM 서버로만 보내며, 입력칸 위에 칩으로 올라온 것만 전송합니다. 링크 기능은 링크 설정의 임베딩 서버를 따로 씁니다.',
+			'챗봇은 노트 내용을 여기서 설정한 LLM 서버로만 보내며, 입력칸 위에 칩으로 올라온 것만 전송합니다. 커넥터 기능은 커넥터 설정의 임베딩 서버를 따로 씁니다.',
 		intro:
 			'OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
@@ -351,10 +351,10 @@ const ko = {
 		saveFailed: '스킬을 저장하지 못했습니다.',
 		saved: '스킬을 저장했습니다.',
 	},
-	// 링크 화면(ui/link-view.ts)과 설정(ui/settings/link-section.ts)
-	link: {
-		title: '링크',
-		ribbonTooltip: '링크 열기',
+	// 커넥터 화면(ui/connector-view.ts)과 설정(ui/settings/connector-section.ts)
+	connector: {
+		title: '커넥터',
+		ribbonTooltip: '커넥터 열기',
 		noNote: '노트를 열면 뜻이 비슷한 노트를 보여 줍니다.',
 		notIndexedNote: '이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 잠시 뒤 색인됩니다.',
 		excludedNote: '이 노트는 제외 폴더·템플릿 폴더에 있어 색인하지 않습니다.',
@@ -363,7 +363,7 @@ const ko = {
 		linked: '링크됨',
 		linkedTooltip: '지금 노트에 이미 이 노트로 가는 링크가 있습니다. 같은 링크가 또 들어가지 않게 [링크 넣기]는 빠집니다.',
 		previewTooltip:
-			'누르면 이 카드 안에 노트 내용을 펼치고, 다시 누르면 접습니다. 링크 창은 지금 노트에 그대로 머뭅니다. Ctrl/Cmd를 누른 채 누르면 새 탭에서 엽니다.',
+			'누르면 이 카드 안에 노트 내용을 펼치고, 다시 누르면 접습니다. 커넥터 창은 지금 노트에 그대로 머뭅니다. Ctrl/Cmd를 누른 채 누르면 새 탭에서 엽니다.',
 		selectTooltip: '챗봇에 올릴 노트로 고릅니다',
 		chatSelectedButton: '선택한 노트 {count}개를 챗봇에 올리기',
 		chatSelectedTooltip:
@@ -378,7 +378,7 @@ const ko = {
 			'이 노트로 가는 링크를 넣습니다. 누르면 지금 노트의 커서 자리에(편집 모드가 아니면 노트 끝에), 끌어다 노트에 놓으면 놓은 자리에 들어갑니다.',
 		inserted: '{name} 링크를 넣었습니다.',
 		insertFailed: '링크를 넣지 못했습니다.',
-		stateNotConfigured: '설정 → Intra Copilot → 링크 → 임베딩 서버에서 서버 주소와 모델을 먼저 입력하세요.',
+		stateNotConfigured: '설정 → Intra Copilot → 커넥터 → 임베딩 서버에서 서버 주소와 모델을 먼저 입력하세요.',
 		stateNotBuilt: '아직 색인이 없습니다. [색인 만들기]를 누르면 보낼 양을 확인한 뒤, 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
 		stateOtherModel:
 			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
@@ -386,7 +386,7 @@ const ko = {
 			'고급 설정(노트당 벡터 수·문서 형식·조각 최대 글자 수·벡터 크기)이 바뀌어 지금 색인을 쓸 수 없습니다. [다시 만들기]로 새 설정에 맞게 다시 만드세요.',
 		advancedWarning:
 			'주의: 한 번에 보낼 조각 수를 뺀 아래 값을 바꾸면 지금 색인을 쓸 수 없어 [다시 만들기]로 볼트 노트 전체를 임베딩 서버로 다시 보내야 합니다. 노트가 많으면 오래 걸리고 서버 사용량도 많이 씁니다.',
-		// 링크 창 머리줄 왼쪽의 색인 상태등
+		// 커넥터 창 머리줄 왼쪽의 색인 상태등
 		indexLabelNone: '색인 없음',
 		indexLabelIndexing: '색인 중 {done}/{total}',
 		indexLabelError: '색인 오류',
@@ -407,7 +407,7 @@ const ko = {
 		confirmSummary: '노트 {notes}개 · 조각 {chunks}개 → 서버 요청 약 {requests}번',
 		confirmTarget: '보낼 곳: {url} (모델: {model})',
 		confirmWarning:
-			'위 노트의 제목과 본문(속성 제외)이 이 서버로 전송됩니다. 회사가 승인한 서버인지 확인하세요. 보내면 안 되는 폴더는 링크 → 인덱스의 제외 폴더에 먼저 넣으세요. 이미 만든 색인이 있으면 지우고 처음부터 다시 보냅니다.',
+			'위 노트의 제목과 본문(속성 제외)이 이 서버로 전송됩니다. 회사가 승인한 서버인지 확인하세요. 보내면 안 되는 폴더는 커넥터 → 인덱스의 제외 폴더에 먼저 넣으세요. 이미 만든 색인이 있으면 지우고 처음부터 다시 보냅니다.',
 		confirmStart: '색인 시작',
 		confirmCancel: '취소',
 		retryButton: '다시 시도',
@@ -442,7 +442,7 @@ const ko = {
 			'어떤 노트를 색인할지와 한 번에 보내는 양을 정합니다. 처음 색인은 [색인 만들기]를 눌러야 시작하고, 그 뒤로는 자동 갱신 주기에 따라 바뀐 노트만 보냅니다(속성만 바뀐 노트는 보내지 않음).',
 		autoSyncName: '자동 갱신',
 		autoSyncDesc:
-			'바뀐 노트를 언제 임베딩 서버로 보내 색인할지 정합니다. Obsidian을 켤 때도 이 주기를 따릅니다. 10분·30분·1시간은 첫 변경부터 그 시간이 지나면 그동안 바뀐 노트를 한꺼번에 보냅니다. 주기를 길게 하거나 끄면 서버 호출이 줄고, 그동안은 링크 창 색인 상태등이 노랑이 되며 [업데이트]로 필요할 때 직접 맞출 수 있습니다.',
+			'바뀐 노트를 언제 임베딩 서버로 보내 색인할지 정합니다. Obsidian을 켤 때도 이 주기를 따릅니다. 10분·30분·1시간은 첫 변경부터 그 시간이 지나면 그동안 바뀐 노트를 한꺼번에 보냅니다. 주기를 길게 하거나 끄면 서버 호출이 줄고, 그동안은 커넥터 창 색인 상태등이 노랑이 되며 [업데이트]로 필요할 때 직접 맞출 수 있습니다.',
 		autoSyncQuiet: '노트를 고치고 15초 뒤(기본)',
 		autoSync10m: '10분마다',
 		autoSync30m: '30분마다',
@@ -464,7 +464,7 @@ const ko = {
 		chunkCharsDesc:
 			'노트를 이 글자 수 이하의 조각으로 나눠 보냅니다(노트 하나에 최대 20조각, 넘는 뒷부분은 쓰지 않음). 서버가 입력이 너무 길다고 거절하면 줄이세요. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1000)으로 돌아갑니다.',
 		resultCountName: '보여 줄 노트 수',
-		resultCountDesc: '링크 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
+		resultCountDesc: '커넥터 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
 		linkedNotesName: '이미 링크된 노트',
 		linkedNotesDesc:
 			'지금 노트에 이미 링크가 있는 노트를 목록에서 어떻게 보여 줄지 정합니다. 새로 연결할 노트만 보고 싶으면 "맨 아래로"나 "숨기기"를 고르세요.',
@@ -480,15 +480,15 @@ const ko = {
 		vectorsPerNoteName: '노트당 벡터 수',
 		vectorsPerNoteDesc:
 			'노트 하나를 몇 개의 벡터로 저장할지 정합니다(1~5). 1이면 노트 전체의 평균 하나이고, 2 이상이면 뜻이 가까운 조각끼리 묶어 주제별로 저장해 주제가 여러 개인 긴 노트도 잘 찾습니다. 서버로 보내는 양은 같지만 색인 파일이 커지고 검색이 조금 느려집니다. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1)으로 돌아갑니다.',
-		// 챗봇 안내문(llm.errors)이 링크에는 맞지 않는 원인만 따로 둡니다. 나머지는 llm.errors를 그대로 씁니다.
+		// 챗봇 안내문(llm.errors)이 커넥터에는 맞지 않는 원인만 따로 둡니다. 나머지는 llm.errors를 그대로 씁니다.
 		errors: {
-			auth: 'API 키가 없거나 올바르지 않거나, 이 서버를 쓸 권한이 없습니다(인증 실패). 설정의 링크 → 임베딩 서버에서 API 키를 확인하세요.',
+			auth: 'API 키가 없거나 올바르지 않거나, 이 서버를 쓸 권한이 없습니다(인증 실패). 설정의 커넥터 → 임베딩 서버에서 API 키를 확인하세요.',
 			model:
 				'서버가 이 모델로는 벡터를 만들 수 없다고 응답했습니다. 모델 이름이 틀렸거나 임베딩용이 아닌 모델(대화용 등)일 수 있습니다.',
 			'context-length':
-				'조각이 모델이 한 번에 받을 수 있는 길이를 넘었습니다. 링크 → 인덱스에서 "조각 최대 글자 수"를 줄이고 [다시 만들기]를 누르세요.',
+				'조각이 모델이 한 번에 받을 수 있는 길이를 넘었습니다. 커넥터 → 인덱스에서 "조각 최대 글자 수"를 줄이고 [다시 만들기]를 누르세요.',
 			'bad-request':
-				'서버가 요청을 거절했습니다. 모델 이름을 확인하고, 링크 → 인덱스에서 "한 번에 보낼 조각 수"나 "조각 최대 글자 수"를 줄여 보세요.',
+				'서버가 요청을 거절했습니다. 모델 이름을 확인하고, 커넥터 → 인덱스에서 "한 번에 보낼 조각 수"나 "조각 최대 글자 수"를 줄여 보세요.',
 			'invalid-response':
 				'서버가 임베딩 API 형식이 아닌 응답을 보냈거나, 받은 벡터의 개수·크기가 맞지 않습니다. 서버 주소가 API 주소(보통 /v1로 끝남)인지 확인하고, 서버의 모델이 바뀌었다면 [다시 만들기]를 누르세요.',
 		},
@@ -592,7 +592,7 @@ export type Dictionary = typeof ko;
 // 화면 부품들이 "이 화면의 문구 묶음"을 인자로 받을 때 쓰는 타입입니다.
 export type ChatStrings = Dictionary['chat'];
 export type ReminderStrings = Dictionary['reminder'];
-export type LinkStrings = Dictionary['link'];
+export type ConnectorStrings = Dictionary['connector'];
 
 const en: Dictionary = {
 	general: {
@@ -624,15 +624,15 @@ const en: Dictionary = {
 			desc: 'Write and edit notes with AI, and review suggested changes before applying them.',
 			tagline: 'Write, refine, and ask about your notes side by side with AI.',
 		},
-		link: {
-			name: 'Link',
+		connector: {
+			name: 'Connector',
 			desc: 'Suggest links between related knowledge notes.',
 			tagline: 'Finds notes that share this note’s meaning and connects your knowledge.',
 		},
-		templater: {
-			name: 'Templater',
-			desc: 'Automatically summarize documents, emails, and PDFs into new notes.',
-			tagline: 'Turns documents and emails into notes in your own format.',
+		maker: {
+			name: 'Maker',
+			desc: 'Writes a new note from pasted text, following your template.',
+			tagline: 'Turns what you receive into a note in your own format.',
 		},
 		reminder: {
 			name: 'Reminder',
@@ -655,7 +655,7 @@ const en: Dictionary = {
 	},
 	upcoming: {
 		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
-		templatesIntro: 'Manage the template notes used when creating a new note from a received file.',
+		templatesIntro: 'Manage the template notes to follow when creating a new note from pasted text.',
 		templatesFolder: { name: 'Folder', desc: 'Folder that holds template notes' },
 		templatesDefault: { name: 'Default', desc: 'Template used when none is chosen' },
 		promptsIntro: 'Manage the instructions given to the model when creating a new note.',
@@ -672,7 +672,7 @@ const en: Dictionary = {
 	},
 	llm: {
 		privacyNote:
-			'The chatbot sends note content only to the LLM server you configure here, and only what is shown as a chip above the chat box. The Link feature uses its own embedding server from the Link settings.',
+			'The chatbot sends note content only to the LLM server you configure here, and only what is shown as a chip above the chat box. The Connector uses its own embedding server from the Connector settings.',
 		intro:
 			'Supports OpenAI-compatible APIs ' +
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +
@@ -911,9 +911,9 @@ const en: Dictionary = {
 		saveFailed: 'Could not save the skill.',
 		saved: 'Skill saved.',
 	},
-	link: {
-		title: 'Link',
-		ribbonTooltip: 'Open link',
+	connector: {
+		title: 'Connector',
+		ribbonTooltip: 'Open Connector',
 		noNote: 'Open a note to see notes with similar meaning.',
 		notIndexedNote: 'This note is not indexed yet. New or edited notes are indexed after a short while.',
 		excludedNote: 'This note is in an excluded or template folder, so it is not indexed.',
@@ -922,7 +922,7 @@ const en: Dictionary = {
 		linked: 'Linked',
 		linkedTooltip: 'The current note already links to this note. [Insert link] is hidden so the same link is not added twice.',
 		previewTooltip:
-			'Click to expand the note’s content inside this card; click again to collapse. The link view stays on the current note. Ctrl/Cmd-click opens it in a new tab.',
+			'Click to expand the note’s content inside this card; click again to collapse. The Connector view stays on the current note. Ctrl/Cmd-click opens it in a new tab.',
 		selectTooltip: 'Select this note to add to the chatbot',
 		chatSelectedButton: 'Add {count} selected to chatbot',
 		chatSelectedTooltip:
@@ -937,7 +937,7 @@ const en: Dictionary = {
 			'Insert a link to this note. Click to insert at the cursor in the current note (at the end if it is not in editing mode), or drag into the note to insert where you drop.',
 		inserted: 'Inserted a link to {name}.',
 		insertFailed: 'Could not insert the link.',
-		stateNotConfigured: 'Enter the server address and model in Settings → Intra Copilot → Link → Embedding server first.',
+		stateNotConfigured: 'Enter the server address and model in Settings → Intra Copilot → Connector → Embedding server first.',
 		stateNotBuilt:
 			'No index yet. [Build index] shows how much will be sent, then sends the titles and bodies of the vault notes to the embedding server and indexes them.',
 		stateOtherModel:
@@ -966,7 +966,7 @@ const en: Dictionary = {
 		confirmSummary: '{notes} notes · {chunks} chunks → about {requests} server requests',
 		confirmTarget: 'Destination: {url} (model: {model})',
 		confirmWarning:
-			'The titles and bodies (without properties) of these notes will be sent to this server. Make sure your company has approved it. Put folders that must not be sent in the excluded folders under Link → Index first. An existing index is cleared and everything is sent again.',
+			'The titles and bodies (without properties) of these notes will be sent to this server. Make sure your company has approved it. Put folders that must not be sent in the excluded folders under Connector → Index first. An existing index is cleared and everything is sent again.',
 		confirmStart: 'Start indexing',
 		confirmCancel: 'Cancel',
 		retryButton: 'Retry',
@@ -1001,7 +1001,7 @@ const en: Dictionary = {
 			'Choose which notes to index and how much to send at once. The first index starts only when you click [Build index]; after that, only changed notes are sent on the automatic update schedule (notes whose properties alone changed are not sent).',
 		autoSyncName: 'Automatic update',
 		autoSyncDesc:
-			'When to send changed notes to the embedding server for indexing. Startup follows the same schedule. With 10 minutes, 30 minutes, or 1 hour, notes changed in that time are sent together once it has passed since the first change. A longer schedule or Off means fewer server calls; meanwhile the index light in the link view turns yellow and you can click [Update] whenever you need.',
+			'When to send changed notes to the embedding server for indexing. Startup follows the same schedule. With 10 minutes, 30 minutes, or 1 hour, notes changed in that time are sent together once it has passed since the first change. A longer schedule or Off means fewer server calls; meanwhile the index light in the Connector view turns yellow and you can click [Update] whenever you need.',
 		autoSyncQuiet: '15 seconds after you stop editing (default)',
 		autoSync10m: 'Every 10 minutes',
 		autoSync30m: 'Every 30 minutes',
@@ -1023,7 +1023,7 @@ const en: Dictionary = {
 		chunkCharsDesc:
 			'Notes are split into chunks of at most this many characters (up to 20 chunks per note; the rest is not used). Lower it if the server says the input is too long. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1000).',
 		resultCountName: 'Notes to show',
-		resultCountDesc: 'How many similar notes the link view shows. Leave empty to restore the default (10).',
+		resultCountDesc: 'How many similar notes the Connector view shows. Leave empty to restore the default (10).',
 		linkedNotesName: 'Already linked notes',
 		linkedNotesDesc:
 			'How to show notes the current note already links to. Choose "Move to the bottom" or "Hide" to see only notes you have not connected yet.',
@@ -1040,13 +1040,13 @@ const en: Dictionary = {
 		vectorsPerNoteDesc:
 			'How many vectors each note is stored as (1–5). 1 is the average of the whole note; 2 or more groups chunks with similar meaning and stores one vector per topic, so long notes with several topics are found better. The amount sent to the server stays the same, but the index file grows and search gets slightly slower. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1).',
 		errors: {
-			auth: 'The API key is missing or wrong, or you do not have access to this server (authentication failed). Check the API key in Settings → Link → Embedding server.',
+			auth: 'The API key is missing or wrong, or you do not have access to this server (authentication failed). Check the API key in Settings → Connector → Embedding server.',
 			model:
 				'The server says it cannot create vectors with this model. The name may be wrong, or it may not be an embedding model (e.g. a chat model).',
 			'context-length':
-				'A chunk is longer than the model accepts at once. Lower "Max chunk length" under Link → Index and click [Rebuild].',
+				'A chunk is longer than the model accepts at once. Lower "Max chunk length" under Connector → Index and click [Rebuild].',
 			'bad-request':
-				'The server rejected the request. Check the model name, and try lowering "Chunks per request" or "Max chunk length" under Link → Index.',
+				'The server rejected the request. Check the model name, and try lowering "Chunks per request" or "Max chunk length" under Connector → Index.',
 			'invalid-response':
 				'The server sent something that is not an embedding API response, or the number or size of the vectors does not match. Make sure the address is the API address (usually ending in /v1), and click [Rebuild] if the server’s model changed.',
 		},
@@ -1164,11 +1164,11 @@ export function describeLlmError(
 	};
 }
 
-// 링크(임베딩 서버) 요청 실패. 챗봇 안내문이 맞지 않는 원인만 link.errors로 바꿉니다.
-export function describeLinkError(
+// 커넥터(임베딩 서버) 요청 실패. 챗봇 안내문이 맞지 않는 원인만 connector.errors로 바꿉니다.
+export function describeConnectorError(
 	language: UiLanguage,
 	failure: { kind: LlmErrorKind; detail: string; timeoutSeconds?: number },
 ): { summary: string; detail: string } {
-	const override = (t(language).link.errors as Partial<Record<LlmErrorKind, string>>)[failure.kind];
+	const override = (t(language).connector.errors as Partial<Record<LlmErrorKind, string>>)[failure.kind];
 	return override ? { summary: override, detail: failure.detail } : describeLlmError(language, failure);
 }

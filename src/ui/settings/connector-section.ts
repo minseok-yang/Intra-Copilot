@@ -1,19 +1,19 @@
 import { AbstractInputSuggest, type App, type ButtonComponent, Setting } from 'obsidian';
 import { listLlmModels } from '../../llm/client';
-import { describeLinkError } from '../../i18n';
+import { describeConnectorError } from '../../i18n';
 import { AUTO_SYNC_CHOICES, DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
-import { addIndexButton, describeIndexState, indexLight } from '../link-view';
+import { addIndexButton, describeIndexState, indexLight } from '../connector-view';
 import { createStatusLight, setStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
 import { addAdvancedSection, addNumberSetting, parseLimit } from './llm-section';
 import { addListSetting, cleanFolder } from './reminder-section';
 import { openFolder } from './skills-section';
 
-// 링크 → 임베딩 서버 / 인덱스.
+// 커넥터 → 임베딩 서버 / 인덱스.
 // 임베딩 서버는 챗봇 LLM 서버와 따로 둡니다. 사내 API든 직접 띄운 자체 서버(llama-server·Ollama 등)든
 // OpenAI 호환 /embeddings만 열려 있으면 주소·키·모델만 넣으면 됩니다.
 
-const defaults = DEFAULT_SETTINGS.link;
+const defaults = DEFAULT_SETTINGS.connector;
 
 // 불러온 모델 이름 중 입력한 글자가 들어간 것만 보여 줍니다. 고르면 입력칸에 넣고 onChange(저장)를 부릅니다.
 class ModelSuggest extends AbstractInputSuggest<string> {
@@ -42,11 +42,11 @@ class ModelSuggest extends AbstractInputSuggest<string> {
 	}
 }
 
-export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsContext): void {
-	const strings = ctx.strings.link;
-	const link = ctx.plugin.settings.link;
+export function renderConnectorServerSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+	const strings = ctx.strings.connector;
+	const connector = ctx.plugin.settings.connector;
 	const language = ctx.plugin.settings.general.language;
-	const serverKey = () => JSON.stringify([link.baseUrl, link.apiKey, link.model]);
+	const serverKey = () => JSON.stringify([connector.baseUrl, connector.apiKey, connector.model]);
 
 	containerEl.createEl('p', { text: strings.serverIntro });
 	containerEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
@@ -60,8 +60,8 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 			.setDesc(desc)
 			.addText((text) => {
 				input = text.inputEl;
-				text.setValue(link[key]).onChange((value) => {
-					link[key] = value.trim();
+				text.setValue(connector[key]).onChange((value) => {
+					connector[key] = value.trim();
 					resetStatus();
 					ctx.saveSoon();
 				});
@@ -80,17 +80,17 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 	const modelStatus = createStatusLight(model.setting.descEl, strings.statusIdle);
 	model.setting.addButton((button) =>
 		button.setButtonText(strings.modelListButton).onClick(async () => {
-			if (!link.baseUrl) {
+			if (!connector.baseUrl) {
 				setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.fillFirst);
 				return;
 			}
 			const key = serverKey();
 			button.setButtonText(strings.loadingModels).setDisabled(true);
-			const result = await listLlmModels(link);
+			const result = await listLlmModels(connector);
 			button.setButtonText(strings.modelListButton).setDisabled(false);
 			if (key !== serverKey()) return;
 			if (!result.ok) {
-				const { summary, detail } = describeLinkError(language, result);
+				const { summary, detail } = describeConnectorError(language, result);
 				setStatusLight(modelStatus.dot, modelStatus.text, 'error', summary, detail);
 				return;
 			}
@@ -108,22 +108,22 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 		}),
 	);
 
-	// 연결 상태등은 링크 창 머리줄과 같은 기록(LinkIndex.serverStatus)을 그립니다. 어느 쪽에서 확인하든,
+	// 연결 상태등은 커넥터 창 머리줄과 같은 기록(ConnectorIndex.serverStatus)을 그립니다. 어느 쪽에서 확인하든,
 	// 색인하며 보낸 요청의 결과든 두 화면이 같은 색을 보여 줍니다.
 	const test = new Setting(containerEl).setName(strings.testName).setDesc(strings.testDesc);
 	const testStatus = createStatusLight(test.descEl, strings.statusIdle);
 	let testButton!: ButtonComponent;
 	test.addButton((button) => {
 		testButton = button.onClick(() => {
-			if (!link.baseUrl || !link.model) {
+			if (!connector.baseUrl || !connector.model) {
 				setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.fillFirst);
 				return;
 			}
-			void ctx.plugin.linkIndex.checkServer();
+			void ctx.plugin.connectorIndex.checkServer();
 		});
 	});
 	const drawTest = () => {
-		const index = ctx.plugin.linkIndex;
+		const index = ctx.plugin.connectorIndex;
 		const checking = index.isCheckingServer();
 		testButton.setButtonText(checking ? strings.testing : strings.testButton).setDisabled(checking);
 		const status = index.serverStatus();
@@ -133,14 +133,14 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 		}
 		const time = `${ctx.strings.llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}`;
 		if (status.failure) {
-			const { summary, detail } = describeLinkError(language, status.failure);
+			const { summary, detail } = describeConnectorError(language, status.failure);
 			setStatusLight(testStatus.dot, testStatus.text, 'error', summary, detail ? `${detail}\n${time}` : time);
 		} else {
 			const text = status.dims ? strings.testOk.replace('{dims}', String(status.dims)) : ctx.strings.chat.statusLabelOk;
 			setStatusLight(testStatus.dot, testStatus.text, 'ok', text, time);
 		}
 	};
-	const unsubscribe = ctx.plugin.linkIndex.subscribe(() => {
+	const unsubscribe = ctx.plugin.connectorIndex.subscribe(() => {
 		if (!testStatus.dot.isConnected) {
 			unsubscribe();
 			return;
@@ -155,10 +155,10 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 	};
 }
 
-export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsContext): void {
+export function renderConnectorIndexSection(containerEl: HTMLElement, ctx: SettingsContext): void {
 	const { plugin } = ctx;
-	const strings = ctx.strings.link;
-	const link = plugin.settings.link;
+	const strings = ctx.strings.connector;
+	const connector = plugin.settings.connector;
 
 	containerEl.createEl('p', { text: strings.indexIntro });
 
@@ -167,7 +167,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	const buttonSlot = status.controlEl.createDiv();
 	let drawnKind = '';
 	const draw = () => {
-		const state = plugin.linkIndex.state();
+		const state = plugin.connectorIndex.state();
 		const { text, detail } = describeIndexState(plugin, state);
 		const color = indexLight(plugin, state).state;
 		setStatusLight(light.dot, light.text, color, text, detail);
@@ -181,7 +181,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		if (state.kind === 'ready' || state.kind === 'error') addIndexButton(buttonSlot, plugin, strings.rebuildButton);
 	};
 	// 설정 화면을 다시 그리면 옛 상태등은 화면에서 빠지므로, 그때 구독도 풉니다.
-	const unsubscribe = plugin.linkIndex.subscribe(() => {
+	const unsubscribe = plugin.connectorIndex.subscribe(() => {
 		if (!light.dot.isConnected) {
 			unsubscribe();
 			return;
@@ -199,7 +199,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	};
 
 	// 색인 파일을 지우거나 동기화에서 뺄 때 바로 찾아가도록 위치와 [폴더 열기]를 둡니다.
-	const indexPath = plugin.linkIndex.path;
+	const indexPath = plugin.connectorIndex.path;
 	const indexFolder = indexPath.slice(0, indexPath.lastIndexOf('/'));
 	new Setting(containerEl)
 		.setName(strings.indexFileName)
@@ -213,8 +213,8 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	addListSetting(containerEl, ctx, {
 		name: strings.excludedFoldersName,
 		desc: strings.excludedFoldersDesc,
-		get: () => link.excludedFolders,
-		set: (value) => (link.excludedFolders = value),
+		get: () => connector.excludedFolders,
+		set: (value) => (connector.excludedFolders = value),
 		clean: cleanFolder,
 	});
 	const autoSyncLabels: Record<(typeof AUTO_SYNC_CHOICES)[number], string> = {
@@ -229,10 +229,10 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		.setDesc(strings.autoSyncDesc)
 		.addDropdown((dropdown) => {
 			for (const seconds of AUTO_SYNC_CHOICES) dropdown.addOption(String(seconds), autoSyncLabels[seconds]);
-			dropdown.setValue(String(link.autoSyncSeconds)).onChange((value) => {
-				link.autoSyncSeconds = Number(value);
+			dropdown.setValue(String(connector.autoSyncSeconds)).onChange((value) => {
+				connector.autoSyncSeconds = Number(value);
 				// 주기를 줄였거나 껐으면 이미 잡아 둔 예약도 새 주기에 맞춥니다.
-				plugin.linkIndex.requestSync();
+				plugin.connectorIndex.requestSync();
 				ctx.saveSoon();
 			});
 		});
@@ -246,8 +246,8 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		addNumberSetting(parentEl, indexCtx, {
 			name,
 			desc,
-			get: () => link[key],
-			set: (value) => (link[key] = value),
+			get: () => connector[key],
+			set: (value) => (connector[key] = value),
 			parse: (raw) => Math.min(max ?? Infinity, Math.max(1, parseLimit(raw, defaults[key]))),
 			min: 1,
 			max,
@@ -263,9 +263,9 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 					bottom: strings.linkedNotesBottom,
 					hide: strings.linkedNotesHide,
 				} satisfies Record<LinkedNotesMode, string>)
-				.setValue(link.linkedNotes)
+				.setValue(connector.linkedNotes)
 				.onChange((value) => {
-					link.linkedNotes = value as LinkedNotesMode;
+					connector.linkedNotes = value as LinkedNotesMode;
 					ctx.saveSoon();
 				}),
 		);
@@ -279,14 +279,14 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		.setName(strings.documentFormatName)
 		.setDesc(strings.documentFormatDesc)
 		.addTextArea((text) => {
-			text.setValue(link.documentFormat).onChange((value) => {
-				link.documentFormat = value.includes('{text}') ? value : defaults.documentFormat;
+			text.setValue(connector.documentFormat).onChange((value) => {
+				connector.documentFormat = value.includes('{text}') ? value : defaults.documentFormat;
 				indexCtx.saveSoon();
 			});
 			text.inputEl.rows = 2;
 			// 입력칸에서 벗어나면 실제로 저장된 형식을 보여 줍니다({text}를 지워 기본값으로 돌아간 경우 등).
 			text.inputEl.addEventListener('blur', () => {
-				text.setValue(link.documentFormat);
+				text.setValue(connector.documentFormat);
 			});
 		});
 	addAtLeastOne(advanced, 'chunkChars', strings.chunkCharsName, strings.chunkCharsDesc);
@@ -294,8 +294,8 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	addNumberSetting(advanced, indexCtx, {
 		name: strings.dimensionsName,
 		desc: strings.dimensionsDesc,
-		get: () => link.dimensions,
-		set: (value) => (link.dimensions = value),
+		get: () => connector.dimensions,
+		set: (value) => (connector.dimensions = value),
 		parse: (raw) => parseLimit(raw, defaults.dimensions),
 		min: 0,
 	});

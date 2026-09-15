@@ -7,21 +7,21 @@ import { t } from '../../i18n';
 //
 // 기능을 완성하면: FEATURE_STATUS에서 그 기능을 'available'로 바꾸고, settings-tab.ts의 그 기능
 // 섹션을 준비 중 양식(upcoming-section.ts) 대신 실제 설정 화면으로 바꾸면 됩니다.
-// (기능 이름은 아직 가칭이라 i18n.ts의 features에만 적어 두었습니다 — 이름이 바뀌면 그곳만 고치면 됩니다.)
+// (화면에 보이는 기능 이름은 i18n.ts의 features에 있고, 코드 id·설정 키·파일 이름도 같은 이름을 씁니다.)
 
-export type FeatureId = 'chatbot' | 'link' | 'templater' | 'reminder';
+export type FeatureId = 'chatbot' | 'connector' | 'maker' | 'reminder';
 
 // 설정 화면: 처음 화면(general) + 기능 네 개의 설정
 export type SettingsTabId = 'general' | FeatureId;
 
-export const FEATURE_ORDER: readonly FeatureId[] = ['chatbot', 'link', 'templater', 'reminder'];
+export const FEATURE_ORDER: readonly FeatureId[] = ['chatbot', 'connector', 'maker', 'reminder'];
 
 export type FeatureStatus = 'available' | 'upcoming';
 
 export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
 	chatbot: 'available',
-	link: 'available',
-	templater: 'upcoming',
+	connector: 'available',
+	maker: 'upcoming',
 	reminder: 'available',
 };
 
@@ -34,9 +34,9 @@ const GLYPHS: Record<FeatureId, string> = {
 	// 말풍선
 	chatbot: '<path d="M7 7h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-6l-3 2.5V15H7a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/>',
 	// 사슬 고리
-	link: '<path d="M9 16H8a4 4 0 0 1 0-8h1M15 8h1a4 4 0 0 1 0 8h-1M9 12h6"/>',
+	connector: '<path d="M9 16H8a4 4 0 0 1 0-8h1M15 8h1a4 4 0 0 1 0 8h-1M9 12h6"/>',
 	// 칸이 나뉜 양식
-	templater:
+	maker:
 		'<rect x="5" y="7" width="14" height="4" rx="1"/><rect x="5" y="13" width="6" height="4" rx="1"/><rect x="13" y="13" width="6" height="4" rx="1"/>',
 	// 시계
 	reminder: '<circle cx="12" cy="12" r="5"/><path d="M12 9.5V12l1.5 1.5"/>',
@@ -46,7 +46,7 @@ export function featureIcon(id: FeatureId): string {
 	return `intra-copilot-${id}`;
 }
 
-// 오른쪽 사이드바 창(챗봇·링크·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
+// 오른쪽 사이드바 창(챗봇·커넥터·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
 // 내용과 버튼만 있으면 처음 연 사람이 무슨 창인지 알기 어려워서 둡니다.
 export function renderViewHeading(containerEl: HTMLElement, plugin: IntraCopilotPlugin, id: FeatureId): void {
 	const feature = t(plugin.settings.general.language).features[id];

@@ -71,7 +71,7 @@ export async function revealChatView(plugin: IntraCopilotPlugin): Promise<void> 
 // 설정 화면에서 모델·언어·서버 주소가 바뀌었을 때 호출합니다. 열려 있는 챗봇 화면이
 // 바뀐 설정을 바로 반영하게 합니다(드롭다운 선택값, 표시 언어, 모델 목록).
 // 머리줄 버튼: 아이콘 + 글자. ButtonComponent.setIcon()은 글자를 지워버려서 둘을 직접 넣습니다
-// (설정 화면의 [고급 설정] 버튼과 같은 방식). 링크 창 머리줄도 씁니다.
+// (설정 화면의 [고급 설정] 버튼과 같은 방식). 커넥터 창 머리줄도 씁니다.
 export function createHeaderButton(
 	parent: HTMLElement,
 	icon: string,
@@ -224,7 +224,7 @@ export class ChatView extends ItemView {
 		this.startNewConversation();
 	}
 
-	// 링크 창의 [챗봇에 올리기]: 지금 대화의 입력칸 위에 노트 칩을 더합니다. 보내지는 않고, 질문을 보낼 때 함께 전송됩니다.
+	// 커넥터 창의 [챗봇에 올리기]: 지금 대화의 입력칸 위에 노트 칩을 더합니다. 보내지는 않고, 질문을 보낼 때 함께 전송됩니다.
 	// 이미 칩에 있는 노트는 그대로 둡니다. 답변을 기다리는 중에도 다음 질문에 쓰도록 더할 수 있습니다.
 	addNoteTarget(path: string): void {
 		if (this.layoutBuilt) this.composer.addTarget({ kind: 'note', path });

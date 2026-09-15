@@ -48,9 +48,9 @@ export interface ReminderSettings {
 	propReview: string;
 }
 
-// 링크 설정입니다. 임베딩 서버는 챗봇의 LLM 서버와 따로 둡니다(사내에서 다른 서버로 열릴 수 있음).
-// 색인 자체(노트별 벡터)는 설정이 아니라 플러그인 폴더의 link-index.bin에 있습니다(link/link-index.ts).
-export interface LinkSettings {
+// 커넥터 설정입니다. 임베딩 서버는 챗봇의 LLM 서버와 따로 둡니다(사내에서 다른 서버로 열릴 수 있음).
+// 색인 자체(노트별 벡터)는 설정이 아니라 플러그인 폴더의 connector-index.bin에 있습니다(connector/connector-index.ts).
+export interface ConnectorSettings {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
@@ -66,7 +66,7 @@ export interface LinkSettings {
 	documentFormat: string;
 	// 지금 노트에 이미 링크가 있는 노트를 목록에서 어떻게 보여 줄지: 순서대로 함께·맨 아래로·숨기기
 	linkedNotes: LinkedNotesMode;
-	// 자동 갱신 주기(초). 노트를 고친 뒤 이만큼 지나면 바뀐 노트를 색인합니다. 0이면 자동으로 보내지 않습니다(link-index.ts의 requestSync).
+	// 자동 갱신 주기(초). 노트를 고친 뒤 이만큼 지나면 바뀐 노트를 색인합니다. 0이면 자동으로 보내지 않습니다(connector-index.ts의 requestSync).
 	autoSyncSeconds: number;
 }
 
@@ -93,7 +93,7 @@ export interface ReminderDaily {
 export interface IntraCopilotSettings {
 	general: GeneralSettings;
 	llm: LlmSettings;
-	link: LinkSettings;
+	connector: ConnectorSettings;
 	reminder: ReminderSettings;
 	reminderDaily: ReminderDaily;
 }
@@ -117,7 +117,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		maxContextChars: 8000,
 		streaming: true,
 	},
-	link: {
+	connector: {
 		baseUrl: '',
 		apiKey: '',
 		model: '',

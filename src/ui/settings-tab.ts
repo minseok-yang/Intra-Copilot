@@ -6,7 +6,7 @@ import { FEATURE_STATUS, FeatureId, featureIcon, SettingsTabId } from './setting
 import { renderGeneralSection } from './settings/general-section';
 import { LlmSettingsSection, renderSystemPromptSection } from './settings/llm-section';
 import { renderSkillsSection } from './settings/skills-section';
-import { renderLinkIndexSection, renderLinkServerSection } from './settings/link-section';
+import { renderConnectorIndexSection, renderConnectorServerSection } from './settings/connector-section';
 import {
 	renderReminderPropertiesSection,
 	renderReminderScheduleSection,
@@ -16,7 +16,7 @@ import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-se
 
 // 설정 화면의 틀입니다.
 //
-//   처음 화면(general-section.ts): 소개 상자 + ⚙ 설정 [챗봇] [링크] [템플레이터] [리마인더]
+//   처음 화면(general-section.ts): 소개 상자 + ⚙ 설정 [챗봇] [커넥터] [메이커] [리마인더]
 //        │ 카드를 누르면
 //        ▼
 //   ← Intra Copilot                                  ← 처음 화면으로 돌아가기
@@ -152,12 +152,12 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					{ id: 'prompt', label: labels.prompt, render: renderSystemPromptSection },
 					{ id: 'skills', label: labels.skills, render: renderSkillsSection },
 				];
-			case 'link':
+			case 'connector':
 				return [
-					{ id: 'embedding', label: labels.embedding, render: renderLinkServerSection },
-					{ id: 'index', label: labels.index, render: renderLinkIndexSection },
+					{ id: 'embedding', label: labels.embedding, render: renderConnectorServerSection },
+					{ id: 'index', label: labels.index, render: renderConnectorIndexSection },
 				];
-			case 'templater':
+			case 'maker':
 				return [upcoming('templates'), upcoming('prompts'), upcoming('mcp')];
 			case 'reminder':
 				return [

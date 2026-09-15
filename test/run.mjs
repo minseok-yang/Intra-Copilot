@@ -1,4 +1,4 @@
-// 링크 모듈 테스트 실행기: test/*.test.ts를 하나씩 번들해 Node로 돌립니다(npm test).
+// 커넥터 모듈 테스트 실행기: test/*.test.ts를 하나씩 번들해 Node로 돌립니다(npm test).
 // Obsidian 없이 돌리기 위해 'obsidian' 모듈을 test/obsidian-mock.ts로 바꿔 끼웁니다.
 // 번들 결과는 운영체제 임시 폴더에 두어 저장소에 남지 않게 합니다.
 import { build } from 'esbuild';

@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { TFile } from './obsidian-mock';
-import { LinkIndex } from '../src/link/link-index';
+import { ConnectorIndex } from '../src/connector/connector-index';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
 (globalThis as unknown as { window: typeof globalThis }).window = globalThis;
@@ -132,8 +132,8 @@ function makePlugin(port: number) {
 		manifest: { dir: 'plug', id: 'intra-copilot' },
 		settings: {
 			general: { language: 'ko' as const },
-			link: {
-				...DEFAULT_SETTINGS.link,
+			connector: {
+				...DEFAULT_SETTINGS.connector,
 				baseUrl: `http://127.0.0.1:${port}/v1`,
 				model: 'm',
 				batchSize: 4,
@@ -158,7 +158,7 @@ function seed(vault: FakeVault) {
 	vault.put('mixed.md', `${appleSection}\n\n${carSection}`);
 }
 
-// 색인 파일(link-index.bin) 모양: [머리말 길이 4바이트][머리말 JSON][4바이트 정렬][float32 벡터]
+// 색인 파일(connector-index.bin) 모양: [머리말 길이 4바이트][머리말 JSON][4바이트 정렬][float32 벡터]
 function binaryIndex(header: unknown): ArrayBuffer {
 	const json = new TextEncoder().encode(JSON.stringify(header));
 	const buffer = new ArrayBuffer(Math.ceil((4 + json.length) / 4) * 4);
@@ -168,7 +168,7 @@ function binaryIndex(header: unknown): ArrayBuffer {
 }
 
 function indexHeader(vault: FakeVault): unknown {
-	const buffer = vault.store.get('plug/link-index.bin') as ArrayBuffer;
+	const buffer = vault.store.get('plug/connector-index.bin') as ArrayBuffer;
 	const length = new DataView(buffer).getUint32(0, true);
 	return JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, length)));
 }
@@ -197,7 +197,7 @@ async function main() {
 	const setup = async (build = true) => {
 		const { vault, plugin } = makePlugin(port);
 		seed(vault);
-		const index = new LinkIndex(plugin as never, 5);
+		const index = new ConnectorIndex(plugin as never, 5);
 		if (build) await index.rebuild();
 		return { vault, plugin, index };
 	};
@@ -271,7 +271,7 @@ async function main() {
 		const k1 = a.index.search('car1.md', 10)!.find((r) => r.path === 'mixed.md')!.score;
 		reset();
 		const b = await setup(false);
-		b.plugin.settings.link.vectorsPerNote = 2;
+		b.plugin.settings.connector.vectorsPerNote = 2;
 		await b.index.rebuild();
 		const k2 = b.index.search('car1.md', 10)!.find((r) => r.path === 'mixed.md')!.score;
 		const k2apple = b.index.search('Fruit/apple1.md', 10)!.find((r) => r.path === 'mixed.md')!.score;
@@ -281,15 +281,15 @@ async function main() {
 	await test('T09 persistence round trip; corrupt/old file → not built', async () => {
 		const { vault, plugin, index } = await setup();
 		const before = index.search('Fruit/apple1.md', 10);
-		const again = new LinkIndex(plugin as never);
+		const again = new ConnectorIndex(plugin as never);
 		await again.load();
 		assert.deepStrictEqual(again.search('Fruit/apple1.md', 10), before);
-		vault.store.set('plug/link-index.bin', new Uint8Array([200, 1, 0, 0, 7]).buffer);
-		const broken = new LinkIndex(plugin as never);
+		vault.store.set('plug/connector-index.bin', new Uint8Array([200, 1, 0, 0, 7]).buffer);
+		const broken = new ConnectorIndex(plugin as never);
 		await broken.load();
 		assert.strictEqual(broken.state().kind, 'not-built');
-		vault.store.set('plug/link-index.bin', binaryIndex({ version: 2, baseUrl: plugin.settings.link.baseUrl, model: 'm', notes: {} }));
-		const old = new LinkIndex(plugin as never);
+		vault.store.set('plug/connector-index.bin', binaryIndex({ version: 2, baseUrl: plugin.settings.connector.baseUrl, model: 'm', notes: {} }));
+		const old = new ConnectorIndex(plugin as never);
 		await old.load();
 		assert.strictEqual(old.state().kind, 'not-built');
 	});
@@ -331,10 +331,10 @@ async function main() {
 		reset({ delayMs: 80 });
 		const run = index.rebuild();
 		await sleep(40);
-		plugin.settings.link.model = 'other';
+		plugin.settings.connector.model = 'other';
 		await run;
 		assert.strictEqual(index.state().kind, 'not-built');
-		plugin.settings.link.model = 'm';
+		plugin.settings.connector.model = 'm';
 		mode = {};
 		await index.sync();
 		assert.strictEqual(index.state().kind, 'ready');
@@ -362,7 +362,7 @@ async function main() {
 	await test('T16 emoji at chunk boundary does not produce lone surrogates', async () => {
 		const { vault, plugin, index } = await setup(false);
 		vault.files.clear();
-		plugin.settings.link.chunkChars = 10;
+		plugin.settings.connector.chunkChars = 10;
 		vault.put('emoji.md', `${'a'.repeat(5)}😀😀😀😀😀😀😀`); // a 5개 + 이모지: 10칸에서 자르면 이모지 한가운데
 		reset();
 		await index.rebuild();
@@ -371,9 +371,9 @@ async function main() {
 
 	await test('T17 rebuild while load() is still reading keeps the new index', async () => {
 		const { vault, plugin, index } = await setup();
-		const fresh = new LinkIndex(plugin as never);
+		const fresh = new ConnectorIndex(plugin as never);
 		vault.readDelayMs = 400; // 다시 만들기가 끝난 뒤에 읽기가 끝나게
-		plugin.settings.link.model = 'm2';
+		plugin.settings.connector.model = 'm2';
 		const loading = fresh.load();
 		await fresh.rebuild();
 		await loading;
@@ -397,7 +397,7 @@ async function main() {
 		const { vault, plugin, index } = await setup(false);
 		vault.files.clear();
 		for (let i = 0; i < 60; i++) vault.put(`n${i}.md`, `apple ${i}`);
-		plugin.settings.link.batchSize = 1;
+		plugin.settings.connector.batchSize = 1;
 		vault.writes = 0;
 		await index.rebuild();
 		assert.ok(vault.writes <= 3, `writes=${vault.writes}`);
@@ -424,16 +424,16 @@ async function main() {
 
 	await test('T29 trailing slash in server address does not invalidate index', async () => {
 		const { plugin, index } = await setup();
-		plugin.settings.link.baseUrl += '/';
+		plugin.settings.connector.baseUrl += '/';
 		assert.strictEqual(index.state().kind, 'ready');
 	});
 
 	await test('T30 interrupted save (only temp file left) is recovered', async () => {
 		const { vault, plugin } = await setup();
-		const data = vault.store.get('plug/link-index.bin')!;
-		vault.store.delete('plug/link-index.bin');
-		vault.store.set('plug/link-index.bin.tmp', data);
-		const again = new LinkIndex(plugin as never);
+		const data = vault.store.get('plug/connector-index.bin')!;
+		vault.store.delete('plug/connector-index.bin');
+		vault.store.set('plug/connector-index.bin.tmp', data);
+		const again = new ConnectorIndex(plugin as never);
 		await again.load();
 		assert.strictEqual(again.state().kind, 'ready');
 	});
@@ -457,7 +457,7 @@ async function main() {
 		const { vault, plugin, index } = await setup(false);
 		vault.files.clear();
 		vault.put('long.md', Array.from({ length: 60 }, (_, i) => `para ${i} `.repeat(20)).join('\n\n'));
-		plugin.settings.link.chunkChars = 200;
+		plugin.settings.connector.chunkChars = 200;
 		reset();
 		await index.rebuild();
 		assert.ok(sentTexts.length <= 20, `sent ${sentTexts.length}`);
@@ -484,14 +484,14 @@ async function main() {
 
 	await test('T23 excluded folder change + sync removes entries', async () => {
 		const { plugin, index } = await setup();
-		plugin.settings.link.excludedFolders = ['Private', 'Fruit'];
+		plugin.settings.connector.excludedFolders = ['Private', 'Fruit'];
 		await index.sync();
 		assert.ok(!index.search('apple2.md', 10)!.some((r) => r.path.startsWith('Fruit/')));
 	});
 
 	await test('T24 network down → network error, not crash', async () => {
 		const { plugin, index } = await setup(false);
-		plugin.settings.link.baseUrl = 'http://127.0.0.1:1/v1';
+		plugin.settings.connector.baseUrl = 'http://127.0.0.1:1/v1';
 		await index.rebuild();
 		const s = index.state();
 		assert.strictEqual(s.kind === 'error' && s.failure.kind, 'network');
@@ -548,12 +548,12 @@ async function main() {
 		const { vault, plugin, index } = await setup();
 		assert.ok(rawBodies.every((b) => !b.includes('dimensions')), 'dimensions sent while 0');
 		reset();
-		plugin.settings.link.dimensions = 6;
+		plugin.settings.connector.dimensions = 6;
 		await index.rebuild();
 		assert.ok(rawBodies.every((b) => (JSON.parse(b) as { dimensions?: number }).dimensions === 6));
 		assert.strictEqual(index.state().kind, 'ready');
 		// 크기를 바꾸면 고급 설정이 바뀐 것이라 섞어 저장하지 않고 다시 만들 때까지 멈춥니다.
-		plugin.settings.link.dimensions = 5;
+		plugin.settings.connector.dimensions = 5;
 		vault.put('car1.md', 'car changed');
 		reset();
 		await index.sync();
@@ -563,13 +563,13 @@ async function main() {
 
 	await test('T37 document format is applied to every chunk; missing {text} falls back', async () => {
 		const { vault, plugin, index } = await setup(false);
-		plugin.settings.link.documentFormat = 'title: {title} | text: {text}';
+		plugin.settings.connector.documentFormat = 'title: {title} | text: {text}';
 		await index.rebuild();
 		assert.ok(sentTexts.includes('title: car1 | text: car car engine'), JSON.stringify(sentTexts.slice(0, 3)));
 		const mixedChunks = sentTexts.filter((t) => t.startsWith('title: mixed | text: '));
 		assert.ok(mixedChunks.length > 1, 'title not repeated on every chunk');
 		reset();
-		plugin.settings.link.documentFormat = 'no body here';
+		plugin.settings.connector.documentFormat = 'no body here';
 		vault.put('music1.md', 'music music drums');
 		await index.rebuild();
 		assert.ok(sentTexts.includes('music1\n\nmusic music drums'), JSON.stringify(sentTexts.slice(0, 3)));
@@ -577,33 +577,33 @@ async function main() {
 
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
-		plugin.settings.link.batchSize = 2;
+		plugin.settings.connector.batchSize = 2;
 		assert.strictEqual(index.state().kind, 'ready');
 		for (const [key, value] of [['chunkChars', 150], ['vectorsPerNote', 2], ['dimensions', 8], ['documentFormat', 'x {text}']] as const) {
-			const before = plugin.settings.link[key];
-			(plugin.settings.link as Record<string, unknown>)[key] = value;
+			const before = plugin.settings.connector[key];
+			(plugin.settings.connector as Record<string, unknown>)[key] = value;
 			assert.deepStrictEqual(index.state(), { kind: 'not-built', builtWith: '', optionsChanged: true }, key);
 			assert.strictEqual(index.search('car1.md', 3), null, key);
-			(plugin.settings.link as Record<string, unknown>)[key] = before;
+			(plugin.settings.connector as Record<string, unknown>)[key] = before;
 			assert.strictEqual(index.state().kind, 'ready', key);
 		}
 		reset();
-		plugin.settings.link.chunkChars = 150;
+		plugin.settings.connector.chunkChars = 150;
 		vault.put('car1.md', 'car changed again');
 		await index.sync();
 		assert.strictEqual(served, 0, 'auto sync sent with changed options');
 		// 고급 설정 기록이 없는 예전 파일은 지금 설정으로 만든 것으로 봅니다.
 		const header = indexHeader(vault) as Record<string, unknown>;
 		delete header.options;
-		vault.store.set('plug/link-index.bin', binaryIndex(header));
-		const old = new LinkIndex(plugin as never);
+		vault.store.set('plug/connector-index.bin', binaryIndex(header));
+		const old = new ConnectorIndex(plugin as never);
 		await old.load();
 		assert.strictEqual(old.state().kind, 'ready');
 	});
 
 	await test('T38 with 2 vectors per note, suggestions name the matching section', async () => {
 		const { vault, plugin, index } = await setup(false);
-		plugin.settings.link.vectorsPerNote = 2;
+		plugin.settings.connector.vectorsPerNote = 2;
 		const apple = Array.from({ length: 3 }, () => 'apple '.repeat(30)).join('\n\n');
 		const car = Array.from({ length: 3 }, () => 'car '.repeat(30)).join('\n\n');
 		vault.put('sections.md', `# Fruit notes\n\n${apple}\n\n## Car notes\n\n${car}`);
@@ -612,7 +612,7 @@ async function main() {
 		const fromApple = index.search('Fruit/apple1.md', 10)!.find((r) => r.path === 'sections.md')!;
 		assert.strictEqual(fromCar.section, 'Car notes');
 		assert.strictEqual(fromApple.section, 'Fruit notes');
-		const again = new LinkIndex(plugin as never);
+		const again = new ConnectorIndex(plugin as never);
 		await again.load();
 		assert.strictEqual(again.search('car1.md', 10)!.find((r) => r.path === 'sections.md')!.section, 'Car notes');
 		// 벡터가 하나인 노트는 섹션이 없음
@@ -625,7 +625,7 @@ async function main() {
 		assert.strictEqual(index.pendingCount(), 0);
 		vault.put('car1.md', 'car car engine wheel');
 		vault.put('new.md', 'brand new');
-		plugin.settings.link.excludedFolders = ['Private', 'Fruit'];
+		plugin.settings.connector.excludedFolders = ['Private', 'Fruit'];
 		assert.strictEqual(index.pendingCount(), 3);
 		assert.strictEqual(served, 0, 'counting contacted the server');
 		await index.sync();
@@ -634,7 +634,7 @@ async function main() {
 
 	await test('T41 auto update waits while editing, follows the interval, and 0 never syncs on its own', async () => {
 		const { vault, plugin, index } = await setup();
-		plugin.settings.link.autoSyncSeconds = 1;
+		plugin.settings.connector.autoSyncSeconds = 1;
 		reset();
 		vault.put('car1.md', 'car one');
 		index.requestSync();
@@ -645,7 +645,7 @@ async function main() {
 		assert.strictEqual(served, 0, 'sent while still editing');
 		await sleep(700);
 		assert.deepStrictEqual(sentTexts, ['car1\n\ncar two']);
-		plugin.settings.link.autoSyncSeconds = 0;
+		plugin.settings.connector.autoSyncSeconds = 0;
 		reset();
 		vault.put('car1.md', 'car three');
 		index.requestSync();
@@ -654,7 +654,7 @@ async function main() {
 		assert.strictEqual(index.pendingCount(), 1);
 	});
 
-	await test('T42 link view and settings share one server check: in-flight flag, record, resume after error', async () => {
+	await test('T42 connector view and settings share one server check: in-flight flag, record, resume after error', async () => {
 		const { index } = await setup(false);
 		reset({ failAfter: 1, status: 401 });
 		await index.rebuild();

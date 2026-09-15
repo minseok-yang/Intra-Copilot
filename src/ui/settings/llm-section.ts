@@ -62,7 +62,7 @@ export function addNumberSetting(
 		});
 }
 
-// [▸ 고급 설정] 버튼과 그 아래 접힌 영역을 만들고 영역을 돌려줍니다(챗봇 LLM 연결, 링크 인덱스).
+// [▸ 고급 설정] 버튼과 그 아래 접힌 영역을 만들고 영역을 돌려줍니다(챗봇 LLM 연결, 커넥터 인덱스).
 // 다른 버튼과 똑같은 ButtonComponent라서 배경색·글자 크기가 자동으로 맞습니다.
 // ButtonComponent.setIcon()은 글자를 지워버려서, 아이콘과 글자를 직접 함께 넣습니다.
 export function addAdvancedSection(parentEl: HTMLElement, label: string): HTMLElement {

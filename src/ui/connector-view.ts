@@ -15,32 +15,32 @@ import {
 	WorkspaceLeaf,
 } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
-import { describeLinkError, t, type LinkStrings } from '../i18n';
-import type { IndexState } from '../link/link-index';
+import { describeConnectorError, t, type ConnectorStrings } from '../i18n';
+import type { IndexState } from '../connector/connector-index';
 import { CHAT_VIEW_TYPE, ChatView, createHeaderButton, revealChatView } from './chat-view';
 import { featureIcon, renderViewHeading } from './settings/features';
 import { setStatusDot, type StatusState } from './status-light';
 
-// 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
-// 색인과 검색은 link/link-index.ts, 서버 요청은 llm/client.ts의 createEmbeddings가 맡습니다.
+// 커넥터 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
+// 색인과 검색은 connector/connector-index.ts, 서버 요청은 llm/client.ts의 createEmbeddings가 맡습니다.
 // 비슷한 노트를 찾는 계산은 이 PC 안에서 하며, 이 화면을 여는 것만으로는 아무것도 보내지 않습니다.
 
-export const LINK_VIEW_TYPE = 'intra-copilot-link-view';
+export const CONNECTOR_VIEW_TYPE = 'intra-copilot-connector-view';
 
-export async function revealLinkView(plugin: IntraCopilotPlugin): Promise<void> {
-	await plugin.app.workspace.ensureSideLeaf(LINK_VIEW_TYPE, 'right', { active: true, reveal: true });
+export async function revealConnectorView(plugin: IntraCopilotPlugin): Promise<void> {
+	await plugin.app.workspace.ensureSideLeaf(CONNECTOR_VIEW_TYPE, 'right', { active: true, reveal: true });
 }
 
-export function refreshLinkViews(plugin: IntraCopilotPlugin): void {
-	for (const leaf of plugin.app.workspace.getLeavesOfType(LINK_VIEW_TYPE)) {
-		if (leaf.view instanceof LinkView) leaf.view.render();
+export function refreshConnectorViews(plugin: IntraCopilotPlugin): void {
+	for (const leaf of plugin.app.workspace.getLeavesOfType(CONNECTOR_VIEW_TYPE)) {
+		if (leaf.view instanceof ConnectorView) leaf.view.render();
 	}
 }
 
-export function registerLink(plugin: IntraCopilotPlugin): void {
+export function registerConnector(plugin: IntraCopilotPlugin): void {
 	const { vault, workspace } = plugin.app;
-	const index = plugin.linkIndex;
-	plugin.registerView(LINK_VIEW_TYPE, (leaf) => new LinkView(leaf, plugin));
+	const index = plugin.connectorIndex;
+	plugin.registerView(CONNECTOR_VIEW_TYPE, (leaf) => new ConnectorView(leaf, plugin));
 
 	// 켤 때 Obsidian이 파일을 불러오며 보내는 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 자동 갱신 주기에 맞춰 바뀐 노트를 맞춥니다.
 	workspace.onLayoutReady(() => {
@@ -56,10 +56,10 @@ export function registerLink(plugin: IntraCopilotPlugin): void {
 	plugin.register(() => index.stop());
 }
 
-// 색인 상태 한 줄(링크 화면과 설정의 색인 상태가 함께 씁니다). detail은 서버 원문(툴팁용)입니다.
+// 색인 상태 한 줄(커넥터 화면과 설정의 색인 상태가 함께 씁니다). detail은 서버 원문(툴팁용)입니다.
 export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState): { text: string; detail?: string } {
 	const language = plugin.settings.general.language;
-	const strings = t(language).link;
+	const strings = t(language).connector;
 	switch (state.kind) {
 		case 'not-configured':
 			return { text: strings.stateNotConfigured };
@@ -73,7 +73,7 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 					.replace('{total}', String(state.total)),
 			};
 		case 'error': {
-			const { summary, detail } = describeLinkError(language, state.failure);
+			const { summary, detail } = describeConnectorError(language, state.failure);
 			return { text: strings.stateError.replace('{reason}', summary), detail };
 		}
 		case 'ready':
@@ -81,10 +81,10 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 	}
 }
 
-// 색인 상태등 색과 짧은 글자(링크 창 머리줄·설정의 색인 상태가 함께 씁니다).
+// 색인 상태등 색과 짧은 글자(커넥터 창 머리줄·설정의 색인 상태가 함께 씁니다).
 // 회색 색인 없음 · 빨강 오류 · 노랑 색인 중이거나 아직 반영되지 않은 노트가 있음 · 초록 최신.
 export function indexLight(plugin: IntraCopilotPlugin, state: IndexState): { state: StatusState; label: string; pending: number } {
-	const strings = t(plugin.settings.general.language).link;
+	const strings = t(plugin.settings.general.language).connector;
 	switch (state.kind) {
 		case 'not-configured':
 		case 'not-built':
@@ -98,7 +98,7 @@ export function indexLight(plugin: IntraCopilotPlugin, state: IndexState): { sta
 		case 'error':
 			return { state: 'error', label: strings.indexLabelError, pending: 0 };
 		case 'ready': {
-			const pending = plugin.linkIndex.pendingCount();
+			const pending = plugin.connectorIndex.pendingCount();
 			return pending > 0
 				? { state: 'warning', label: strings.indexLabelPending.replace('{count}', String(pending)), pending }
 				: { state: 'ok', label: strings.indexLabelReady, pending };
@@ -118,8 +118,8 @@ class IndexConfirmModal extends Modal {
 	}
 
 	onOpen(): void {
-		const strings = t(this.plugin.settings.general.language).link;
-		const { baseUrl, model } = this.plugin.settings.link;
+		const strings = t(this.plugin.settings.general.language).connector;
+		const { baseUrl, model } = this.plugin.settings.connector;
 		const { contentEl } = this;
 		this.titleEl.setText(strings.confirmTitle);
 		const summary = contentEl.createEl('p', { text: strings.confirmCounting });
@@ -137,10 +137,10 @@ class IndexConfirmModal extends Modal {
 					.setDisabled(true)
 					.onClick(() => {
 						this.close();
-						void this.plugin.linkIndex.rebuild();
+						void this.plugin.connectorIndex.rebuild();
 					});
 			});
-		void this.plugin.linkIndex.estimate().then(({ notes, chunks, requests }) => {
+		void this.plugin.connectorIndex.estimate().then(({ notes, chunks, requests }) => {
 			summary.setText(
 				strings.confirmSummary
 					.replace('{notes}', String(notes))
@@ -156,7 +156,7 @@ class IndexConfirmModal extends Modal {
 	}
 }
 
-export class LinkView extends ItemView {
+export class ConnectorView extends ItemView {
 	// 마지막으로 본 노트. 사이드바를 누르면 활성 창이 이 화면으로 바뀌어도, 보던 노트의 목록을 그대로 둡니다.
 	private file: TFile | null = null;
 	private statusEl: HTMLElement | null = null;
@@ -180,7 +180,7 @@ export class LinkView extends ItemView {
 	}
 
 	getViewType(): string {
-		return LINK_VIEW_TYPE;
+		return CONNECTOR_VIEW_TYPE;
 	}
 
 	getDisplayText(): string {
@@ -188,12 +188,12 @@ export class LinkView extends ItemView {
 	}
 
 	getIcon(): string {
-		return featureIcon('link');
+		return featureIcon('connector');
 	}
 
 	onOpen(): Promise<void> {
-		this.contentEl.addClass('intra-copilot-link-view');
-		this.register(this.plugin.linkIndex.subscribe(() => this.onIndexChanged()));
+		this.contentEl.addClass('intra-copilot-connector-view');
+		this.register(this.plugin.connectorIndex.subscribe(() => this.onIndexChanged()));
 		this.registerEvent(this.app.workspace.on('file-open', () => this.render()));
 		// 링크를 넣으면 "링크됨" 표시가 바뀌므로, 보고 있는 노트의 링크 정보가 바뀌면 잠잠해진 뒤 다시 그립니다.
 		const refresh = debounce(() => this.render(), 1000, true);
@@ -210,13 +210,13 @@ export class LinkView extends ItemView {
 		return Promise.resolve();
 	}
 
-	private strings(): LinkStrings {
-		return t(this.plugin.settings.general.language).link;
+	private strings(): ConnectorStrings {
+		return t(this.plugin.settings.general.language).connector;
 	}
 
 	// 색인하는 동안은 진행 숫자만 바꿉니다. 목록을 매번 다시 그리면 끌던 링크 버튼이나 누르려던 버튼이 사라지기 때문입니다.
 	private onIndexChanged(): void {
-		const state = this.plugin.linkIndex.state();
+		const state = this.plugin.connectorIndex.state();
 		if (state.kind === 'indexing' && this.renderedKind === 'indexing' && this.statusEl) {
 			this.statusEl.setText(describeIndexState(this.plugin, state).text);
 			this.renderServerStatus();
@@ -228,7 +228,7 @@ export class LinkView extends ItemView {
 
 	render(): void {
 		const strings = this.strings();
-		const index = this.plugin.linkIndex;
+		const index = this.plugin.connectorIndex;
 		const active = this.app.workspace.getActiveFile();
 		if (active?.extension === 'md') this.file = active;
 		if (this.file && !this.app.vault.getFileByPath(this.file.path)) this.file = null;
@@ -239,10 +239,10 @@ export class LinkView extends ItemView {
 		contentEl.empty();
 		this.removeChild(this.previews);
 		this.previews = this.addChild(new Component());
-		renderViewHeading(contentEl, this.plugin, 'link');
+		renderViewHeading(contentEl, this.plugin, 'connector');
 
 		// 머리줄: 왼쪽은 색인 상태등 · [업데이트], 오른쪽은 챗봇처럼 모델 · [연결 확인] · 서버 상태등.
-		const { model } = this.plugin.settings.link;
+		const { model } = this.plugin.settings.connector;
 		const header = contentEl.createDiv({ cls: 'intra-copilot-chat-header' });
 		const indexGroup = header.createDiv({ cls: 'intra-copilot-chat-header-group' });
 		const indexWrap = indexGroup.createSpan({ cls: 'intra-copilot-chat-status' });
@@ -254,7 +254,7 @@ export class LinkView extends ItemView {
 		};
 		this.renderIndexStatus();
 		const group = header.createDiv({ cls: 'intra-copilot-chat-header-group is-connection' });
-		if (model) setTooltip(group.createSpan({ cls: 'intra-copilot-link-model', text: model }), `${strings.modelName}: ${model}`);
+		if (model) setTooltip(group.createSpan({ cls: 'intra-copilot-connector-model', text: model }), `${strings.modelName}: ${model}`);
 		const button = createHeaderButton(
 			group,
 			'refresh-cw',
@@ -272,7 +272,7 @@ export class LinkView extends ItemView {
 		this.renderServerStatus();
 
 		contentEl.createDiv({ cls: 'intra-copilot-reminder-title', text: this.file?.basename ?? strings.title });
-		const statusRow = contentEl.createDiv({ cls: 'intra-copilot-link-status' });
+		const statusRow = contentEl.createDiv({ cls: 'intra-copilot-connector-status' });
 		const { text, detail } = describeIndexState(this.plugin, state);
 		this.statusEl = statusRow.createSpan({ text });
 		if (detail) setTooltip(this.statusEl, detail);
@@ -295,7 +295,7 @@ export class LinkView extends ItemView {
 			this.expanded.clear();
 			this.selected.clear();
 		}
-		const { resultCount, linkedNotes } = this.plugin.settings.link;
+		const { resultCount, linkedNotes } = this.plugin.settings.connector;
 		// 이미 링크된 노트를 빼거나 뒤로 보낸 뒤 개수를 자르므로, 먼저 전체를 비슷한 순서로 받습니다.
 		const all = index.search(source.path, Infinity);
 		if (!all) {
@@ -332,21 +332,21 @@ export class LinkView extends ItemView {
 			const isLinked = result.path in linked;
 			// "맨 아래로"면 새 노트와 링크된 노트 사이에 구분 제목을 한 번 둡니다.
 			if (isLinked && linkedNotes === 'bottom' && !dividerDrawn) {
-				contentEl.createDiv({ cls: 'intra-copilot-link-divider', text: strings.linkedNotesName });
+				contentEl.createDiv({ cls: 'intra-copilot-connector-divider', text: strings.linkedNotesName });
 				dividerDrawn = true;
 			}
 			this.renderCard(contentEl, source, target, result.score, isLinked, result.section, updateChatButton);
 		}
 	}
 
-	// 상태등은 LinkIndex가 적어 둔 마지막 요청 결과를 그대로 보여 줍니다(설정 화면 [연결 확인]과 같은 기록). 마우스를 올리면 이유와 확인 시각이 보입니다.
+	// 상태등은 ConnectorIndex가 적어 둔 마지막 요청 결과를 그대로 보여 줍니다(설정 화면 [연결 확인]과 같은 기록). 마우스를 올리면 이유와 확인 시각이 보입니다.
 	private renderServerStatus(): void {
 		if (!this.server) return;
 		const { wrap, dot, label, button } = this.server;
 		const language = this.plugin.settings.general.language;
-		const { chat, llm, link } = t(language);
-		const status = this.plugin.linkIndex.serverStatus();
-		const checking = this.plugin.linkIndex.isCheckingServer();
+		const { chat, llm, connector } = t(language);
+		const status = this.plugin.connectorIndex.serverStatus();
+		const checking = this.plugin.connectorIndex.isCheckingServer();
 		const state = !status ? 'idle' : status.failure ? 'error' : 'ok';
 		setStatusDot(dot, state);
 		label.setText(
@@ -359,9 +359,9 @@ export class LinkView extends ItemView {
 						: chat.statusLabelIdle,
 		);
 		label.toggleClass('is-error', !checking && state === 'error');
-		const reason = status?.failure ? describeLinkError(language, status.failure).summary : chat.statusLabelOk;
-		setTooltip(wrap, status ? `${reason} · ${llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}` : link.serverIdleTooltip);
-		button.setDisabled(checking || this.plugin.linkIndex.state().kind === 'not-configured');
+		const reason = status?.failure ? describeConnectorError(language, status.failure).summary : chat.statusLabelOk;
+		setTooltip(wrap, status ? `${reason} · ${llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}` : connector.serverIdleTooltip);
+		button.setDisabled(checking || this.plugin.connectorIndex.state().kind === 'not-configured');
 		button.buttonEl.toggleClass('intra-copilot-is-checking', checking);
 	}
 
@@ -370,7 +370,7 @@ export class LinkView extends ItemView {
 		if (!this.indexStatus) return;
 		const { wrap, dot, label, button } = this.indexStatus;
 		const strings = this.strings();
-		const state = this.plugin.linkIndex.state();
+		const state = this.plugin.connectorIndex.state();
 		const light = indexLight(this.plugin, state);
 		setStatusDot(dot, light.state);
 		label.setText(light.label);
@@ -392,11 +392,11 @@ export class LinkView extends ItemView {
 		onSelectChange: () => void,
 	): void {
 		const strings = this.strings();
-		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-link-card' });
+		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-connector-card' });
 		// 이미 링크된 노트는 흐리게 그리고 이름 옆에 배지를 달아, 새로 연결할 노트와 한눈에 구분되게 합니다.
 		card.toggleClass('is-linked', isLinked);
 
-		const titleRow = card.createDiv({ cls: 'intra-copilot-link-title' });
+		const titleRow = card.createDiv({ cls: 'intra-copilot-connector-title' });
 		const check = titleRow.createEl('input', { type: 'checkbox' });
 		check.checked = this.selected.has(target.path);
 		setTooltip(check, strings.selectTooltip);
@@ -408,7 +408,7 @@ export class LinkView extends ItemView {
 		const name = titleRow.createEl('a', { cls: 'intra-copilot-reminder-name', text: target.basename });
 		setTooltip(name, strings.previewTooltip);
 		if (isLinked) {
-			const badge = titleRow.createSpan({ cls: 'intra-copilot-link-badge' });
+			const badge = titleRow.createSpan({ cls: 'intra-copilot-connector-badge' });
 			setIcon(badge.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'link');
 			badge.createSpan({ text: strings.linked });
 			setTooltip(badge, strings.linkedTooltip);
@@ -416,22 +416,22 @@ export class LinkView extends ItemView {
 
 		// 유사도는 이름 줄 오른쪽 끝에 막대 + 숫자로 둬 카드끼리 한눈에 견주고, 아래 줄에는 폴더 경로만 남깁니다.
 		const percent = String(Math.round(Math.max(0, score) * 100));
-		const scoreEl = titleRow.createSpan({ cls: 'intra-copilot-link-score' });
+		const scoreEl = titleRow.createSpan({ cls: 'intra-copilot-connector-score' });
 		scoreEl.setCssProps({ '--intra-copilot-score': `${percent}%` });
-		scoreEl.createSpan({ cls: 'intra-copilot-link-score-bar' });
+		scoreEl.createSpan({ cls: 'intra-copilot-connector-score-bar' });
 		scoreEl.createSpan({ text: `${percent}%` });
 		setTooltip(scoreEl, strings.score.replace('{score}', percent));
 		if (target.parent && !target.parent.isRoot()) {
-			const pathEl = card.createDiv({ cls: 'intra-copilot-reminder-meta intra-copilot-link-path' });
+			const pathEl = card.createDiv({ cls: 'intra-copilot-reminder-meta intra-copilot-connector-path' });
 			setIcon(pathEl.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'folder');
 			pathEl.createSpan({ text: target.parent.path });
 			setTooltip(pathEl, target.parent.path);
 		}
 		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
 
-		// 이름을 누르면 노트로 옮겨 가지 않고 카드 안에 내용을 펼칩니다. 옮겨 가면 링크 창이 그 노트 기준으로 바뀌어
+		// 이름을 누르면 노트로 옮겨 가지 않고 카드 안에 내용을 펼칩니다. 옮겨 가면 커넥터 창이 그 노트 기준으로 바뀌어
 		// 보던 목록으로 돌아올 수 없기 때문입니다. Ctrl/Cmd를 누른 채 누르면 예전처럼 새 탭에서 엽니다.
-		const preview = card.createDiv({ cls: 'intra-copilot-link-preview' });
+		const preview = card.createDiv({ cls: 'intra-copilot-connector-preview' });
 		const showPreview = (open: boolean) => {
 			card.toggleClass('is-open', open);
 			preview.empty();

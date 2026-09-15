@@ -34,7 +34,7 @@ export function renderSkillsSection(containerEl: HTMLElement, ctx: SettingsConte
 }
 
 // 볼트 안 폴더를 파일 탐색기로 엽니다. 데스크톱 전용 플러그인이라 볼트는 늘 실제 폴더에 있습니다.
-// (스킬 폴더는 목록을 그릴 때 listSkills가, 플러그인 폴더는 Obsidian이 이미 만들어 둡니다.) 링크 설정도 씁니다.
+// (스킬 폴더는 목록을 그릴 때 listSkills가, 플러그인 폴더는 Obsidian이 이미 만들어 둡니다.) 커넥터 설정도 씁니다.
 export async function openFolder(ctx: SettingsContext, folder: string, failedMessage: string): Promise<void> {
 	const { adapter } = ctx.plugin.app.vault;
 	const error =

@@ -8,7 +8,7 @@ import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
 import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors';
 
-// 링크 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 link-index.bin에 저장하고, 비슷한 노트를 찾아 줍니다.
+// 커넥터 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 connector-index.bin에 저장하고, 비슷한 노트를 찾아 줍니다.
 //
 // 언제 서버로 보내나
 // - 처음 색인은 사용자가 [색인 만들기]를 눌러야만 시작합니다(볼트 전체 본문이 임베딩 서버로 가기 때문).
@@ -22,7 +22,7 @@ import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors'
 // 색인 파일 모양: [머리말 길이 4바이트][머리말 JSON(서버·모델·노트별 날짜·해시·섹션·벡터 위치)][4바이트 정렬][float32 벡터들]
 // 벡터를 글자(base64)로 바꾸지 않아 파일이 약 25% 작고, 불러올 때 벡터를 복사·변환하지 않고 파일 버퍼를 그대로 씁니다.
 // (숫자는 이 PC의 바이트 순서로 적습니다. Windows·Mac·Linux 데스크톱은 모두 같은 순서라 볼트를 옮겨도 읽힙니다.)
-const INDEX_FILE = 'link-index.bin';
+const INDEX_FILE = 'connector-index.bin';
 // 3: 이진 파일. 이전 형식(link-index.json)은 읽지 않으며 [색인 만들기]로 다시 만듭니다.
 const INDEX_VERSION = 3;
 // ponytail: 아주 긴 노트는 앞부분 조각만 씁니다(공용 서버 보호). 뒷부분까지 필요하면 이 값을 설정으로 빼세요.
@@ -91,7 +91,7 @@ function sameServerUrl(url: string): string {
 	return url.replace(/\/+$/, '');
 }
 
-export class LinkIndex {
+export class ConnectorIndex {
 	private owner: Owner | null = null;
 	private notes = new Map<string, NoteEntry>();
 	private running: Promise<void> | null = null;
@@ -102,9 +102,9 @@ export class LinkIndex {
 	private listeners = new Set<() => void>();
 	// 파일 쓰기를 한 줄로 세웁니다. 두 저장이 겹치면 같은 파일을 동시에 써서 내용이 깨질 수 있습니다.
 	private saving: Promise<void> = Promise.resolve();
-	// 임베딩 서버 상태등(링크 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
+	// 임베딩 서버 상태등(커넥터 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
 	// 결과만 적어 둡니다(자주 물으면 공용 서버·무료 API 사용량을 씁니다). key는 그때의 주소·키·모델입니다.
-	// 링크 창과 설정 화면이 같은 기록·같은 "확인 중"을 보여 주도록 둘 다 여기만 읽습니다.
+	// 커넥터 창과 설정 화면이 같은 기록·같은 "확인 중"을 보여 주도록 둘 다 여기만 읽습니다.
 	private lastServer: ServerStatus | null = null;
 	private checking: Promise<EmbeddingResult> | null = null;
 	private syncTimer: number | null = null;
@@ -123,13 +123,13 @@ export class LinkIndex {
 	// 벡터를 만드는 방식(고급 설정). 바뀌면 저장해 둔 벡터와 새로 받을 벡터가 다른 방식으로 만든 것이라, 서버·모델이 바뀔 때처럼
 	// 다시 만들어야 합니다. 한 번에 보낼 조각 수(batchSize)는 요청을 나누는 방법일 뿐 벡터가 같아 넣지 않습니다.
 	private currentOptions(): string {
-		const { chunkChars, vectorsPerNote, dimensions, documentFormat } = this.plugin.settings.link;
+		const { chunkChars, vectorsPerNote, dimensions, documentFormat } = this.plugin.settings.connector;
 		const format = documentFormat.includes('{text}') ? documentFormat : DEFAULT_DOCUMENT_FORMAT;
 		return JSON.stringify([chunkChars, vectorsPerNote, dimensions, format]);
 	}
 
 	private sameServer(): boolean {
-		const { baseUrl, model } = this.plugin.settings.link;
+		const { baseUrl, model } = this.plugin.settings.connector;
 		return this.owner !== null && this.owner.baseUrl === sameServerUrl(baseUrl) && this.owner.model === model;
 	}
 
@@ -138,7 +138,7 @@ export class LinkIndex {
 	}
 
 	state(): IndexState {
-		const { baseUrl, model } = this.plugin.settings.link;
+		const { baseUrl, model } = this.plugin.settings.connector;
 		if (!baseUrl || !model) return { kind: 'not-configured' };
 		if (!this.matchesSettings()) {
 			const optionsChanged = this.sameServer();
@@ -150,7 +150,7 @@ export class LinkIndex {
 	}
 
 	private serverKey(): string {
-		const { baseUrl, apiKey, model } = this.plugin.settings.link;
+		const { baseUrl, apiKey, model } = this.plugin.settings.connector;
 		return JSON.stringify([sameServerUrl(baseUrl), apiKey, model]);
 	}
 
@@ -168,12 +168,12 @@ export class LinkIndex {
 		this.lastServer = { key, failure: result.ok ? null : result, dims, checkedAt: new Date() };
 	}
 
-	// [연결 확인](링크 창 머리줄·설정): 고정 문장 하나만 보내 서버를 확인합니다. 이미 확인 중이면 그 결과를 같이 기다립니다.
+	// [연결 확인](커넥터 창 머리줄·설정): 고정 문장 하나만 보내 서버를 확인합니다. 이미 확인 중이면 그 결과를 같이 기다립니다.
 	// 서버가 다시 답하면 실패로 멈춰 있던 색인을 이어서 맞춥니다(어느 화면에서 눌렀든 같게).
 	checkServer(): Promise<EmbeddingResult> {
 		if (this.checking) return this.checking;
 		const key = this.serverKey();
-		this.checking = createEmbeddings(this.plugin.settings.link, [TEST_TEXT])
+		this.checking = createEmbeddings(this.plugin.settings.connector, [TEST_TEXT])
 			.then((result) => {
 				this.recordServer(key, result);
 				return result;
@@ -286,7 +286,7 @@ export class LinkIndex {
 
 	// [색인 만들기]·[다시 만들기]: 지금 설정의 서버·모델로 처음부터 만듭니다.
 	async rebuild(): Promise<void> {
-		const { baseUrl, model } = this.plugin.settings.link;
+		const { baseUrl, model } = this.plugin.settings.connector;
 		if (!baseUrl || !model) return;
 		this.owner = { baseUrl: sameServerUrl(baseUrl), model, options: this.currentOptions() };
 		this.notes.clear();
@@ -328,9 +328,9 @@ export class LinkIndex {
 
 	// 자동 갱신: 노트가 바뀌었거나 켤 때 부르면, 설정한 주기(autoSyncSeconds)에 맞춰 맞추기(sync)를 예약합니다.
 	// 1분 미만이면 부를 때마다 다시 기다려 쓰는 동안에는 보내지 않고, 1분 이상이면 첫 변경부터 세어 그 시각에 한꺼번에 보냅니다
-	// (계속 고쳐도 주기마다 한 번은 맞춤). 0이면 예약하지 않으며, 링크 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
+	// (계속 고쳐도 주기마다 한 번은 맞춤). 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
 	requestSync(): void {
-		const seconds = this.plugin.settings.link.autoSyncSeconds;
+		const seconds = this.plugin.settings.connector.autoSyncSeconds;
 		if (seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null) return;
 		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
 		this.syncTimer = null;
@@ -398,7 +398,7 @@ export class LinkIndex {
 	// 제외할 폴더(설정 + 템플릿 폴더, 소문자). 노트마다 다시 구하지 않게 한 번 구해 넘깁니다.
 	private skipFolders(): string[] {
 		const { app, settings } = this.plugin;
-		return [...settings.link.excludedFolders, ...templateFolders(app)].map((folder) => folder.toLowerCase());
+		return [...settings.connector.excludedFolders, ...templateFolders(app)].map((folder) => folder.toLowerCase());
 	}
 
 	private eligibleFiles(): TFile[] {
@@ -406,7 +406,7 @@ export class LinkIndex {
 		return this.plugin.app.vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path, skip));
 	}
 
-	// 색인에 아직 반영되지 않은 노트 수: 새로 만들었거나 고친 노트 + 제외 폴더로 옮겨 빼야 할 기록(링크 창의 노란 상태등).
+	// 색인에 아직 반영되지 않은 노트 수: 새로 만들었거나 고친 노트 + 제외 폴더로 옮겨 빼야 할 기록(커넥터 창의 노란 상태등).
 	// 이 PC 안에서 세기만 합니다. 링크·속성만 바뀐 노트도 세지만, 맞출 때 내용이 그대로면 서버로 보내지 않습니다.
 	// 색인을 쓸 수 없거나 색인하는 중이면 0입니다.
 	pendingCount(): number {
@@ -427,7 +427,7 @@ export class LinkIndex {
 	// 다시 보내지 않으려는 것입니다(뜻은 거의 그대로라 벡터를 새로 받을 이유가 작음). 보내는 글에는 링크가 그대로 들어갑니다.
 	// 문서 형식은 hash에 넣지 않습니다. 형식을 바꾸는 순간 볼트 전체가 자동으로 다시 전송되지 않게 하고, [다시 만들기]로 적용합니다.
 	private prepare(title: string, content: string): { hash: string; chunks: Chunk[] } {
-		const { chunkChars, documentFormat } = this.plugin.settings.link;
+		const { chunkChars, documentFormat } = this.plugin.settings.connector;
 		const body = content.slice(getFrontMatterInfo(content).contentStart);
 		const meaning = `${title}\n${body}`.replace(LINK_SYNTAX, '').replace(/\s+/g, ' ').trim();
 		const format = documentFormat.includes('{text}') ? documentFormat : DEFAULT_DOCUMENT_FORMAT;
@@ -453,13 +453,13 @@ export class LinkIndex {
 			notes++;
 			chunks += this.prepare(file.basename, content).chunks.length;
 		}
-		return { notes, chunks, requests: Math.ceil(chunks / this.plugin.settings.link.batchSize) };
+		return { notes, chunks, requests: Math.ceil(chunks / this.plugin.settings.connector.batchSize) };
 	}
 
 	private async run(): Promise<void> {
 		const owner = this.owner;
 		const { vault } = this.plugin.app;
-		const { batchSize, vectorsPerNote } = this.plugin.settings.link;
+		const { batchSize, vectorsPerNote } = this.plugin.settings.connector;
 		const files = this.eligibleFiles();
 
 		const eligible = new Set(files.map((file) => file.path));
@@ -485,14 +485,14 @@ export class LinkIndex {
 				const batch = queue.splice(0, batchSize);
 				const inputs = batch.map((item) => item.text);
 				const key = this.serverKey();
-				let result = await createEmbeddings(this.plugin.settings.link, inputs);
+				let result = await createEmbeddings(this.plugin.settings.connector, inputs);
 				for (let attempt = 1; !result.ok && result.kind === 'rate-limit' && attempt <= RATE_LIMIT_RETRIES; attempt++) {
 					this.progress.waiting = true;
 					this.emit();
 					await new Promise((resolve) => window.setTimeout(resolve, this.rateLimitWaitMs * attempt));
 					this.progress.waiting = false;
 					if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
-					result = await createEmbeddings(this.plugin.settings.link, inputs);
+					result = await createEmbeddings(this.plugin.settings.connector, inputs);
 				}
 				this.recordServer(key, result);
 				// 기다리는 사이 [다시 만들기]를 눌렀거나 서버·모델을 바꿨으면 옛 서버의 결과라 버립니다.

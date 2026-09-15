@@ -633,7 +633,7 @@ export async function sendChatMessage(
 	return postChatCompletion(settings, messages, maxTokens, timeoutSeconds, cancelSignal);
 }
 
-// ─── 임베딩 요청(링크) ───────────────────────────────────────────
+// ─── 임베딩 요청(커넥터) ───────────────────────────────────────────
 // 글 여러 개를 한 번에 보내 글마다 숫자 목록(벡터)을 받습니다. 사내 API, llama-server·Ollama·vLLM 같은
 // 자체 서버, Gemini 같은 클라우드 모두 OpenAI 호환 /embeddings 모양이라 이 함수 하나로 붙습니다.
 // 느린 PC에서 돌리는 자체 서버는 조각 여러 개를 계산하는 데 오래 걸릴 수 있어 연결 확인보다 넉넉히 기다립니다.

@@ -235,7 +235,7 @@ export class ChatComposer {
 		this.setTargets(next);
 	}
 
-	// @ 목록이나 링크 창의 [챗봇에 올리기]로 칩을 더합니다.
+	// @ 목록이나 커넥터 창의 [챗봇에 올리기]로 칩을 더합니다.
 	addTarget(target: ChatTarget): void {
 		// 자동으로 들어와 있던 현재 노트를 사용자가 다시 골랐다면, 이제 사용자가 고른 것으로 보고
 		// 노트를 옮겨도 칩을 그대로 둡니다.

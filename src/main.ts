@@ -10,8 +10,8 @@ import { IntraCopilotSettingTab } from './ui/settings-tab';
 import { CHAT_VIEW_TYPE, ChatView, refreshChatViews, revealChatView } from './ui/chat-view';
 import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
 import { refreshReminderViews, registerReminder, revealReminderView } from './ui/reminder-view';
-import { refreshLinkViews, registerLink, revealLinkView } from './ui/link-view';
-import { LinkIndex } from './link/link-index';
+import { refreshConnectorViews, registerConnector, revealConnectorView } from './ui/connector-view';
+import { ConnectorIndex } from './connector/connector-index';
 import { DailyCount } from './reminder/daily-count';
 import { t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
@@ -33,10 +33,10 @@ export default class IntraCopilotPlugin extends Plugin {
 	readonly reminderCount = new DailyCount(this);
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
-	// 링크의 노트 색인(플러그인 폴더의 link-index.bin)
-	readonly linkIndex = new LinkIndex(this);
+	// 커넥터의 노트 색인(플러그인 폴더의 connector-index.bin)
+	readonly connectorIndex = new ConnectorIndex(this);
 	private chatRibbonEl!: HTMLElement;
-	private linkRibbonEl!: HTMLElement;
+	private connectorRibbonEl!: HTMLElement;
 	private reminderRibbonEl!: HTMLElement;
 
 	async onload() {
@@ -47,15 +47,15 @@ export default class IntraCopilotPlugin extends Plugin {
 
 		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 		this.registerView(GUIDE_VIEW_TYPE, (leaf) => new GuideView(leaf, this));
-		registerLink(this);
+		registerConnector(this);
 		registerReminder(this);
 
 		const strings = t(this.settings.general.language);
 		this.chatRibbonEl = this.addRibbonIcon(featureIcon('chatbot'), this.ribbonTooltip(strings.chat.ribbonTooltip), () => {
 			void revealChatView(this);
 		});
-		this.linkRibbonEl = this.addRibbonIcon(featureIcon('link'), this.ribbonTooltip(strings.link.ribbonTooltip), () => {
-			void revealLinkView(this);
+		this.connectorRibbonEl = this.addRibbonIcon(featureIcon('connector'), this.ribbonTooltip(strings.connector.ribbonTooltip), () => {
+			void revealConnectorView(this);
 		});
 		this.reminderRibbonEl = this.addRibbonIcon(
 			featureIcon('reminder'),
@@ -74,10 +74,10 @@ export default class IntraCopilotPlugin extends Plugin {
 			},
 		});
 		this.addCommand({
-			id: 'open-link',
-			name: strings.link.ribbonTooltip,
+			id: 'open-connector',
+			name: strings.connector.ribbonTooltip,
 			callback: () => {
-				void revealLinkView(this);
+				void revealConnectorView(this);
 			},
 		});
 		this.addCommand({
@@ -94,13 +94,13 @@ export default class IntraCopilotPlugin extends Plugin {
 	notifySettingsChanged(): void {
 		const strings = t(this.settings.general.language);
 		setTooltip(this.chatRibbonEl, this.ribbonTooltip(strings.chat.ribbonTooltip));
-		setTooltip(this.linkRibbonEl, this.ribbonTooltip(strings.link.ribbonTooltip));
+		setTooltip(this.connectorRibbonEl, this.ribbonTooltip(strings.connector.ribbonTooltip));
 		setTooltip(this.reminderRibbonEl, this.ribbonTooltip(strings.reminder.ribbonTooltip));
 		refreshChatViews(this);
-		refreshLinkViews(this);
+		refreshConnectorViews(this);
 		refreshReminderViews(this);
-		// 제외 폴더 등이 바뀌었을 수 있으니 자동 갱신 주기에 맞춰 색인 맞추기를 예약합니다(끄기면 링크 창 [업데이트]로 맞춤).
-		this.linkIndex.requestSync();
+		// 제외 폴더 등이 바뀌었을 수 있으니 자동 갱신 주기에 맞춰 색인 맞추기를 예약합니다(끄기면 커넥터 창 [업데이트]로 맞춤).
+		this.connectorIndex.requestSync();
 	}
 
 	// 리본에는 다른 플러그인 아이콘도 함께 있으므로 "Intra Copilot: 챗봇 열기"처럼 플러그인 이름을 붙입니다.
@@ -143,7 +143,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		this.settings = {
 			general: { ...DEFAULT_SETTINGS.general, ...loaded?.general },
 			llm: { ...DEFAULT_SETTINGS.llm, ...loaded?.llm },
-			link: { ...DEFAULT_SETTINGS.link, ...loaded?.link },
+			connector: { ...DEFAULT_SETTINGS.connector, ...loaded?.connector },
 			reminder: { ...DEFAULT_SETTINGS.reminder, ...loaded?.reminder },
 			reminderDaily: { ...DEFAULT_SETTINGS.reminderDaily, ...loaded?.reminderDaily },
 		};
@@ -165,22 +165,22 @@ export default class IntraCopilotPlugin extends Plugin {
 			nonNegativeInt(llm.chatTimeoutSeconds, defaults.chatTimeoutSeconds),
 		);
 
-		const { link } = this.settings;
-		const linkDefaults = DEFAULT_SETTINGS.link;
+		const { connector } = this.settings;
+		const connectorDefaults = DEFAULT_SETTINGS.connector;
 		for (const key of ['baseUrl', 'apiKey', 'model'] as const) {
-			if (typeof link[key] !== 'string') link[key] = linkDefaults[key];
+			if (typeof connector[key] !== 'string') connector[key] = connectorDefaults[key];
 		}
-		if (!isStringArray(link.excludedFolders)) link.excludedFolders = [...linkDefaults.excludedFolders];
+		if (!isStringArray(connector.excludedFolders)) connector.excludedFolders = [...connectorDefaults.excludedFolders];
 		// 0개·0자는 뜻이 없으므로 1 이상으로 맞춥니다.
 		for (const key of ['batchSize', 'chunkChars', 'resultCount', 'vectorsPerNote'] as const) {
-			link[key] = Math.max(1, nonNegativeInt(link[key], linkDefaults[key]));
+			connector[key] = Math.max(1, nonNegativeInt(connector[key], connectorDefaults[key]));
 		}
-		link.vectorsPerNote = Math.min(MAX_VECTORS_PER_NOTE, link.vectorsPerNote);
-		link.dimensions = nonNegativeInt(link.dimensions, linkDefaults.dimensions);
-		link.autoSyncSeconds = nonNegativeInt(link.autoSyncSeconds, linkDefaults.autoSyncSeconds);
-		if (!LINKED_NOTES_MODES.includes(link.linkedNotes)) link.linkedNotes = linkDefaults.linkedNotes;
-		if (typeof link.documentFormat !== 'string' || !link.documentFormat.includes('{text}')) {
-			link.documentFormat = linkDefaults.documentFormat;
+		connector.vectorsPerNote = Math.min(MAX_VECTORS_PER_NOTE, connector.vectorsPerNote);
+		connector.dimensions = nonNegativeInt(connector.dimensions, connectorDefaults.dimensions);
+		connector.autoSyncSeconds = nonNegativeInt(connector.autoSyncSeconds, connectorDefaults.autoSyncSeconds);
+		if (!LINKED_NOTES_MODES.includes(connector.linkedNotes)) connector.linkedNotes = connectorDefaults.linkedNotes;
+		if (typeof connector.documentFormat !== 'string' || !connector.documentFormat.includes('{text}')) {
+			connector.documentFormat = connectorDefaults.documentFormat;
 		}
 
 		const reminderDefaults = DEFAULT_SETTINGS.reminder;

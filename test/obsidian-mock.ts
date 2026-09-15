@@ -1,4 +1,4 @@
-// 'obsidian' 모듈을 대신하는 최소한의 가짜입니다. link-index.ts를 Node에서 돌리기 위해 씁니다.
+// 'obsidian' 모듈을 대신하는 최소한의 가짜입니다. connector-index.ts를 Node에서 돌리기 위해 씁니다.
 export class TFile {
 	stat: { mtime: number; ctime: number; size: number };
 	constructor(
