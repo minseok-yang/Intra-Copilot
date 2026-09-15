@@ -1374,7 +1374,7 @@ button.intra-copilot-doc-card:hover {
 	font-variant-numeric: tabular-nums;
 }
 
-/* 링크 화면: 색인 상태 줄(버튼이 좁으면 다음 줄로), 끌어서 놓을 수 있는 카드 */
+/* 링크 화면: 색인 상태 줄(버튼이 좁으면 다음 줄로), 끌어서 놓을 수 있는 링크 버튼 */
 .intra-copilot-link-status {
 	display: flex;
 	flex-wrap: wrap;
@@ -1384,7 +1384,7 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-smaller);
 }
 
-.intra-copilot-link-card {
+.intra-copilot-link-card .intra-copilot-reminder-action[draggable='true'] {
 	cursor: grab;
 }
 

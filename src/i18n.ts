@@ -357,10 +357,11 @@ const ko = {
 		chatAdded: '챗봇 입력칸 위에 노트 {count}개를 올렸습니다. 질문을 보내면 함께 전송됩니다.',
 		section: '비슷한 섹션: {section}',
 		insertSectionButton: '섹션 링크',
-		insertSectionTooltip: '지금 노트의 커서 자리에 비슷한 섹션({section})으로 바로 가는 링크를 넣습니다',
+		insertSectionTooltip:
+			'비슷한 섹션({section})으로 바로 가는 링크를 넣습니다. 누르면 커서 자리에, 끌어다 노트에 놓으면 놓은 자리에 들어갑니다.',
 		insertButton: '링크 넣기',
 		insertTooltip:
-			'지금 노트의 커서 자리에 이 노트로 가는 링크를 넣습니다(편집 모드가 아니면 노트 끝에). 카드를 끌어다 노트에 놓아도 됩니다.',
+			'이 노트로 가는 링크를 넣습니다. 누르면 지금 노트의 커서 자리에(편집 모드가 아니면 노트 끝에), 끌어다 노트에 놓으면 놓은 자리에 들어갑니다.',
 		inserted: '{name} 링크를 넣었습니다.',
 		insertFailed: '링크를 넣지 못했습니다.',
 		stateNotConfigured: '설정 → Intra Copilot → 링크 → 임베딩 서버에서 서버 주소와 모델을 먼저 입력하세요.',
@@ -876,10 +877,11 @@ const en: Dictionary = {
 		chatAdded: 'Added {count} notes above the chatbot input. They are sent with your next question.',
 		section: 'Similar section: {section}',
 		insertSectionButton: 'Section link',
-		insertSectionTooltip: 'Insert a link straight to the similar section ({section}) at the cursor in the current note',
+		insertSectionTooltip:
+			'Insert a link straight to the similar section ({section}). Click to insert at the cursor, or drag into the note to insert where you drop.',
 		insertButton: 'Insert link',
 		insertTooltip:
-			'Insert a link to this note at the cursor in the current note (at the end of the note if it is not in editing mode). You can also drag the card into the note.',
+			'Insert a link to this note. Click to insert at the cursor in the current note (at the end if it is not in editing mode), or drag into the note to insert where you drop.',
 		inserted: 'Inserted a link to {name}.',
 		insertFailed: 'Could not insert the link.',
 		stateNotConfigured: 'Enter the server address and model in Settings → Intra Copilot → Link → Embedding server first.',

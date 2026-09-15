@@ -183,7 +183,7 @@ export class LinkView extends ItemView {
 		return t(this.plugin.settings.general.language).link;
 	}
 
-	// 색인하는 동안은 진행 숫자만 바꿉니다. 목록을 매번 다시 그리면 끌던 카드나 누르려던 버튼이 사라지기 때문입니다.
+	// 색인하는 동안은 진행 숫자만 바꿉니다. 목록을 매번 다시 그리면 끌던 링크 버튼이나 누르려던 버튼이 사라지기 때문입니다.
 	private onIndexChanged(): void {
 		const state = this.plugin.linkIndex.state();
 		if (state.kind === 'indexing' && this.renderedKind === 'indexing' && this.statusEl) {
@@ -287,11 +287,6 @@ export class LinkView extends ItemView {
 		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-link-card' });
 		// 이미 링크된 노트는 흐리게 그리고 이름 옆에 배지를 달아, 새로 연결할 노트와 한눈에 구분되게 합니다.
 		card.toggleClass('is-linked', isLinked);
-		// 카드를 편집기에 끌어다 놓으면 링크 글자가 들어갑니다(Obsidian 편집기가 글자 놓기를 받아 줌).
-		card.draggable = true;
-		card.addEventListener('dragstart', (evt) => {
-			evt.dataTransfer?.setData('text/plain', this.app.fileManager.generateMarkdownLink(target, source.path));
-		});
 
 		const titleRow = card.createDiv({ cls: 'intra-copilot-link-title' });
 		const check = titleRow.createEl('input', { type: 'checkbox' });
@@ -344,22 +339,23 @@ export class LinkView extends ItemView {
 		showPreview(this.expanded.has(target.path));
 
 		const actions = card.createDiv({ cls: 'intra-copilot-reminder-actions' });
-		const addButton = (icon: string, label: string, tooltip: string, onClick: () => void) => {
+		// 링크 버튼은 누르면 커서 자리에 넣고, 편집기에 끌어다 놓으면 놓은 자리에 링크 글자가 들어갑니다
+		// (Obsidian 편집기가 글자 놓기를 받아 줌). 카드 전체를 끌게 하면 펼친 노트 내용을 고를 수 없어 버튼만 끕니다.
+		const addLinkButton = (icon: string, label: string, tooltip: string, linkSection?: string) => {
 			const button = actions.createEl('button', { cls: 'intra-copilot-reminder-action' });
 			setIcon(button.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), icon);
 			button.createSpan({ text: label });
 			setTooltip(button, tooltip);
-			button.addEventListener('click', onClick);
+			button.addEventListener('click', () => void this.insertLink(source, target, linkSection));
+			button.draggable = true;
+			button.addEventListener('dragstart', (evt) => {
+				evt.dataTransfer?.setData('text/plain', this.linkText(source, target, linkSection));
+			});
 		};
 		// 이미 링크된 노트에 [링크 넣기]를 누르면 같은 링크가 또 들어가므로 뺍니다. 섹션 링크는 다른 링크라 둡니다.
-		if (!isLinked) addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
+		if (!isLinked) addLinkButton('link', strings.insertButton, strings.insertTooltip);
 		if (section) {
-			addButton(
-				'heading',
-				strings.insertSectionButton,
-				strings.insertSectionTooltip.replace('{section}', section),
-				() => void this.insertLink(source, target, section),
-			);
+			addLinkButton('heading', strings.insertSectionButton, strings.insertSectionTooltip.replace('{section}', section), section);
 		}
 	}
 
@@ -376,11 +372,15 @@ export class LinkView extends ItemView {
 
 	// 링크 모양(위키링크/마크다운)은 Obsidian 설정(파일 및 링크)을 따릅니다. 편집 모드로 열려 있으면 커서 자리에,
 	// 아니면(읽기 모드·닫힘) 노트 끝에 넣습니다. section을 주면 그 제목으로 바로 가는 [[노트#제목]] 링크입니다.
-	private async insertLink(source: TFile, target: TFile, section?: string): Promise<void> {
-		const strings = this.strings();
+	private linkText(source: TFile, target: TFile, section?: string): string {
 		// 제목 링크에 쓸 수 없는 글자(#^[]|)는 Obsidian처럼 빈칸으로 바꿉니다.
 		const subpath = section ? `#${section.replace(/[#^[\]|]/g, ' ').replace(/\s+/g, ' ').trim()}` : undefined;
-		const link = this.app.fileManager.generateMarkdownLink(target, source.path, subpath);
+		return this.app.fileManager.generateMarkdownLink(target, source.path, subpath);
+	}
+
+	private async insertLink(source: TFile, target: TFile, section?: string): Promise<void> {
+		const strings = this.strings();
+		const link = this.linkText(source, target, section);
 		try {
 			const editorView = this.app.workspace
 				.getLeavesOfType('markdown')
