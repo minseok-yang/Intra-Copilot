@@ -174,6 +174,20 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	// 서버·모델에 맞춰 조절하는 값은 챗봇처럼 고급 설정에 접어 둡니다.
 	const advanced = addAdvancedSection(containerEl, ctx.strings.llm.advancedName);
 	addAtLeastOne(advanced, 'vectorsPerNote', strings.vectorsPerNoteName, strings.vectorsPerNoteDesc, MAX_VECTORS_PER_NOTE);
+	new Setting(advanced)
+		.setName(strings.documentFormatName)
+		.setDesc(strings.documentFormatDesc)
+		.addTextArea((text) => {
+			text.setValue(link.documentFormat).onChange((value) => {
+				link.documentFormat = value.includes('{text}') ? value : defaults.documentFormat;
+				ctx.saveSoon();
+			});
+			text.inputEl.rows = 2;
+			// 입력칸에서 벗어나면 실제로 저장된 형식을 보여 줍니다({text}를 지워 기본값으로 돌아간 경우 등).
+			text.inputEl.addEventListener('blur', () => {
+				text.setValue(link.documentFormat);
+			});
+		});
 	addAtLeastOne(advanced, 'chunkChars', strings.chunkCharsName, strings.chunkCharsDesc);
 	addAtLeastOne(advanced, 'batchSize', strings.batchSizeName, strings.batchSizeDesc);
 	addNumberSetting(advanced, ctx, {

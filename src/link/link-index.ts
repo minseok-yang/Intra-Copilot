@@ -3,6 +3,7 @@ import { debounce, getFrontMatterInfo, type TFile } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
 import { createEmbeddings, type LlmFailure } from '../llm/client';
 import { pluginDir } from '../plugin-paths';
+import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
 import { decodeVector, encodeVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
@@ -269,15 +270,23 @@ export class LinkIndex {
 	}
 
 	// 노트 하나를 서버로 보낼 조각으로 만듭니다. hash는 보낼 글이 지난번과 같은지 비교하는 값입니다.
-	// 제목도 노트의 뜻을 잘 나타내므로 본문 앞에 붙여 보냅니다. 속성(frontmatter)은 날짜 같은 기록이라 뺍니다.
-	// hash는 링크 문법과 공백 차이를 빼고 계산합니다. [링크 넣기]로 링크만 더하거나 줄바꿈만 고친 노트를 다시 보내지
-	// 않으려는 것입니다(뜻은 거의 그대로라 벡터를 새로 받을 이유가 작음). 보내는 글에는 링크가 그대로 들어갑니다.
+	// 속성(frontmatter)은 날짜 같은 기록이라 뺍니다. 제목은 노트의 뜻을 잘 나타내므로 문서 형식({title})으로 조각마다
+	// 붙입니다(긴 노트의 뒷조각도 어느 노트인지 알 수 있게).
+	// hash는 제목과 본문에서 링크 문법과 공백 차이를 빼고 계산합니다. [링크 넣기]로 링크만 더하거나 줄바꿈만 고친 노트를
+	// 다시 보내지 않으려는 것입니다(뜻은 거의 그대로라 벡터를 새로 받을 이유가 작음). 보내는 글에는 링크가 그대로 들어갑니다.
+	// 문서 형식은 hash에 넣지 않습니다. 형식을 바꾸는 순간 볼트 전체가 자동으로 다시 전송되지 않게 하고, [다시 만들기]로 적용합니다.
 	private prepare(title: string, content: string): { hash: string; chunks: string[] } {
-		const text = `${title}\n\n${content.slice(getFrontMatterInfo(content).contentStart)}`.trim();
-		const meaning = text.replace(LINK_SYNTAX, '').replace(/\s+/g, ' ').trim();
+		const { chunkChars, documentFormat } = this.plugin.settings.link;
+		const body = content.slice(getFrontMatterInfo(content).contentStart);
+		const meaning = `${title}\n${body}`.replace(LINK_SYNTAX, '').replace(/\s+/g, ' ').trim();
+		const format = documentFormat.includes('{text}') ? documentFormat : DEFAULT_DOCUMENT_FORMAT;
+		const pieces = splitChunks(body, chunkChars, MAX_CHUNKS_PER_NOTE);
 		return {
 			hash: createHash('sha1').update(meaning).digest('hex'),
-			chunks: splitChunks(text, this.plugin.settings.link.chunkChars, MAX_CHUNKS_PER_NOTE),
+			// 본문이 비어도 제목만으로 한 조각을 보냅니다(제목만 있는 노트도 추천에 나오게).
+			chunks: (pieces.length > 0 ? pieces : ['']).map((piece) =>
+				format.replace('{title}', title).replace('{text}', piece).trim(),
+			),
 		};
 	}
 

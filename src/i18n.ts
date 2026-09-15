@@ -409,6 +409,9 @@ const ko = {
 			'노트를 이 글자 수 이하의 조각으로 나눠 보냅니다(노트 하나에 최대 20조각, 넘는 뒷부분은 쓰지 않음). 서버가 입력이 너무 길다고 거절하면 줄이세요. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1000)으로 돌아갑니다.',
 		resultCountName: '보여 줄 노트 수',
 		resultCountDesc: '링크 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
+		documentFormatName: '문서 형식',
+		documentFormatDesc:
+			'조각마다 서버로 보내는 글의 모양입니다. {title}은 노트 제목, {text}는 조각 본문이며 {text}는 꼭 있어야 합니다. 모델이 권장하는 접두어를 쓰면 추천이 더 정확해집니다. 예: embeddinggemma는 title: {title} | text: {text}, nomic-embed는 search_document: {title} {text}, e5 계열은 passage: {title} {text}. 바꾼 값은 [다시 만들기] 뒤 적용됩니다.',
 		dimensionsName: '벡터 크기',
 		dimensionsDesc:
 			'서버에 요청할 벡터의 숫자 개수입니다. 0이면 모델 기본 크기를 씁니다. 크기를 줄이면 색인 파일이 작아지고 검색이 빨라지며, 지원하는 모델(예: Gemini, OpenAI text-embedding-3)은 품질 손실이 작습니다(예: 3072 → 768). 지원하지 않는 서버는 요청을 거절하니 그때는 0으로 두세요. 바꾼 값은 [다시 만들기] 뒤 적용되며, 먼저 [연결 확인]으로 크기를 확인하세요. 비워두면 기본값(0)으로 돌아갑니다.',
@@ -905,6 +908,9 @@ const en: Dictionary = {
 			'Notes are split into chunks of at most this many characters (up to 20 chunks per note; the rest is not used). Lower it if the server says the input is too long. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1000).',
 		resultCountName: 'Notes to show',
 		resultCountDesc: 'How many similar notes the link view shows. Leave empty to restore the default (10).',
+		documentFormatName: 'Document format',
+		documentFormatDesc:
+			'The shape of the text sent for each chunk. {title} is the note title and {text} is the chunk body; {text} is required. Using the prefix your model recommends makes suggestions more accurate, e.g. embeddinggemma: title: {title} | text: {text}, nomic-embed: search_document: {title} {text}, e5 models: passage: {title} {text}. A new value applies after [Rebuild].',
 		dimensionsName: 'Vector size',
 		dimensionsDesc:
 			'How many numbers each vector should have. 0 uses the model default. Smaller vectors make the index file smaller and search faster, and models that support it (e.g. Gemini, OpenAI text-embedding-3) lose little quality (e.g. 3072 → 768). Servers that do not support it reject the request, so keep 0 there. A new value applies after [Rebuild]; check the size with [Check connection] first. Leave empty to restore the default (0).',

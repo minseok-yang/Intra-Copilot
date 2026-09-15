@@ -537,6 +537,20 @@ async function main() {
 		assert.strictEqual(s.kind === 'error' && s.failure.kind, 'invalid-response');
 	});
 
+	await test('T37 document format is applied to every chunk; missing {text} falls back', async () => {
+		const { vault, plugin, index } = await setup(false);
+		plugin.settings.link.documentFormat = 'title: {title} | text: {text}';
+		await index.rebuild();
+		assert.ok(sentTexts.includes('title: car1 | text: car car engine'), JSON.stringify(sentTexts.slice(0, 3)));
+		const mixedChunks = sentTexts.filter((t) => t.startsWith('title: mixed | text: '));
+		assert.ok(mixedChunks.length > 1, 'title not repeated on every chunk');
+		reset();
+		plugin.settings.link.documentFormat = 'no body here';
+		vault.put('music1.md', 'music music drums');
+		await index.sync();
+		assert.deepStrictEqual(sentTexts, ['music1\n\nmusic music drums']);
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);
