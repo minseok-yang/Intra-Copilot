@@ -379,7 +379,8 @@ const ko = {
 		inserted: '{name} 링크를 넣었습니다.',
 		insertFailed: '링크를 넣지 못했습니다.',
 		stateNotConfigured: '설정 → Intra Copilot → 커넥터 → 임베딩 서버에서 서버 주소와 모델을 먼저 입력하세요.',
-		stateNotBuilt: '아직 색인이 없습니다. [색인 만들기]를 누르면 보낼 양을 확인한 뒤, 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
+		stateNotBuilt:
+			'아직 색인이 없습니다. [색인 만들기]를 누르면 보낼 양과 서버가 나오고, 거기서 [색인 시작]을 눌러야 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
 		stateOtherModel:
 			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
 		stateOptionsChanged:
@@ -939,7 +940,7 @@ const en: Dictionary = {
 		insertFailed: 'Could not insert the link.',
 		stateNotConfigured: 'Enter the server address and model in Settings → Intra Copilot → Connector → Embedding server first.',
 		stateNotBuilt:
-			'No index yet. [Build index] shows how much will be sent, then sends the titles and bodies of the vault notes to the embedding server and indexes them.',
+			'No index yet. [Build index] shows how much will be sent and where; only [Start indexing] there sends the titles and bodies of the vault notes to the embedding server and indexes them.',
 		stateOtherModel:
 			'The current index was built with a different server or model ({model}) and cannot be used. Use [Build index] to rebuild it for the current settings.',
 		stateOptionsChanged:
