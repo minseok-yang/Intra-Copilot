@@ -446,9 +446,9 @@ const ko = {
 		autoSyncDesc:
 			'바뀐 노트를 언제 임베딩 서버로 보내 색인할지 정합니다. Obsidian을 켤 때도 이 주기를 따릅니다. 10분·30분·1시간은 첫 변경부터 그 시간이 지나면 그동안 바뀐 노트를 한꺼번에 보냅니다. 주기를 길게 하거나 끄면 서버 호출이 줄고, 그동안은 커넥터 창 색인 상태등이 노랑이 되며 [업데이트]로 필요할 때 직접 맞출 수 있습니다.',
 		autoSyncQuiet: '마지막으로 고치고 15초 뒤(기본)',
-		autoSync10m: '10분마다',
-		autoSync30m: '30분마다',
-		autoSync1h: '1시간마다',
+		autoSync10m: '첫 변경 10분 뒤 모아서',
+		autoSync30m: '첫 변경 30분 뒤 모아서',
+		autoSync1h: '첫 변경 1시간 뒤 모아서',
 		autoSyncOff: '끄기(직접 [업데이트])',
 		statusName: '색인 상태',
 		statusDesc:
@@ -1006,9 +1006,9 @@ const en: Dictionary = {
 		autoSyncDesc:
 			'When to send changed notes to the embedding server for indexing. Startup follows the same schedule. With 10 minutes, 30 minutes, or 1 hour, notes changed in that time are sent together once it has passed since the first change. A longer schedule or Off means fewer server calls; meanwhile the index light in the Connector view turns yellow and you can click [Update] whenever you need.',
 		autoSyncQuiet: '15 seconds after you stop editing (default)',
-		autoSync10m: 'Every 10 minutes',
-		autoSync30m: 'Every 30 minutes',
-		autoSync1h: 'Every hour',
+		autoSync10m: '10 minutes after the first change, together',
+		autoSync30m: '30 minutes after the first change, together',
+		autoSync1h: '1 hour after the first change, together',
 		autoSyncOff: 'Off (click [Update] yourself)',
 		statusName: 'Index status',
 		statusDesc:
