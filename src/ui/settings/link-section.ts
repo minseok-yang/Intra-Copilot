@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, type App, Setting } from 'obsidian';
+import { AbstractInputSuggest, type App, type ButtonComponent, Setting } from 'obsidian';
 import { listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
 import { AUTO_SYNC_CHOICES, DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
@@ -108,33 +108,50 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 		}),
 	);
 
+	// 연결 상태등은 링크 창 머리줄과 같은 기록(LinkIndex.serverStatus)을 그립니다. 어느 쪽에서 확인하든,
+	// 색인하며 보낸 요청의 결과든 두 화면이 같은 색을 보여 줍니다.
 	const test = new Setting(containerEl).setName(strings.testName).setDesc(strings.testDesc);
 	const testStatus = createStatusLight(test.descEl, strings.statusIdle);
-	test.addButton((button) =>
-		button.setButtonText(strings.testButton).onClick(async () => {
+	let testButton!: ButtonComponent;
+	test.addButton((button) => {
+		testButton = button.onClick(() => {
 			if (!link.baseUrl || !link.model) {
 				setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.fillFirst);
 				return;
 			}
-			const key = serverKey();
-			button.setButtonText(strings.testing).setDisabled(true);
-			// 링크 창 머리줄 상태등도 이 결과로 함께 바뀝니다.
-			const result = await ctx.plugin.linkIndex.checkServer();
-			button.setButtonText(strings.testButton).setDisabled(false);
-			if (key !== serverKey()) return;
-			if (result.ok) {
-				const dims = String(result.vectors[0]?.length ?? 0);
-				setStatusLight(testStatus.dot, testStatus.text, 'ok', strings.testOk.replace('{dims}', dims));
-			} else {
-				const { summary, detail } = describeLinkError(language, result);
-				setStatusLight(testStatus.dot, testStatus.text, 'error', summary, detail);
-			}
-		}),
-	);
+			void ctx.plugin.linkIndex.checkServer();
+		});
+	});
+	const drawTest = () => {
+		const index = ctx.plugin.linkIndex;
+		const checking = index.isCheckingServer();
+		testButton.setButtonText(checking ? strings.testing : strings.testButton).setDisabled(checking);
+		const status = index.serverStatus();
+		if (!status) {
+			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
+			return;
+		}
+		const time = `${ctx.strings.llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}`;
+		if (status.failure) {
+			const { summary, detail } = describeLinkError(language, status.failure);
+			setStatusLight(testStatus.dot, testStatus.text, 'error', summary, detail ? `${detail}\n${time}` : time);
+		} else {
+			const text = status.dims ? strings.testOk.replace('{dims}', String(status.dims)) : ctx.strings.chat.statusLabelOk;
+			setStatusLight(testStatus.dot, testStatus.text, 'ok', text, time);
+		}
+	};
+	const unsubscribe = ctx.plugin.linkIndex.subscribe(() => {
+		if (!testStatus.dot.isConnected) {
+			unsubscribe();
+			return;
+		}
+		drawTest();
+	});
+	drawTest();
 
 	resetStatus = () => {
 		setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
-		setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
+		drawTest();
 	};
 }
 

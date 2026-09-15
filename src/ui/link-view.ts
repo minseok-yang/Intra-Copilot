@@ -171,7 +171,6 @@ export class LinkView extends ItemView {
 	// 머리줄 상태등. 목록을 다시 그릴 때마다 새로 만들어지고, 색인하는 동안에는 상태등만 따로 바꿉니다.
 	private server: { wrap: HTMLElement; dot: HTMLElement; label: HTMLElement; button: ButtonComponent } | null = null;
 	private indexStatus: { wrap: HTMLElement; dot: HTMLElement; label: HTMLElement; button: ButtonComponent } | null = null;
-	private checking = false;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -261,7 +260,7 @@ export class LinkView extends ItemView {
 			'refresh-cw',
 			t(this.plugin.settings.general.language).chat.checkConnectionButton,
 			strings.checkTooltip,
-			() => void this.checkServer(),
+			() => void index.checkServer(),
 		);
 		const wrap = group.createSpan({ cls: 'intra-copilot-chat-status' });
 		this.server = {
@@ -340,17 +339,18 @@ export class LinkView extends ItemView {
 		}
 	}
 
-	// 상태등은 LinkIndex가 적어 둔 마지막 요청 결과를 그대로 보여 줍니다. 마우스를 올리면 이유와 확인 시각이 보입니다.
+	// 상태등은 LinkIndex가 적어 둔 마지막 요청 결과를 그대로 보여 줍니다(설정 화면 [연결 확인]과 같은 기록). 마우스를 올리면 이유와 확인 시각이 보입니다.
 	private renderServerStatus(): void {
 		if (!this.server) return;
 		const { wrap, dot, label, button } = this.server;
 		const language = this.plugin.settings.general.language;
 		const { chat, llm, link } = t(language);
 		const status = this.plugin.linkIndex.serverStatus();
+		const checking = this.plugin.linkIndex.isCheckingServer();
 		const state = !status ? 'idle' : status.failure ? 'error' : 'ok';
 		setStatusDot(dot, state);
 		label.setText(
-			this.checking
+			checking
 				? chat.statusLabelChecking
 				: state === 'ok'
 					? chat.statusLabelOk
@@ -358,11 +358,11 @@ export class LinkView extends ItemView {
 						? chat.statusLabelError
 						: chat.statusLabelIdle,
 		);
-		label.toggleClass('is-error', !this.checking && state === 'error');
+		label.toggleClass('is-error', !checking && state === 'error');
 		const reason = status?.failure ? describeLinkError(language, status.failure).summary : chat.statusLabelOk;
 		setTooltip(wrap, status ? `${reason} · ${llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}` : link.serverIdleTooltip);
-		button.setDisabled(this.checking || this.plugin.linkIndex.state().kind === 'not-configured');
-		button.buttonEl.toggleClass('intra-copilot-is-checking', this.checking);
+		button.setDisabled(checking || this.plugin.linkIndex.state().kind === 'not-configured');
+		button.buttonEl.toggleClass('intra-copilot-is-checking', checking);
 	}
 
 	// 노랑(아직 반영되지 않은 노트가 있음)일 때만 [업데이트]를 보여 줍니다. 누르면 자동 갱신을 기다리지 않고 바로 맞춥니다.
@@ -379,17 +379,6 @@ export class LinkView extends ItemView {
 		setTooltip(wrap, light.pending > 0 ? strings.pendingTooltip.replace('{count}', count) : describeIndexState(this.plugin, state).text);
 		button.buttonEl.toggle(light.pending > 0);
 		setTooltip(button.buttonEl, strings.updateTooltip.replace('{count}', count));
-	}
-
-	// [연결 확인]: 서버가 다시 답하면, 실패로 멈춰 있던 색인을 이어서 맞춥니다.
-	private async checkServer(): Promise<void> {
-		const index = this.plugin.linkIndex;
-		this.checking = true;
-		this.renderServerStatus();
-		const result = await index.checkServer();
-		this.checking = false;
-		this.renderServerStatus();
-		if (result.ok && index.state().kind === 'error') void index.sync();
 	}
 
 	// 카드 모양은 리마인더 카드와 같게 맞춰 두 사이드바가 한 플러그인으로 보이게 합니다(같은 CSS 클래스).

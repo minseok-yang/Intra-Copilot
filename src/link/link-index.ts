@@ -60,6 +60,8 @@ interface StoredIndex {
 }
 
 type Owner = { baseUrl: string; model: string; options: string };
+// dims는 성공했을 때 받은 벡터 크기입니다(설정 화면 "연결됨 · 벡터 N차원").
+export type ServerStatus = { key: string; failure: LlmFailure | null; dims: number; checkedAt: Date };
 
 interface NoteEntry {
 	mtime: number;
@@ -102,7 +104,9 @@ export class LinkIndex {
 	private saving: Promise<void> = Promise.resolve();
 	// 임베딩 서버 상태등(링크 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
 	// 결과만 적어 둡니다(자주 물으면 공용 서버·무료 API 사용량을 씁니다). key는 그때의 주소·키·모델입니다.
-	private lastServer: { key: string; failure: LlmFailure | null; checkedAt: Date } | null = null;
+	// 링크 창과 설정 화면이 같은 기록·같은 "확인 중"을 보여 주도록 둘 다 여기만 읽습니다.
+	private lastServer: ServerStatus | null = null;
+	private checking: Promise<EmbeddingResult> | null = null;
 	private syncTimer: number | null = null;
 
 	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
@@ -151,21 +155,36 @@ export class LinkIndex {
 	}
 
 	// 켠 뒤 지금 설정의 서버로 보낸 요청이 없으면 null(확인 필요)입니다. 주소·키·모델을 바꾸면 옛 결과는 버립니다.
-	serverStatus(): { failure: LlmFailure | null; checkedAt: Date } | null {
+	serverStatus(): ServerStatus | null {
 		return this.lastServer?.key === this.serverKey() ? this.lastServer : null;
 	}
 
-	private recordServer(key: string, result: EmbeddingResult): void {
-		this.lastServer = { key, failure: result.ok ? null : result, checkedAt: new Date() };
+	isCheckingServer(): boolean {
+		return this.checking !== null;
 	}
 
-	// [연결 확인](링크 창 머리줄·설정): 고정 문장 하나만 보내 서버를 확인합니다.
-	async checkServer(): Promise<EmbeddingResult> {
+	private recordServer(key: string, result: EmbeddingResult): void {
+		const dims = result.ok ? (result.vectors[0]?.length ?? 0) : 0;
+		this.lastServer = { key, failure: result.ok ? null : result, dims, checkedAt: new Date() };
+	}
+
+	// [연결 확인](링크 창 머리줄·설정): 고정 문장 하나만 보내 서버를 확인합니다. 이미 확인 중이면 그 결과를 같이 기다립니다.
+	// 서버가 다시 답하면 실패로 멈춰 있던 색인을 이어서 맞춥니다(어느 화면에서 눌렀든 같게).
+	checkServer(): Promise<EmbeddingResult> {
+		if (this.checking) return this.checking;
 		const key = this.serverKey();
-		const result = await createEmbeddings(this.plugin.settings.link, [TEST_TEXT]);
-		this.recordServer(key, result);
+		this.checking = createEmbeddings(this.plugin.settings.link, [TEST_TEXT])
+			.then((result) => {
+				this.recordServer(key, result);
+				return result;
+			})
+			.finally(() => {
+				this.checking = null;
+				this.emit();
+				if (this.lastServer?.key === key && !this.lastServer.failure && this.state().kind === 'error') void this.sync();
+			});
 		this.emit();
-		return result;
+		return this.checking;
 	}
 
 	subscribe(listener: () => void): () => void {

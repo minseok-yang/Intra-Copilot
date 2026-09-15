@@ -654,6 +654,27 @@ async function main() {
 		assert.strictEqual(index.pendingCount(), 1);
 	});
 
+	await test('T42 link view and settings share one server check: in-flight flag, record, resume after error', async () => {
+		const { index } = await setup(false);
+		reset({ failAfter: 1, status: 401 });
+		await index.rebuild();
+		assert.strictEqual(index.state().kind, 'error');
+		assert.ok(index.serverStatus()?.failure, 'failure from indexing not recorded');
+		reset({ delayMs: 100 });
+		const first = index.checkServer();
+		const second = index.checkServer(); // 다른 화면에서 또 눌러도 요청은 하나
+		assert.strictEqual(first, second);
+		assert.ok(index.isCheckingServer());
+		await first;
+		assert.ok(!index.isCheckingServer());
+		const status = index.serverStatus()!;
+		assert.strictEqual(status.failure, null);
+		assert.ok(status.dims > 0, 'dims not recorded');
+		await sleep(50);
+		await index.sync(); // 성공한 확인이 시작한 이어 맞추기를 기다림
+		assert.strictEqual(index.state().kind, 'ready');
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);
