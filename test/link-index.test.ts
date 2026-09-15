@@ -511,6 +511,17 @@ async function main() {
 		assert.deepStrictEqual(estimate, { notes: 5, chunks: sentTexts.length, requests: rawBodies.length });
 	});
 
+	await test("T35 adding or removing only links (and blank lines) is not re-sent", async () => {
+		const { vault, index } = await setup();
+		reset();
+		vault.put('apple2.md', '---\ntags: x\n---\napple [[car1]] pie with apple\n\n![[image.png]]\n\n[music](music1.md)\n');
+		await index.sync();
+		assert.strictEqual(served, 0, 'link-only change re-sent');
+		vault.put('apple2.md', '---\ntags: x\n---\napple pie with apple and banana');
+		await index.sync();
+		assert.strictEqual(served, 1, "real text change not re-sent");
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

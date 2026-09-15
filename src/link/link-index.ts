@@ -30,6 +30,8 @@ const SAVE_INTERVAL_MS = 30_000;
 // 그때마다 멈추면 사용자가 [다시 시도]를 여러 번 눌러야 합니다. 기다리는 시간은 횟수마다 늘립니다(20초·40초·60초).
 const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_WAIT_MS = 20_000;
+// [[위키링크]]·![[임베드]]·[글자](주소) 모양의 링크 문법
+const LINK_SYNTAX = /!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)/g;
 
 interface StoredNote {
 	mtime: number;
@@ -268,10 +270,13 @@ export class LinkIndex {
 
 	// 노트 하나를 서버로 보낼 조각으로 만듭니다. hash는 보낼 글이 지난번과 같은지 비교하는 값입니다.
 	// 제목도 노트의 뜻을 잘 나타내므로 본문 앞에 붙여 보냅니다. 속성(frontmatter)은 날짜 같은 기록이라 뺍니다.
+	// hash는 링크 문법과 공백 차이를 빼고 계산합니다. [링크 넣기]로 링크만 더하거나 줄바꿈만 고친 노트를 다시 보내지
+	// 않으려는 것입니다(뜻은 거의 그대로라 벡터를 새로 받을 이유가 작음). 보내는 글에는 링크가 그대로 들어갑니다.
 	private prepare(title: string, content: string): { hash: string; chunks: string[] } {
 		const text = `${title}\n\n${content.slice(getFrontMatterInfo(content).contentStart)}`.trim();
+		const meaning = text.replace(LINK_SYNTAX, '').replace(/\s+/g, ' ').trim();
 		return {
-			hash: createHash('sha1').update(text).digest('hex'),
+			hash: createHash('sha1').update(meaning).digest('hex'),
 			chunks: splitChunks(text, this.plugin.settings.link.chunkChars, MAX_CHUNKS_PER_NOTE),
 		};
 	}
