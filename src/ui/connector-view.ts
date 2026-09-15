@@ -324,7 +324,8 @@ export class ConnectorView extends ItemView {
 			const count = selectedPaths().length;
 			chatButton?.setButtonText(strings.chatSelectedButton.replace('{count}', String(count))).setDisabled(count === 0);
 		};
-		if (results.length === 0) empty(strings.noResults);
+		// "숨기기"로 모두 빠진 것과 정말 비슷한 노트가 없는 것을 구분해 알립니다.
+		if (results.length === 0) empty(all.length > 0 ? strings.allLinked : strings.noResults);
 		else {
 			chatButton = new ButtonComponent(contentEl).setTooltip(strings.chatSelectedTooltip).onClick(() => {
 				const paths = selectedPaths();
