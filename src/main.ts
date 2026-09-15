@@ -33,7 +33,7 @@ export default class IntraCopilotPlugin extends Plugin {
 	readonly reminderCount = new DailyCount(this);
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
-	// 링크의 노트 색인(플러그인 폴더의 link-index.json)
+	// 링크의 노트 색인(플러그인 폴더의 link-index.bin)
 	readonly linkIndex = new LinkIndex(this);
 	private chatRibbonEl!: HTMLElement;
 	private linkRibbonEl!: HTMLElement;

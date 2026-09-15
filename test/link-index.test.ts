@@ -75,7 +75,7 @@ const server = http.createServer((req, res) => {
 // ─── 가짜 볼트·플러그인 ───────────────────────────────────
 class FakeVault {
 	files = new Map<string, { content: string; mtime: number }>();
-	store = new Map<string, string>();
+	store = new Map<string, string | ArrayBuffer>();
 	writeDelayMs = 0;
 	readDelayMs = 0;
 	activeWrites = 0;
@@ -101,13 +101,20 @@ class FakeVault {
 			if (v === undefined) throw new Error('ENOENT');
 			return v;
 		},
-		write: async (p: string, data: string) => {
+		write: async (p: string, data: string) => this.adapter.writeBinary(p, data),
+		writeBinary: async (p: string, data: string | ArrayBuffer) => {
 			this.writes++;
 			this.activeWrites++;
 			if (this.activeWrites > 1) this.overlaps++;
 			if (this.writeDelayMs) await sleep(this.writeDelayMs);
 			this.store.set(p, data);
 			this.activeWrites--;
+		},
+		readBinary: async (p: string) => {
+			const v = this.store.get(p);
+			if (this.readDelayMs) await sleep(this.readDelayMs);
+			if (!(v instanceof ArrayBuffer)) throw new Error('ENOENT');
+			return v;
 		},
 		remove: async (p: string) => void this.store.delete(p),
 		rename: async (from: string, to: string) => {
@@ -149,6 +156,21 @@ function seed(vault: FakeVault) {
 	const appleSection = Array.from({ length: 3 }, () => 'apple '.repeat(30)).join('\n\n');
 	const carSection = Array.from({ length: 5 }, () => 'car '.repeat(45)).join('\n\n');
 	vault.put('mixed.md', `${appleSection}\n\n${carSection}`);
+}
+
+// 색인 파일(link-index.bin) 모양: [머리말 길이 4바이트][머리말 JSON][4바이트 정렬][float32 벡터]
+function binaryIndex(header: unknown): ArrayBuffer {
+	const json = new TextEncoder().encode(JSON.stringify(header));
+	const buffer = new ArrayBuffer(Math.ceil((4 + json.length) / 4) * 4);
+	new DataView(buffer).setUint32(0, json.length, true);
+	new Uint8Array(buffer, 4).set(json);
+	return buffer;
+}
+
+function indexHeader(vault: FakeVault): unknown {
+	const buffer = vault.store.get('plug/link-index.bin') as ArrayBuffer;
+	const length = new DataView(buffer).getUint32(0, true);
+	return JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, length)));
 }
 
 function reset(next: Mode = {}) {
@@ -262,11 +284,11 @@ async function main() {
 		const again = new LinkIndex(plugin as never);
 		await again.load();
 		assert.deepStrictEqual(again.search('Fruit/apple1.md', 10), before);
-		vault.store.set('plug/link-index.json', '{broken');
+		vault.store.set('plug/link-index.bin', new Uint8Array([200, 1, 0, 0, 7]).buffer);
 		const broken = new LinkIndex(plugin as never);
 		await broken.load();
 		assert.strictEqual(broken.state().kind, 'not-built');
-		vault.store.set('plug/link-index.json', JSON.stringify({ version: 1, baseUrl: plugin.settings.link.baseUrl, model: 'm', notes: {} }));
+		vault.store.set('plug/link-index.bin', binaryIndex({ version: 2, baseUrl: plugin.settings.link.baseUrl, model: 'm', notes: {} }));
 		const old = new LinkIndex(plugin as never);
 		await old.load();
 		assert.strictEqual(old.state().kind, 'not-built');
@@ -280,7 +302,7 @@ async function main() {
 		assert.strictEqual(state.kind, 'error');
 		assert.strictEqual(state.kind === 'error' && state.failure.kind, 'auth');
 		const firstSent = [...sentTexts];
-		const saved = JSON.parse(vault.store.get('plug/link-index.json')!) as { notes: Record<string, unknown> };
+		const saved = indexHeader(vault) as { notes: Record<string, unknown> };
 		assert.ok(Object.keys(saved.notes).length >= 1, 'partial progress not saved');
 		reset();
 		await index.sync();
@@ -408,9 +430,9 @@ async function main() {
 
 	await test('T30 interrupted save (only temp file left) is recovered', async () => {
 		const { vault, plugin } = await setup();
-		const data = vault.store.get('plug/link-index.json')!;
-		vault.store.delete('plug/link-index.json');
-		vault.store.set('plug/link-index.json.tmp', data);
+		const data = vault.store.get('plug/link-index.bin')!;
+		vault.store.delete('plug/link-index.bin');
+		vault.store.set('plug/link-index.bin.tmp', data);
 		const again = new LinkIndex(plugin as never);
 		await again.load();
 		assert.strictEqual(again.state().kind, 'ready');

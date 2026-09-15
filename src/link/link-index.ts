@@ -6,9 +6,9 @@ import { pluginDir } from '../plugin-paths';
 import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
-import { type Chunk, decodeVector, encodeVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
+import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors';
 
-// 링크 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 link-index.json에 저장하고, 비슷한 노트를 찾아 줍니다.
+// 링크 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 link-index.bin에 저장하고, 비슷한 노트를 찾아 줍니다.
 //
 // 언제 서버로 보내나
 // - 처음 색인은 사용자가 [색인 만들기]를 눌러야만 시작합니다(볼트 전체 본문이 임베딩 서버로 가기 때문).
@@ -19,9 +19,12 @@ import { type Chunk, decodeVector, encodeVector, noteSimilarity, noteVectors, sp
 // 무엇이 바뀌었나: 파일 수정 시각이 달라진 노트만 다시 읽고, 보낼 글(제목 + 속성을 뺀 본문)이 그대로면 보내지 않습니다.
 // 리마인더가 속성에 날짜만 적은 노트가 다시 전송되지 않는 이유입니다.
 
-const INDEX_FILE = 'link-index.json';
-// 2: 노트당 벡터를 여러 개(vectors 배열) 저장. 이전 형식 파일은 색인이 없는 것으로 보고 다시 만듭니다.
-const INDEX_VERSION = 2;
+// 색인 파일 모양: [머리말 길이 4바이트][머리말 JSON(서버·모델·노트별 날짜·해시·섹션·벡터 위치)][4바이트 정렬][float32 벡터들]
+// 벡터를 글자(base64)로 바꾸지 않아 파일이 약 25% 작고, 불러올 때 벡터를 복사·변환하지 않고 파일 버퍼를 그대로 씁니다.
+// (숫자는 이 PC의 바이트 순서로 적습니다. Windows·Mac·Linux 데스크톱은 모두 같은 순서라 볼트를 옮겨도 읽힙니다.)
+const INDEX_FILE = 'link-index.bin';
+// 3: 이진 파일. 이전 형식(link-index.json)은 읽지 않으며 [색인 만들기]로 다시 만듭니다.
+const INDEX_VERSION = 3;
 // ponytail: 아주 긴 노트는 앞부분 조각만 씁니다(공용 서버 보호). 뒷부분까지 필요하면 이 값을 설정으로 빼세요.
 const MAX_CHUNKS_PER_NOTE = 20;
 // 색인하는 동안 받은 벡터를 파일에 적는 간격. 파일은 노트가 많으면 수십 MB라 요청마다 쓰면 디스크가 바빠지고,
@@ -37,8 +40,10 @@ const LINK_SYNTAX = /!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)/g;
 interface StoredNote {
 	mtime: number;
 	hash: string;
-	vectors: string[]; // 비어 있으면 보낼 본문이 없는 노트
-	sections?: string[]; // 벡터마다 대표 조각의 제목(vectors와 같은 순서, 벡터가 하나면 '')
+	offset: number; // 벡터 덩어리에서 이 노트 벡터가 시작하는 숫자 위치
+	count: number; // 벡터 개수
+	dims: number; // 벡터 하나의 숫자 개수
+	sections: string[]; // 벡터마다 대표 조각의 제목(벡터와 같은 순서, 벡터가 하나면 '')
 }
 
 interface StoredIndex {
@@ -130,18 +135,31 @@ export class LinkIndex {
 		try {
 			const path = (await adapter.exists(this.path)) ? this.path : `${this.path}.tmp`;
 			if (!(await adapter.exists(path))) return;
-			const data = JSON.parse(await adapter.read(path)) as Partial<StoredIndex>;
+			const buffer = await adapter.readBinary(path);
 			// 읽는 사이 [색인 만들기]를 눌렀다면 새 색인을 옛 파일로 덮지 않습니다.
 			if (this.owner !== ownerBefore) return;
+			// 길이가 맞지 않는 깨진 파일이면 아래 배열 만들기에서 오류가 나 catch로 갑니다.
+			const headerLength = new DataView(buffer).getUint32(0, true);
+			const data = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerLength))) as Partial<StoredIndex>;
 			if (data.version !== INDEX_VERSION || typeof data.baseUrl !== 'string' || typeof data.model !== 'string') return;
+			const start = Math.ceil((4 + headerLength) / 4) * 4;
+			const floats = new Float32Array(buffer, start, (buffer.byteLength - start) / 4);
 			const notes = new Map<string, NoteEntry>();
 			for (const [notePath, note] of Object.entries(data.notes ?? {})) {
-				if (typeof note?.mtime !== 'number' || typeof note.hash !== 'string' || !Array.isArray(note.vectors)) continue;
-				const vectors = note.vectors
-					.map((text) => (typeof text === 'string' ? decodeVector(text) : null))
-					.filter((vector): vector is Float32Array => vector !== null);
-				const sections = vectors.map((_, i) => (typeof note.sections?.[i] === 'string' ? note.sections[i] : ''));
-				notes.set(notePath, { mtime: note.mtime, hash: note.hash, vectors, sections });
+				const { mtime, hash, offset, count, dims, sections } = note ?? {};
+				const valid =
+					typeof mtime === 'number' &&
+					typeof hash === 'string' &&
+					[offset, count, dims].every((n) => Number.isInteger(n) && n >= 0) &&
+					offset + count * dims <= floats.length;
+				if (!valid) continue;
+				const vectors = Array.from({ length: count }, (_, i) => floats.subarray(offset + i * dims, offset + (i + 1) * dims));
+				notes.set(notePath, {
+					mtime,
+					hash,
+					vectors,
+					sections: vectors.map((_, i) => (typeof sections?.[i] === 'string' ? sections[i] : '')),
+				});
 			}
 			this.owner = { baseUrl: sameServerUrl(data.baseUrl), model: data.model };
 			this.notes = notes;
@@ -163,13 +181,30 @@ export class LinkIndex {
 	private async writeFile(): Promise<void> {
 		if (!this.owner) return;
 		const notes: Record<string, StoredNote> = {};
+		let total = 0;
 		for (const [path, note] of this.notes) {
-			notes[path] = { mtime: note.mtime, hash: note.hash, vectors: note.vectors.map(encodeVector), sections: note.sections };
+			const dims = note.vectors[0]?.length ?? 0;
+			notes[path] = { mtime: note.mtime, hash: note.hash, offset: total, count: note.vectors.length, dims, sections: note.sections };
+			total += note.vectors.length * dims;
 		}
 		const data: StoredIndex = { version: INDEX_VERSION, ...this.owner, notes };
+		const header = new TextEncoder().encode(JSON.stringify(data));
+		const start = Math.ceil((4 + header.length) / 4) * 4;
+		const buffer = new ArrayBuffer(start + total * 4);
+		new DataView(buffer).setUint32(0, header.length, true);
+		new Uint8Array(buffer, 4).set(header);
+		const floats = new Float32Array(buffer, start);
+		for (const [path, note] of this.notes) {
+			let offset = notes[path]!.offset;
+			for (const vector of note.vectors) {
+				floats.set(vector, offset);
+				offset += vector.length;
+			}
+		}
+
 		const { adapter } = this.plugin.app.vault;
 		const temp = `${this.path}.tmp`;
-		await adapter.write(temp, JSON.stringify(data));
+		await adapter.writeBinary(temp, buffer);
 		if (await adapter.exists(this.path)) await adapter.remove(this.path);
 		await adapter.rename(temp, this.path);
 	}

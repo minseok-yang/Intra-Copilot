@@ -1,5 +1,3 @@
-import { Buffer } from 'buffer';
-
 // 링크 색인의 계산 부분입니다. Obsidian 없이 동작해서 따로 확인하기 쉽습니다.
 //
 // 벡터(임베딩)는 글의 뜻을 수백~수천 개 숫자로 나타낸 것입니다. 뜻이 비슷한 글일수록 숫자 목록이 같은 방향을
@@ -133,14 +131,4 @@ export function noteSimilarity(a: Float32Array[], b: Float32Array[]): { score: n
 		});
 	});
 	return best;
-}
-
-// 파일에는 숫자를 글자로 늘어놓지 않고 4바이트 실수 그대로 base64로 적습니다(JSON 숫자 목록보다 약 3배 작음).
-export function encodeVector(vector: Float32Array): string {
-	return Buffer.from(vector.buffer, vector.byteOffset, vector.byteLength).toString('base64');
-}
-
-export function decodeVector(text: string): Float32Array | null {
-	const bytes = Uint8Array.from(Buffer.from(text, 'base64'));
-	return bytes.length > 0 && bytes.length % 4 === 0 ? new Float32Array(bytes.buffer) : null;
 }

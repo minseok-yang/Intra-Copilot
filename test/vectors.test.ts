@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { splitChunks, noteVectors, noteSimilarity, encodeVector, decodeVector } from '../src/link/vectors';
+import { splitChunks, noteVectors, noteSimilarity } from '../src/link/vectors';
 
 const texts = (text: string, max: number, chunks: number) => splitChunks(text, max, chunks).map((c) => c.text);
 
@@ -38,9 +38,6 @@ assert.ok(noteSimilarity(one.map((t) => t.vector), axis1).score < 0.8, 'mean blu
 assert.deepStrictEqual(noteVectors([[1, 0], [0, 1], [1, 1]], 2), noteVectors([[1, 0], [0, 1], [1, 1]], 2));
 assert.strictEqual(noteSimilarity([], axis0).score, -Infinity);
 
-const w = new Float32Array([0.25, -1.5, 3]);
-assert.deepStrictEqual(Array.from(decodeVector(encodeVector(w))!), [0.25, -1.5, 3]);
-assert.strictEqual(decodeVector(''), null);
 console.log('vectors ok');
 
 // 이모지(서로게이트 쌍)는 반으로 자르지 않고, maxChars가 1이어도 끝남

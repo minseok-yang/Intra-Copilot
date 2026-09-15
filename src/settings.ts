@@ -49,7 +49,7 @@ export interface ReminderSettings {
 }
 
 // 링크 설정입니다. 임베딩 서버는 챗봇의 LLM 서버와 따로 둡니다(사내에서 다른 서버로 열릴 수 있음).
-// 색인 자체(노트별 벡터)는 설정이 아니라 플러그인 폴더의 link-index.json에 있습니다(link/link-index.ts).
+// 색인 자체(노트별 벡터)는 설정이 아니라 플러그인 폴더의 link-index.bin에 있습니다(link/link-index.ts).
 export interface LinkSettings {
 	baseUrl: string;
 	apiKey: string;
