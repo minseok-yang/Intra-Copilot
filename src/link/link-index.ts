@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { debounce, getFrontMatterInfo } from 'obsidian';
+import { debounce, getFrontMatterInfo, type TFile } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
 import { createEmbeddings, type LlmFailure } from '../llm/client';
 import { pluginDir } from '../plugin-paths';
@@ -262,11 +262,39 @@ export class LinkIndex {
 		return lower.endsWith('.excalidraw.md') || skip.some((folder) => inFolder(lower, folder));
 	}
 
+	private eligibleFiles(): TFile[] {
+		return this.plugin.app.vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path));
+	}
+
+	// 노트 하나를 서버로 보낼 조각으로 만듭니다. hash는 보낼 글이 지난번과 같은지 비교하는 값입니다.
+	// 제목도 노트의 뜻을 잘 나타내므로 본문 앞에 붙여 보냅니다. 속성(frontmatter)은 날짜 같은 기록이라 뺍니다.
+	private prepare(title: string, content: string): { hash: string; chunks: string[] } {
+		const text = `${title}\n\n${content.slice(getFrontMatterInfo(content).contentStart)}`.trim();
+		return {
+			hash: createHash('sha1').update(text).digest('hex'),
+			chunks: splitChunks(text, this.plugin.settings.link.chunkChars, MAX_CHUNKS_PER_NOTE),
+		};
+	}
+
+	// [색인 만들기] 확인 창에 보여 줄 전송량: 지금 설정으로 처음부터 만들 때 보낼 노트·조각·요청 수입니다.
+	// 이 PC 안에서 노트를 읽어 세기만 하고 아무것도 보내지 않습니다.
+	async estimate(): Promise<{ notes: number; chunks: number; requests: number }> {
+		let notes = 0;
+		let chunks = 0;
+		for (const file of this.eligibleFiles()) {
+			const content = await this.plugin.app.vault.cachedRead(file).catch(() => null);
+			if (content === null) continue;
+			notes++;
+			chunks += this.prepare(file.basename, content).chunks.length;
+		}
+		return { notes, chunks, requests: Math.ceil(chunks / this.plugin.settings.link.batchSize) };
+	}
+
 	private async run(): Promise<void> {
 		const owner = this.owner;
 		const { vault } = this.plugin.app;
-		const { batchSize, chunkChars, vectorsPerNote } = this.plugin.settings.link;
-		const files = vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path));
+		const { batchSize, vectorsPerNote } = this.plugin.settings.link;
+		const files = this.eligibleFiles();
 
 		const eligible = new Set(files.map((file) => file.path));
 		for (const path of this.notes.keys()) {
@@ -328,22 +356,19 @@ export class LinkIndex {
 
 		try {
 			for (const file of todo) {
-				// 제목도 노트의 뜻을 잘 나타내므로 본문 앞에 붙여 보냅니다. 속성(frontmatter)은 날짜 같은 기록이라 뺍니다.
 				// 읽는 사이 지워진 노트는 건너뜁니다(다음 색인에서 기록도 빠짐).
 				const content = await vault.cachedRead(file).catch(() => null);
 				if (content === null) {
 					this.progress.done++;
 					continue;
 				}
-				const text = `${file.basename}\n\n${content.slice(getFrontMatterInfo(content).contentStart)}`.trim();
-				const hash = createHash('sha1').update(text).digest('hex');
+				const { hash, chunks } = this.prepare(file.basename, content);
 				const existing = this.notes.get(file.path);
 				if (existing?.hash === hash) {
 					existing.mtime = file.stat.mtime;
 					this.progress.done++;
 					continue;
 				}
-				const chunks = splitChunks(text, chunkChars, MAX_CHUNKS_PER_NOTE);
 				const note: Pending = { path: file.path, mtime: file.stat.mtime, hash, chunks: chunks.length, vectors: [] };
 				for (const chunk of chunks) queue.push({ note, text: chunk });
 				await send(false);

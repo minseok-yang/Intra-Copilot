@@ -503,6 +503,14 @@ async function main() {
 		assert.strictEqual(served, 4, `served=${served}`);
 	});
 
+	await test("T34 estimate matches what rebuild actually sends", async () => {
+		const { index } = await setup(false);
+		const estimate = await index.estimate();
+		assert.strictEqual(served, 0, "estimate must not contact the server");
+		await index.rebuild();
+		assert.deepStrictEqual(estimate, { notes: 5, chunks: sentTexts.length, requests: rawBodies.length });
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

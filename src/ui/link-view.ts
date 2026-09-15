@@ -2,10 +2,12 @@ import {
 	ButtonComponent,
 	debounce,
 	ItemView,
+	Modal,
 	Keymap,
 	MarkdownView,
 	Notice,
 	setIcon,
+	Setting,
 	setTooltip,
 	TFile,
 	WorkspaceLeaf,
@@ -13,7 +15,6 @@ import {
 import type IntraCopilotPlugin from '../main';
 import { describeLinkError, t, type LinkStrings } from '../i18n';
 import type { IndexState } from '../link/link-index';
-import { confirmTwice } from './delete-confirm';
 import { featureIcon } from './settings/features';
 
 // 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
@@ -78,25 +79,54 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 	}
 }
 
-// [색인 만들기]·[다시 만들기]. 볼트 전체 본문을 서버로 보내는 일이라 두 번 눌러야 시작합니다.
+// [색인 만들기]·[다시 만들기]. 볼트 전체 본문을 서버로 보내는 일이라, 무엇을 얼마나 어디로 보내는지 확인 창에서
+// 보여 주고 [색인 시작]을 눌러야 시작합니다(사내 서버 부담·보안을 누르기 전에 판단할 수 있게).
 export function addIndexButton(containerEl: HTMLElement, plugin: IntraCopilotPlugin, label: string): void {
-	const strings = t(plugin.settings.general.language).link;
-	const button = new ButtonComponent(containerEl).setButtonText(label);
-	const onClick = confirmTwice(
-		button.buttonEl,
-		{
-			arm: () => {
-				button.setButtonText(strings.confirmButton);
-			},
-			reset: () => {
-				button.setButtonText(label);
-			},
-		},
-		() => {
-			void plugin.linkIndex.rebuild();
-		},
-	);
-	button.onClick(() => void onClick());
+	new ButtonComponent(containerEl).setButtonText(label).onClick(() => new IndexConfirmModal(plugin).open());
+}
+
+class IndexConfirmModal extends Modal {
+	constructor(private readonly plugin: IntraCopilotPlugin) {
+		super(plugin.app);
+	}
+
+	onOpen(): void {
+		const strings = t(this.plugin.settings.general.language).link;
+		const { baseUrl, model } = this.plugin.settings.link;
+		const { contentEl } = this;
+		this.titleEl.setText(strings.confirmTitle);
+		const summary = contentEl.createEl('p', { text: strings.confirmCounting });
+		contentEl.createEl('p', { text: strings.confirmTarget.replace('{url}', baseUrl).replace('{model}', model) });
+		contentEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.confirmWarning });
+
+		let start: ButtonComponent | null = null;
+		new Setting(contentEl)
+			.addButton((button) => button.setButtonText(strings.confirmCancel).onClick(() => this.close()))
+			.addButton((button) => {
+				// 전송량을 다 세기 전에는 누를 수 없습니다.
+				start = button
+					.setButtonText(strings.confirmStart)
+					.setCta()
+					.setDisabled(true)
+					.onClick(() => {
+						this.close();
+						void this.plugin.linkIndex.rebuild();
+					});
+			});
+		void this.plugin.linkIndex.estimate().then(({ notes, chunks, requests }) => {
+			summary.setText(
+				strings.confirmSummary
+					.replace('{notes}', String(notes))
+					.replace('{chunks}', String(chunks))
+					.replace('{requests}', String(requests)),
+			);
+			start?.setDisabled(false);
+		});
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
 }
 
 export class LinkView extends ItemView {
