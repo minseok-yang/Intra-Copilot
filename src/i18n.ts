@@ -356,7 +356,8 @@ const ko = {
 		title: '커넥터',
 		ribbonTooltip: '커넥터 열기',
 		noNote: '노트를 열면 뜻이 비슷한 노트를 보여 줍니다.',
-		notIndexedNote: '이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 잠시 뒤 색인됩니다.',
+		notIndexedNote:
+			'이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 자동 갱신 주기에 따라 색인되며, 머리줄 [업데이트]로 바로 맞출 수 있습니다.',
 		excludedNote: '이 노트는 제외 폴더·템플릿 폴더에 있어 색인하지 않습니다.',
 		noResults: '비슷한 노트가 없습니다.',
 		score: '유사도 {score}%',
@@ -916,7 +917,8 @@ const en: Dictionary = {
 		title: 'Connector',
 		ribbonTooltip: 'Open Connector',
 		noNote: 'Open a note to see notes with similar meaning.',
-		notIndexedNote: 'This note is not indexed yet. New or edited notes are indexed after a short while.',
+		notIndexedNote:
+			'This note is not indexed yet. New or edited notes are indexed on the automatic update schedule, or right away with [Update] in the header.',
 		excludedNote: 'This note is in an excluded or template folder, so it is not indexed.',
 		noResults: 'No similar notes.',
 		score: 'Similarity {score}%',
