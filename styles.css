@@ -1405,6 +1405,61 @@ button.intra-copilot-doc-card:hover {
 	gap: 6px;
 }
 
+/* 이름 줄 오른쪽 끝의 유사도: 막대 채움(--intra-copilot-score) + 숫자. 자리수가 달라도 막대 위치가 흔들리지 않게 합니다. */
+.intra-copilot-link-score {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin-left: auto;
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.intra-copilot-link-score-bar {
+	width: 36px;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.intra-copilot-link-score-bar::before {
+	content: '';
+	display: block;
+	width: var(--intra-copilot-score);
+	height: 100%;
+	background: var(--interactive-accent);
+}
+
+.intra-copilot-link-card.is-linked .intra-copilot-link-score {
+	color: var(--text-muted);
+}
+
+.intra-copilot-link-card.is-linked .intra-copilot-link-score-bar::before {
+	background: var(--text-faint);
+}
+
+/* 폴더 경로 줄: 작은 폴더 아이콘 + 경로. 긴 경로는 말줄임으로 한 줄에 둡니다. */
+.intra-copilot-link-path {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+
+.intra-copilot-link-path span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.intra-copilot-link-path .intra-copilot-reminder-action-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
 /* 이미 링크된 노트: 배경을 비우고 이름을 흐리게 해서 새로 연결할 카드가 먼저 눈에 들어오게 합니다. */
 .intra-copilot-link-card.is-linked {
 	background: transparent;

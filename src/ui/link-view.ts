@@ -368,9 +368,19 @@ export class LinkView extends ItemView {
 			setTooltip(badge, strings.linkedTooltip);
 		}
 
-		const meta = [strings.score.replace('{score}', String(Math.round(Math.max(0, score) * 100)))];
-		if (target.parent && !target.parent.isRoot()) meta.unshift(target.parent.path);
-		card.createDiv({ cls: 'intra-copilot-reminder-meta', text: meta.join(' · ') });
+		// 유사도는 이름 줄 오른쪽 끝에 막대 + 숫자로 둬 카드끼리 한눈에 견주고, 아래 줄에는 폴더 경로만 남깁니다.
+		const percent = String(Math.round(Math.max(0, score) * 100));
+		const scoreEl = titleRow.createSpan({ cls: 'intra-copilot-link-score' });
+		scoreEl.setCssProps({ '--intra-copilot-score': `${percent}%` });
+		scoreEl.createSpan({ cls: 'intra-copilot-link-score-bar' });
+		scoreEl.createSpan({ text: `${percent}%` });
+		setTooltip(scoreEl, strings.score.replace('{score}', percent));
+		if (target.parent && !target.parent.isRoot()) {
+			const pathEl = card.createDiv({ cls: 'intra-copilot-reminder-meta intra-copilot-link-path' });
+			setIcon(pathEl.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'folder');
+			pathEl.createSpan({ text: target.parent.path });
+			setTooltip(pathEl, target.parent.path);
+		}
 		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
 
 		// 이름을 누르면 노트로 옮겨 가지 않고 카드 안에 내용을 펼칩니다. 옮겨 가면 링크 창이 그 노트 기준으로 바뀌어
