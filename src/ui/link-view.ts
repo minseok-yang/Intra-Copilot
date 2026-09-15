@@ -182,7 +182,7 @@ export class LinkView extends ItemView {
 		}
 		const results = index.search(source.path, this.plugin.settings.link.resultCount);
 		if (!results) {
-			empty(strings.notIndexedNote);
+			empty(index.isExcluded(source.path) ? strings.excludedNote : strings.notIndexedNote);
 			return;
 		}
 		if (results.length === 0) empty(strings.noResults);

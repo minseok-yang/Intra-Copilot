@@ -12,8 +12,12 @@ export function splitChunks(text: string, maxChars: number, maxChunks: number): 
 	let current = '';
 	for (const block of text.split(/\n\s*\n/)) {
 		const paragraph = block.trim();
-		for (let start = 0; start < paragraph.length; start += maxChars) {
-			const piece = paragraph.slice(start, start + maxChars);
+		for (let start = 0, end = 0; start < paragraph.length; start = end) {
+			end = Math.min(start + maxChars, paragraph.length);
+			// 이모지 같은 글자는 두 칸(서로게이트 쌍)이라, 그 사이에서 자르면 깨진 글자가 되어 서버가 요청을 거절합니다.
+			const code = paragraph.charCodeAt(end - 1);
+			if (end < paragraph.length && end - start > 1 && code >= 0xd800 && code <= 0xdbff) end--;
+			const piece = paragraph.slice(start, end);
 			if (current && current.length + 2 + piece.length > maxChars) {
 				chunks.push(current);
 				current = piece;

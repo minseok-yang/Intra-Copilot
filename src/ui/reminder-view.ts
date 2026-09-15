@@ -27,6 +27,7 @@ import {
 } from '../reminder/note-properties';
 import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './chat-view';
 import { confirmTwice } from './delete-confirm';
+import { templateFolders } from '../template-folders';
 import { featureIcon } from './settings/features';
 
 // 리마인더 화면(오른쪽 사이드바)입니다. 한 번 써 두고 묻힌 노트를 하루 몇 개씩 다시 보여 줍니다.
@@ -133,29 +134,6 @@ function showUndoNotice(plugin: IntraCopilotPlugin, message: string, undo: () =>
 		}
 		countdown.setText(countdownText());
 	}, 1000);
-}
-
-// 폴더 설정값을 볼트 기준 경로로 맞춥니다. 비었거나 볼트 맨 위('/')면 ''(뺄 폴더 없음)입니다.
-function folderPath(value: unknown): string {
-	if (typeof value !== 'string' || !value.trim()) return '';
-	const path = normalizePath(value);
-	return path === '/' ? '' : path;
-}
-
-// 켜 둔 코어 "템플릿" 플러그인·Templater에 지정한 템플릿 폴더. 템플릿은 다시 읽을 지식 노트가 아니라서 자동으로 뺍니다.
-// 두 플러그인 모두 설정을 읽는 공개 API가 없어 내부 값을 읽으며, 구조가 바뀌어 못 읽으면 조용히 건너뜁니다.
-export function templateFolders(app: App): string[] {
-	const internal = app as unknown as {
-		internalPlugins?: {
-			getPluginById?: (id: string) => { enabled?: boolean; instance?: { options?: { folder?: unknown } } } | null;
-		};
-		plugins?: { getPlugin?: (id: string) => { settings?: { templates_folder?: unknown } } | null };
-	};
-	const core = internal.internalPlugins?.getPluginById?.('templates');
-	const templater = internal.plugins?.getPlugin?.('templater-obsidian');
-	return [core?.enabled ? core.instance?.options?.folder : undefined, templater?.settings?.templates_folder]
-		.map(folderPath)
-		.filter((folder) => folder !== '');
 }
 
 // Obsidian이 모아 둔 정보로 노트마다 필요한 값만 뽑습니다(노트 본문은 읽지 않음).

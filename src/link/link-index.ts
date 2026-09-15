@@ -1,10 +1,10 @@
 import { createHash } from 'crypto';
-import { debounce, getFrontMatterInfo, TFile } from 'obsidian';
+import { debounce, getFrontMatterInfo } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
 import { createEmbeddings, type LlmFailure } from '../llm/client';
 import { pluginDir } from '../plugin-paths';
 import { inFolder } from '../reminder/due-notes';
-import { templateFolders } from '../ui/reminder-view';
+import { templateFolders } from '../template-folders';
 import { decodeVector, encodeVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
 
 // 링크 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 link-index.json에 저장하고, 비슷한 노트를 찾아 줍니다.
@@ -23,7 +23,9 @@ const INDEX_FILE = 'link-index.json';
 const INDEX_VERSION = 2;
 // ponytail: 아주 긴 노트는 앞부분 조각만 씁니다(공용 서버 보호). 뒷부분까지 필요하면 이 값을 설정으로 빼세요.
 const MAX_CHUNKS_PER_NOTE = 20;
-const SAVE_EVERY_REQUESTS = 10;
+// 색인하는 동안 받은 벡터를 파일에 적는 간격. 파일은 노트가 많으면 수십 MB라 요청마다 쓰면 디스크가 바빠지고,
+// 너무 드물면 도중에 끄면 받은 벡터를 잃어 다시 보내야 합니다.
+const SAVE_INTERVAL_MS = 30_000;
 
 interface StoredNote {
 	mtime: number;
@@ -58,6 +60,11 @@ export interface SimilarNote {
 
 class Stopped extends Error {}
 
+// "http://서버/v1"과 "http://서버/v1/"은 같은 서버입니다. 끝의 /만 달라 색인을 다시 만들게 되지 않게 맞춥니다.
+function sameServerUrl(url: string): string {
+	return url.replace(/\/+$/, '');
+}
+
 export class LinkIndex {
 	private owner: { baseUrl: string; model: string } | null = null;
 	private notes = new Map<string, NoteEntry>();
@@ -67,6 +74,8 @@ export class LinkIndex {
 	private failure: LlmFailure | null = null;
 	private stopped = false;
 	private listeners = new Set<() => void>();
+	// 파일 쓰기를 한 줄로 세웁니다. 두 저장이 겹치면 같은 파일을 동시에 써서 내용이 깨질 수 있습니다.
+	private saving: Promise<void> = Promise.resolve();
 
 	constructor(private readonly plugin: IntraCopilotPlugin) {}
 
@@ -76,7 +85,7 @@ export class LinkIndex {
 
 	private matchesSettings(): boolean {
 		const { baseUrl, model } = this.plugin.settings.link;
-		return this.owner !== null && this.owner.baseUrl === baseUrl && this.owner.model === model;
+		return this.owner !== null && this.owner.baseUrl === sameServerUrl(baseUrl) && this.owner.model === model;
 	}
 
 	state(): IndexState {
@@ -100,41 +109,61 @@ export class LinkIndex {
 	}
 
 	// 파일이 없거나 깨졌으면 색인이 없는 것으로 봅니다(다시 만들면 됩니다).
+	// 저장 도중 꺼져 임시 파일만 남았으면 그것을 읽습니다(아래 writeFile 참고).
 	async load(): Promise<void> {
 		const { adapter } = this.plugin.app.vault;
+		const ownerBefore = this.owner;
 		try {
-			if (!(await adapter.exists(this.path))) return;
-			const data = JSON.parse(await adapter.read(this.path)) as Partial<StoredIndex>;
+			const path = (await adapter.exists(this.path)) ? this.path : `${this.path}.tmp`;
+			if (!(await adapter.exists(path))) return;
+			const data = JSON.parse(await adapter.read(path)) as Partial<StoredIndex>;
+			// 읽는 사이 [색인 만들기]를 눌렀다면 새 색인을 옛 파일로 덮지 않습니다.
+			if (this.owner !== ownerBefore) return;
 			if (data.version !== INDEX_VERSION || typeof data.baseUrl !== 'string' || typeof data.model !== 'string') return;
-			this.owner = { baseUrl: data.baseUrl, model: data.model };
-			for (const [path, note] of Object.entries(data.notes ?? {})) {
+			const notes = new Map<string, NoteEntry>();
+			for (const [notePath, note] of Object.entries(data.notes ?? {})) {
 				if (typeof note?.mtime !== 'number' || typeof note.hash !== 'string' || !Array.isArray(note.vectors)) continue;
-				const vectors = note.vectors.map((text) => (typeof text === 'string' ? decodeVector(text) : null));
-				this.notes.set(path, { mtime: note.mtime, hash: note.hash, vectors: vectors.filter((v): v is Float32Array => v !== null) });
+				const vectors = note.vectors
+					.map((text) => (typeof text === 'string' ? decodeVector(text) : null))
+					.filter((vector): vector is Float32Array => vector !== null);
+				notes.set(notePath, { mtime: note.mtime, hash: note.hash, vectors });
 			}
+			this.owner = { baseUrl: sameServerUrl(data.baseUrl), model: data.model };
+			this.notes = notes;
 		} catch {
-			this.owner = null;
-			this.notes.clear();
+			// 깨진 파일: 색인 없음으로 둡니다.
 		} finally {
 			this.emit();
 		}
 	}
 
-	private async save(): Promise<void> {
+	private save(): Promise<void> {
+		const next = this.saving.then(() => this.writeFile());
+		this.saving = next.catch(() => {});
+		return next;
+	}
+
+	// 임시 파일에 다 쓴 뒤 바꿔 끼웁니다. 쓰는 도중 꺼져도 원래 파일이 반쯤 쓰인 채로 남지 않게 하려는 것입니다
+	// (색인 파일이 깨지면 볼트 전체를 서버로 다시 보내야 합니다).
+	private async writeFile(): Promise<void> {
 		if (!this.owner) return;
 		const notes: Record<string, StoredNote> = {};
 		for (const [path, note] of this.notes) {
 			notes[path] = { mtime: note.mtime, hash: note.hash, vectors: note.vectors.map(encodeVector) };
 		}
 		const data: StoredIndex = { version: INDEX_VERSION, ...this.owner, notes };
-		await this.plugin.app.vault.adapter.write(this.path, JSON.stringify(data));
+		const { adapter } = this.plugin.app.vault;
+		const temp = `${this.path}.tmp`;
+		await adapter.write(temp, JSON.stringify(data));
+		if (await adapter.exists(this.path)) await adapter.remove(this.path);
+		await adapter.rename(temp, this.path);
 	}
 
 	// [색인 만들기]·[다시 만들기]: 지금 설정의 서버·모델로 처음부터 만듭니다.
 	async rebuild(): Promise<void> {
 		const { baseUrl, model } = this.plugin.settings.link;
 		if (!baseUrl || !model) return;
-		this.owner = { baseUrl, model };
+		this.owner = { baseUrl: sameServerUrl(baseUrl), model };
 		this.notes.clear();
 		this.failure = null;
 		await this.save();
@@ -157,7 +186,7 @@ export class LinkIndex {
 					// 서버 실패가 아닌 문제(색인 파일 쓰기 실패 등)도 화면에 이유가 보이게 합니다.
 					this.failure = { ok: false, kind: 'unknown', detail: error instanceof Error ? error.message : String(error) };
 				}
-			} while (this.runAgain && !this.failure);
+			} while (this.runAgain && !this.failure && !this.stopped);
 		})().finally(() => {
 			this.running = null;
 			this.emit();
@@ -170,10 +199,12 @@ export class LinkIndex {
 		this.stopped = true;
 	}
 
-	// 폴더를 옮기거나 지우면 안의 파일마다 불리므로, 잠잠해진 뒤 한 번만 저장하고 알립니다.
-	private readonly saveSoon = debounce(
+	// 이름 변경·삭제는 폴더를 옮기거나 지우면 여러 번 오므로, 잠잠해진 뒤 한 번만 색인을 맞춥니다.
+	// 맞추기(sync)는 제외 폴더로 옮겨진 노트를 빼고 저장까지 합니다(바뀐 내용이 없으면 서버로 보내지 않음).
+	private readonly settleSoon = debounce(
 		() => {
-			void this.save();
+			if (this.matchesSettings()) void this.sync();
+			else void this.save().catch(() => {});
 			this.emit();
 		},
 		2000,
@@ -181,16 +212,25 @@ export class LinkIndex {
 	);
 
 	// 이름을 바꾸거나 옮긴 노트는 다시 보내지 않고 기록만 옮깁니다(수정 시각이 그대로라 다음 색인에서도 건너뜀).
+	// 폴더면 안의 노트 기록을 모두 옮깁니다(폴더 이벤트만 오고 파일마다 오지 않는 경우에도 다시 보내지 않게).
 	rename(oldPath: string, newPath: string): void {
-		const entry = this.notes.get(oldPath);
-		if (!entry) return;
-		this.notes.delete(oldPath);
-		this.notes.set(newPath, entry);
-		this.saveSoon();
+		let moved = false;
+		for (const [path, entry] of [...this.notes]) {
+			const target = path === oldPath ? newPath : path.startsWith(`${oldPath}/`) ? newPath + path.slice(oldPath.length) : null;
+			if (target === null) continue;
+			this.notes.delete(path);
+			this.notes.set(target, entry);
+			moved = true;
+		}
+		if (moved) this.settleSoon();
 	}
 
 	remove(path: string): void {
-		if (this.notes.delete(path)) this.saveSoon();
+		let removed = false;
+		for (const notePath of [...this.notes.keys()]) {
+			if (notePath === path || notePath.startsWith(`${path}/`)) removed = this.notes.delete(notePath) || removed;
+		}
+		if (removed) this.settleSoon();
 	}
 
 	// 지금 노트와 비슷한 노트(자신 제외)를 비슷한 순서로. 지금 노트가 아직 색인되지 않았으면 null입니다.
@@ -206,20 +246,19 @@ export class LinkIndex {
 		return results.sort((a, b) => b.score - a.score).slice(0, limit);
 	}
 
-	private eligibleFiles(): TFile[] {
+	// 제외 폴더·템플릿 폴더의 노트, Excalidraw 그림이면 true(색인하지도 추천하지도 않음).
+	isExcluded(path: string): boolean {
+		const lower = path.toLowerCase();
 		const { app, settings } = this.plugin;
 		const skip = [...settings.link.excludedFolders, ...templateFolders(app)].map((folder) => folder.toLowerCase());
-		return app.vault.getMarkdownFiles().filter((file) => {
-			const lower = file.path.toLowerCase();
-			return !lower.endsWith('.excalidraw.md') && !skip.some((folder) => inFolder(lower, folder));
-		});
+		return lower.endsWith('.excalidraw.md') || skip.some((folder) => inFolder(lower, folder));
 	}
 
 	private async run(): Promise<void> {
 		const owner = this.owner;
 		const { vault } = this.plugin.app;
 		const { batchSize, chunkChars, vectorsPerNote } = this.plugin.settings.link;
-		const files = this.eligibleFiles();
+		const files = vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path));
 
 		const eligible = new Set(files.map((file) => file.path));
 		for (const path of this.notes.keys()) {
@@ -230,9 +269,12 @@ export class LinkIndex {
 		this.failure = null;
 		this.emit();
 
+		// 서버가 같은 모델 이름으로 다른 모델을 돌리기 시작하면 벡터 크기가 달라져 서로 비교할 수 없습니다.
+		// 섞어 저장하면 추천에서 조용히 빠지므로, 알아채는 즉시 멈추고 알립니다.
+		let dims = this.notes.values().next().value?.vectors[0]?.length ?? 0;
 		type Pending = { path: string; mtime: number; hash: string; chunks: number; vectors: number[][] };
 		const queue: { note: Pending; text: string }[] = [];
-		let requests = 0;
+		let lastSave = Date.now();
 
 		// 조각을 batchSize개씩 보내고, 조각 벡터가 다 모인 노트부터 저장합니다.
 		const send = async (all: boolean) => {
@@ -246,6 +288,13 @@ export class LinkIndex {
 					this.failure = result;
 					throw new Stopped();
 				}
+				const size = dims || result.vectors[0]!.length;
+				const odd = result.vectors.find((vector) => vector.length !== size);
+				if (odd) {
+					this.failure = { ok: false, kind: 'invalid-response', detail: `Vector size changed: ${size} → ${odd.length}` };
+					throw new Stopped();
+				}
+				dims = size;
 				batch.forEach((item, i) => item.note.vectors.push(result.vectors[i]!));
 				for (const note of new Set(batch.map((item) => item.note))) {
 					if (note.vectors.length < note.chunks) continue;
@@ -253,7 +302,10 @@ export class LinkIndex {
 					this.progress.done++;
 				}
 				this.emit();
-				if (++requests % SAVE_EVERY_REQUESTS === 0) await this.save();
+				if (Date.now() - lastSave >= SAVE_INTERVAL_MS) {
+					lastSave = Date.now();
+					await this.save();
+				}
 			}
 		};
 

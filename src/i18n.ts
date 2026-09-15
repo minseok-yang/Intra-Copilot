@@ -343,6 +343,7 @@ const ko = {
 		ribbonTooltip: '링크 열기',
 		noNote: '노트를 열면 뜻이 비슷한 노트를 보여 줍니다.',
 		notIndexedNote: '이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 잠시 뒤 색인됩니다.',
+		excludedNote: '이 노트는 제외 폴더·템플릿 폴더에 있어 색인하지 않습니다.',
 		noResults: '비슷한 노트가 없습니다.',
 		score: '유사도 {score}%',
 		linked: '링크됨',
@@ -412,6 +413,8 @@ const ko = {
 				'조각이 모델이 한 번에 받을 수 있는 길이를 넘었습니다. 링크 → 인덱스에서 "조각 최대 글자 수"를 줄이고 [다시 만들기]를 누르세요.',
 			'bad-request':
 				'서버가 요청을 거절했습니다. 모델 이름을 확인하고, 링크 → 인덱스에서 "한 번에 보낼 조각 수"나 "조각 최대 글자 수"를 줄여 보세요.',
+			'invalid-response':
+				'서버가 임베딩 API 형식이 아닌 응답을 보냈거나, 받은 벡터의 개수·크기가 맞지 않습니다. 서버 주소가 API 주소(보통 /v1로 끝남)인지 확인하고, 서버의 모델이 바뀌었다면 [다시 만들기]를 누르세요.',
 		},
 	},
 	// 리마인더 화면(ui/reminder-view.ts)과 설정(ui/settings/reminder-section.ts)
@@ -824,6 +827,7 @@ const en: Dictionary = {
 		ribbonTooltip: 'Open link',
 		noNote: 'Open a note to see notes with similar meaning.',
 		notIndexedNote: 'This note is not indexed yet. New or edited notes are indexed after a short while.',
+		excludedNote: 'This note is in an excluded or template folder, so it is not indexed.',
 		noResults: 'No similar notes.',
 		score: 'Similarity {score}%',
 		linked: 'Linked',
@@ -893,6 +897,8 @@ const en: Dictionary = {
 				'A chunk is longer than the model accepts at once. Lower "Max chunk length" under Link → Index and click [Rebuild].',
 			'bad-request':
 				'The server rejected the request. Check the model name, and try lowering "Chunks per request" or "Max chunk length" under Link → Index.',
+			'invalid-response':
+				'The server sent something that is not an embedding API response, or the number or size of the vectors does not match. Make sure the address is the API address (usually ending in /v1), and click [Rebuild] if the server’s model changed.',
 		},
 	},
 	reminder: {
