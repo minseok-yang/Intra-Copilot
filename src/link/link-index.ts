@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { debounce, getFrontMatterInfo, type TFile } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
-import { createEmbeddings, type LlmFailure } from '../llm/client';
+import { createEmbeddings, type EmbeddingResult, type LlmFailure } from '../llm/client';
 import { pluginDir } from '../plugin-paths';
 import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
@@ -36,6 +36,8 @@ const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_WAIT_MS = 20_000;
 // [[위키링크]]·![[임베드]]·[글자](주소) 모양의 링크 문법
 const LINK_SYNTAX = /!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)/g;
+// [연결 확인] 때 보내는 고정 문장입니다. 노트 내용은 보내지 않습니다.
+const TEST_TEXT = 'connection test';
 
 interface StoredNote {
 	mtime: number;
@@ -91,6 +93,9 @@ export class LinkIndex {
 	private listeners = new Set<() => void>();
 	// 파일 쓰기를 한 줄로 세웁니다. 두 저장이 겹치면 같은 파일을 동시에 써서 내용이 깨질 수 있습니다.
 	private saving: Promise<void> = Promise.resolve();
+	// 임베딩 서버 상태등(링크 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
+	// 결과만 적어 둡니다(자주 물으면 공용 서버·무료 API 사용량을 씁니다). key는 그때의 주소·키·모델입니다.
+	private lastServer: { key: string; failure: LlmFailure | null; checkedAt: Date } | null = null;
 
 	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
 	constructor(
@@ -115,6 +120,29 @@ export class LinkIndex {
 		if (this.running) return { kind: 'indexing', ...this.progress };
 		if (this.failure) return { kind: 'error', failure: this.failure };
 		return { kind: 'ready', count: this.notes.size };
+	}
+
+	private serverKey(): string {
+		const { baseUrl, apiKey, model } = this.plugin.settings.link;
+		return JSON.stringify([sameServerUrl(baseUrl), apiKey, model]);
+	}
+
+	// 켠 뒤 지금 설정의 서버로 보낸 요청이 없으면 null(확인 필요)입니다. 주소·키·모델을 바꾸면 옛 결과는 버립니다.
+	serverStatus(): { failure: LlmFailure | null; checkedAt: Date } | null {
+		return this.lastServer?.key === this.serverKey() ? this.lastServer : null;
+	}
+
+	private recordServer(key: string, result: EmbeddingResult): void {
+		this.lastServer = { key, failure: result.ok ? null : result, checkedAt: new Date() };
+	}
+
+	// [연결 확인](링크 창 머리줄·설정): 고정 문장 하나만 보내 서버를 확인합니다.
+	async checkServer(): Promise<EmbeddingResult> {
+		const key = this.serverKey();
+		const result = await createEmbeddings(this.plugin.settings.link, [TEST_TEXT]);
+		this.recordServer(key, result);
+		this.emit();
+		return result;
 	}
 
 	subscribe(listener: () => void): () => void {
@@ -373,6 +401,7 @@ export class LinkIndex {
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 				const batch = queue.splice(0, batchSize);
 				const inputs = batch.map((item) => item.text);
+				const key = this.serverKey();
 				let result = await createEmbeddings(this.plugin.settings.link, inputs);
 				for (let attempt = 1; !result.ok && result.kind === 'rate-limit' && attempt <= RATE_LIMIT_RETRIES; attempt++) {
 					this.progress.waiting = true;
@@ -382,6 +411,7 @@ export class LinkIndex {
 					if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 					result = await createEmbeddings(this.plugin.settings.link, inputs);
 				}
+				this.recordServer(key, result);
 				// 기다리는 사이 [다시 만들기]를 눌렀거나 서버·모델을 바꿨으면 옛 서버의 결과라 버립니다.
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 				if (!result.ok) {

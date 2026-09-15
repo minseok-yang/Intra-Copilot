@@ -1384,6 +1384,16 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-smaller);
 }
 
+/* 머리줄의 임베딩 모델 이름. 긴 이름은 말줄임으로 줄여 버튼·상태등이 밀리지 않게 합니다. */
+.intra-copilot-link-model {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 .intra-copilot-link-card .intra-copilot-reminder-action[draggable='true'] {
 	cursor: grab;
 }

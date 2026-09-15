@@ -70,6 +70,23 @@ export async function revealChatView(plugin: IntraCopilotPlugin): Promise<void> 
 
 // 설정 화면에서 모델·언어·서버 주소가 바뀌었을 때 호출합니다. 열려 있는 챗봇 화면이
 // 바뀐 설정을 바로 반영하게 합니다(드롭다운 선택값, 표시 언어, 모델 목록).
+// 머리줄 버튼: 아이콘 + 글자. ButtonComponent.setIcon()은 글자를 지워버려서 둘을 직접 넣습니다
+// (설정 화면의 [고급 설정] 버튼과 같은 방식). 링크 창 머리줄도 씁니다.
+export function createHeaderButton(
+	parent: HTMLElement,
+	icon: string,
+	label: string,
+	tooltip: string,
+	onClick: () => void,
+): ButtonComponent {
+	const button = new ButtonComponent(parent).setTooltip(tooltip).onClick(onClick);
+	button.buttonEl.empty();
+	button.buttonEl.addClass('intra-copilot-header-button');
+	setIcon(button.buttonEl.createSpan({ cls: 'intra-copilot-header-button-icon' }), icon);
+	button.buttonEl.createSpan({ text: label });
+	return button;
+}
+
 export function refreshChatViews(plugin: IntraCopilotPlugin): void {
 	for (const leaf of plugin.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)) {
 		if (leaf.view instanceof ChatView) {
@@ -263,7 +280,7 @@ export class ChatView extends ItemView {
 			cls: 'intra-copilot-chat-header-group is-connection',
 		});
 
-		this.newChatButton = this.createHeaderButton(
+		this.newChatButton = createHeaderButton(
 			conversationGroup,
 			'plus',
 			strings.newChatButton,
@@ -274,7 +291,7 @@ export class ChatView extends ItemView {
 			},
 		);
 
-		this.historyButton = this.createHeaderButton(
+		this.historyButton = createHeaderButton(
 			conversationGroup,
 			'history',
 			strings.historyButton,
@@ -291,7 +308,7 @@ export class ChatView extends ItemView {
 		this.modelDropdown = new DropdownComponent(connectionGroup);
 		this.fillDropdown();
 
-		this.checkButton = this.createHeaderButton(
+		this.checkButton = createHeaderButton(
 			connectionGroup,
 			'refresh-cw',
 			strings.checkConnectionButton,
@@ -335,23 +352,6 @@ export class ChatView extends ItemView {
 		this.composer.syncCurrentNote(!carried);
 		this.updateEditBanner();
 		this.applyBusyState();
-	}
-
-	// 머리줄 버튼: 아이콘 + 글자. ButtonComponent.setIcon()은 글자를 지워버려서 둘을 직접 넣습니다
-	// (설정 화면의 [고급 설정] 버튼과 같은 방식).
-	private createHeaderButton(
-		parent: HTMLElement,
-		icon: string,
-		label: string,
-		tooltip: string,
-		onClick: () => void,
-	): ButtonComponent {
-		const button = new ButtonComponent(parent).setTooltip(tooltip).onClick(onClick);
-		button.buttonEl.empty();
-		button.buttonEl.addClass('intra-copilot-header-button');
-		setIcon(button.buttonEl.createSpan({ cls: 'intra-copilot-header-button-icon' }), icon);
-		button.buttonEl.createSpan({ text: label });
-		return button;
 	}
 
 	// 언어가 바뀌었을 때: 틀을 새로 만들고 지금 대화를 다시 그립니다.

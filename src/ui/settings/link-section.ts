@@ -1,5 +1,5 @@
 import { AbstractInputSuggest, type App, Setting } from 'obsidian';
-import { createEmbeddings, listLlmModels } from '../../llm/client';
+import { listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
 import { DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
 import { addIndexButton, describeIndexState } from '../link-view';
@@ -14,8 +14,6 @@ import { openFolder } from './skills-section';
 // OpenAI 호환 /embeddings만 열려 있으면 주소·키·모델만 넣으면 됩니다.
 
 const defaults = DEFAULT_SETTINGS.link;
-// [연결 확인] 때 보내는 고정 문장입니다. 노트 내용은 보내지 않습니다.
-const TEST_TEXT = 'connection test';
 
 // 불러온 모델 이름 중 입력한 글자가 들어간 것만 보여 줍니다. 고르면 입력칸에 넣고 onChange(저장)를 부릅니다.
 class ModelSuggest extends AbstractInputSuggest<string> {
@@ -120,7 +118,8 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 			}
 			const key = serverKey();
 			button.setButtonText(strings.testing).setDisabled(true);
-			const result = await createEmbeddings(link, [TEST_TEXT]);
+			// 링크 창 머리줄 상태등도 이 결과로 함께 바뀝니다.
+			const result = await ctx.plugin.linkIndex.checkServer();
 			button.setButtonText(strings.testButton).setDisabled(false);
 			if (key !== serverKey()) return;
 			if (result.ok) {

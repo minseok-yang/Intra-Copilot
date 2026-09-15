@@ -383,6 +383,10 @@ const ko = {
 		confirmStart: '색인 시작',
 		confirmCancel: '취소',
 		retryButton: '다시 시도',
+		checkTooltip:
+			'임베딩 서버에 짧은 고정 문장 하나를 보내 연결을 확인합니다(노트 내용은 보내지 않음). 평소에는 서버에 따로 묻지 않고, 색인하며 보낸 요청의 결과로 상태등이 바뀝니다.',
+		serverIdleTooltip:
+			'Obsidian을 켠 뒤 아직 임베딩 서버에 보낸 요청이 없습니다. 노트를 고쳐 색인되거나 [연결 확인]을 누르면 상태가 바뀝니다.',
 		serverIntro:
 			'노트를 벡터(뜻을 나타내는 숫자 목록)로 바꿀 임베딩 서버를 연결합니다. OpenAI 호환 /embeddings API를 지원하며(사내 API, 직접 띄운 llama-server·Ollama·vLLM 등), 챗봇의 LLM 서버와 따로 둡니다.',
 		privacyNote:
@@ -904,6 +908,10 @@ const en: Dictionary = {
 		confirmStart: 'Start indexing',
 		confirmCancel: 'Cancel',
 		retryButton: 'Retry',
+		checkTooltip:
+			'Send one short fixed sentence to the embedding server to check the connection (no note content). Otherwise the server is not polled; the light follows the results of indexing requests.',
+		serverIdleTooltip:
+			'No request has been sent to the embedding server since Obsidian started. The light updates when notes are indexed or you click [Check].',
 		serverIntro:
 			'Connect the embedding server that turns notes into vectors (lists of numbers that represent meaning). Supports OpenAI-compatible /embeddings APIs (an internal API, or a self-hosted llama-server, Ollama, vLLM, etc.), separate from the chatbot LLM server.',
 		privacyNote:

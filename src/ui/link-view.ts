@@ -17,8 +17,9 @@ import {
 import type IntraCopilotPlugin from '../main';
 import { describeLinkError, t, type LinkStrings } from '../i18n';
 import type { IndexState } from '../link/link-index';
-import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './chat-view';
+import { CHAT_VIEW_TYPE, ChatView, createHeaderButton, revealChatView } from './chat-view';
 import { featureIcon } from './settings/features';
+import { setStatusDot } from './status-light';
 
 // 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
 // 색인과 검색은 link/link-index.ts, 서버 요청은 llm/client.ts의 createEmbeddings가 맡습니다.
@@ -144,6 +145,9 @@ export class LinkView extends ItemView {
 	private listedPath = '';
 	// 펼친 노트를 그릴 때 생기는 자원(임베드 등)을 모아 두었다가 목록을 다시 그릴 때 한꺼번에 풉니다.
 	private previews = new Component();
+	// 머리줄 상태등. 목록을 다시 그릴 때마다 새로 만들어지고, 색인하는 동안에는 상태등만 따로 바꿉니다.
+	private server: { wrap: HTMLElement; dot: HTMLElement; label: HTMLElement; button: ButtonComponent } | null = null;
+	private checking = false;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -188,6 +192,7 @@ export class LinkView extends ItemView {
 		const state = this.plugin.linkIndex.state();
 		if (state.kind === 'indexing' && this.renderedKind === 'indexing' && this.statusEl) {
 			this.statusEl.setText(describeIndexState(this.plugin, state).text);
+			this.renderServerStatus();
 			return;
 		}
 		this.render();
@@ -206,6 +211,27 @@ export class LinkView extends ItemView {
 		contentEl.empty();
 		this.removeChild(this.previews);
 		this.previews = this.addChild(new Component());
+
+		// 머리줄: 챗봇처럼 모델 · [연결 확인] · 상태등.
+		const { model } = this.plugin.settings.link;
+		const header = contentEl.createDiv({ cls: 'intra-copilot-chat-header' });
+		const group = header.createDiv({ cls: 'intra-copilot-chat-header-group is-connection' });
+		if (model) setTooltip(group.createSpan({ cls: 'intra-copilot-link-model', text: model }), `${strings.modelName}: ${model}`);
+		const button = createHeaderButton(
+			group,
+			'refresh-cw',
+			t(this.plugin.settings.general.language).chat.checkConnectionButton,
+			strings.checkTooltip,
+			() => void this.checkServer(),
+		);
+		const wrap = group.createSpan({ cls: 'intra-copilot-chat-status' });
+		this.server = {
+			wrap,
+			dot: wrap.createSpan({ cls: 'intra-copilot-status-dot' }),
+			label: wrap.createSpan({ cls: 'intra-copilot-chat-status-label' }),
+			button,
+		};
+		this.renderServerStatus();
 
 		contentEl.createDiv({ cls: 'intra-copilot-reminder-title', text: this.file?.basename ?? strings.title });
 		const statusRow = contentEl.createDiv({ cls: 'intra-copilot-link-status' });
@@ -271,6 +297,42 @@ export class LinkView extends ItemView {
 			}
 			this.renderCard(contentEl, source, target, result.score, isLinked, result.section, updateChatButton);
 		}
+	}
+
+	// 상태등은 LinkIndex가 적어 둔 마지막 요청 결과를 그대로 보여 줍니다. 마우스를 올리면 이유와 확인 시각이 보입니다.
+	private renderServerStatus(): void {
+		if (!this.server) return;
+		const { wrap, dot, label, button } = this.server;
+		const language = this.plugin.settings.general.language;
+		const { chat, llm, link } = t(language);
+		const status = this.plugin.linkIndex.serverStatus();
+		const state = !status ? 'idle' : status.failure ? 'error' : 'ok';
+		setStatusDot(dot, state);
+		label.setText(
+			this.checking
+				? chat.statusLabelChecking
+				: state === 'ok'
+					? chat.statusLabelOk
+					: state === 'error'
+						? chat.statusLabelError
+						: chat.statusLabelIdle,
+		);
+		label.toggleClass('is-error', !this.checking && state === 'error');
+		const reason = status?.failure ? describeLinkError(language, status.failure).summary : chat.statusLabelOk;
+		setTooltip(wrap, status ? `${reason} · ${llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}` : link.serverIdleTooltip);
+		button.setDisabled(this.checking || this.plugin.linkIndex.state().kind === 'not-configured');
+		button.buttonEl.toggleClass('intra-copilot-is-checking', this.checking);
+	}
+
+	// [연결 확인]: 서버가 다시 답하면, 실패로 멈춰 있던 색인을 이어서 맞춥니다.
+	private async checkServer(): Promise<void> {
+		const index = this.plugin.linkIndex;
+		this.checking = true;
+		this.renderServerStatus();
+		const result = await index.checkServer();
+		this.checking = false;
+		this.renderServerStatus();
+		if (result.ok && index.state().kind === 'error') void index.sync();
 	}
 
 	// 카드 모양은 리마인더 카드와 같게 맞춰 두 사이드바가 한 플러그인으로 보이게 합니다(같은 CSS 클래스).
