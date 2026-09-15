@@ -453,7 +453,7 @@ const ko = {
 			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 서버 주소·모델이나 고급 설정(한 번에 보낼 조각 수 제외)을 바꾸면 지금 색인을 쓸 수 없어 자동 색인이 멈추고 [색인 만들기]·[다시 만들기]가 나타납니다.',
 		indexFileName: '색인 파일 위치',
 		indexFileDesc:
-			'{path} — 볼트 폴더 기준 경로입니다. 색인을 지우려면 이 파일을 지우고, 여러 기기에서 동기화한다면 이 파일(과 .tmp)을 동기화에서 빼세요.',
+			'{path} — 볼트 폴더 기준 경로입니다. 색인을 지우려면 Obsidian을 끈 뒤 이 파일을 지우세요(켜 둔 채 지우면 메모리에 있는 색인이 다시 저장됩니다). 여러 기기에서 동기화한다면 이 파일(과 .tmp)을 동기화에서 빼세요.',
 		openFolderFailed: '색인 파일이 있는 폴더를 열지 못했습니다.',
 		excludedFoldersName: '제외 폴더',
 		excludedFoldersDesc:
@@ -1012,7 +1012,7 @@ const en: Dictionary = {
 			'[Rebuild] sends every note again from scratch. Changing the server address, model, or advanced settings (except chunks per request) makes the current index unusable, stops automatic indexing, and shows [Build index] or [Rebuild].',
 		indexFileName: 'Index file location',
 		indexFileDesc:
-			'{path} — relative to the vault folder. Delete this file to clear the index, and exclude it (and .tmp) from sync if you sync across devices.',
+			'{path} — relative to the vault folder. To clear the index, quit Obsidian first and then delete this file (if Obsidian is running, the index in memory is saved again). Exclude it (and .tmp) from sync if you sync across devices.',
 		openFolderFailed: 'Could not open the folder containing the index file.',
 		excludedFoldersName: 'Excluded folders',
 		excludedFoldersDesc:
