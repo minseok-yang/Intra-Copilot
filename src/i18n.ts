@@ -48,10 +48,24 @@ const ko = {
 		chatbot: {
 			name: '챗봇',
 			desc: 'AI와 대화하며 노트를 작성·편집하고, 제안된 변경 사항을 검토한 뒤 반영합니다.',
+			// 오른쪽 사이드바 창 맨 위 한 줄 소개(ui/settings/features.ts의 renderViewHeading)
+			tagline: '내 노트를 곁에 두고 AI와 함께 쓰고, 고치고, 묻습니다.',
 		},
-		link: { name: '링크', desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.' },
-		templater: { name: '템플레이터', desc: '문서·이메일·PDF를 자동으로 요약해 새 노트로 만들어 줍니다.' },
-		reminder: { name: '리마인더', desc: '오래 다시 보지 않은 지식 노트를 하루 몇 개씩 다시 꺼내 보여 줍니다.' },
+		link: {
+			name: '링크',
+			desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.',
+			tagline: '지금 노트와 뜻이 통하는 노트를 찾아 지식을 이어 줍니다.',
+		},
+		templater: {
+			name: '템플레이터',
+			desc: '문서·이메일·PDF를 자동으로 요약해 새 노트로 만들어 줍니다.',
+			tagline: '받은 문서·메일을 내 양식의 노트로 바꿔 줍니다.',
+		},
+		reminder: {
+			name: '리마인더',
+			desc: '오래 다시 보지 않은 지식 노트를 하루 몇 개씩 다시 꺼내 보여 줍니다.',
+			tagline: '잊혀 가던 지식 노트를 오늘 다시 꺼내 줍니다.',
+		},
 	},
 	// 기능 탭 안의 섹션(하위 탭) 이름
 	sections: {
@@ -586,10 +600,23 @@ const en: Dictionary = {
 		chatbot: {
 			name: 'Chatbot',
 			desc: 'Write and edit notes with AI, and review suggested changes before applying them.',
+			tagline: 'Write, refine, and ask about your notes side by side with AI.',
 		},
-		link: { name: 'Link', desc: 'Suggest links between related knowledge notes.' },
-		templater: { name: 'Templater', desc: 'Automatically summarize documents, emails, and PDFs into new notes.' },
-		reminder: { name: 'Reminder', desc: 'Bring back a few knowledge notes you have not revisited in a while, every day.' },
+		link: {
+			name: 'Link',
+			desc: 'Suggest links between related knowledge notes.',
+			tagline: 'Finds notes that share this note’s meaning and connects your knowledge.',
+		},
+		templater: {
+			name: 'Templater',
+			desc: 'Automatically summarize documents, emails, and PDFs into new notes.',
+			tagline: 'Turns documents and emails into notes in your own format.',
+		},
+		reminder: {
+			name: 'Reminder',
+			desc: 'Bring back a few knowledge notes you have not revisited in a while, every day.',
+			tagline: 'Brings back the knowledge notes you were starting to forget.',
+		},
 	},
 	sections: {
 		llm: 'LLM connection',

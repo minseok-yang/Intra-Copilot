@@ -1,4 +1,6 @@
-import { addIcon } from 'obsidian';
+import { addIcon, setIcon } from 'obsidian';
+import type IntraCopilotPlugin from '../../main';
+import { t } from '../../i18n';
 
 // Intra Copilot이 묶고 있는 기능 네 가지와, 각 기능을 지금 쓸 수 있는지입니다.
 // 설정 처음 화면의 기능별 설정 카드가 이 목록을 따릅니다.
@@ -42,6 +44,17 @@ const GLYPHS: Record<FeatureId, string> = {
 
 export function featureIcon(id: FeatureId): string {
 	return `intra-copilot-${id}`;
+}
+
+// 오른쪽 사이드바 창(챗봇·링크·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
+// 내용과 버튼만 있으면 처음 연 사람이 무슨 창인지 알기 어려워서 둡니다.
+export function renderViewHeading(containerEl: HTMLElement, plugin: IntraCopilotPlugin, id: FeatureId): void {
+	const feature = t(plugin.settings.general.language).features[id];
+	const heading = containerEl.createDiv({ cls: 'intra-copilot-view-heading' });
+	const title = heading.createDiv({ cls: 'intra-copilot-view-heading-title' });
+	setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(id));
+	title.createSpan({ text: `${plugin.manifest.name}: ${feature.name}` });
+	heading.createDiv({ cls: 'intra-copilot-view-heading-tagline', text: feature.tagline });
 }
 
 // addIcon은 100칸 기준이라, 24칸 그림을 100/24배로 키워 넣습니다.

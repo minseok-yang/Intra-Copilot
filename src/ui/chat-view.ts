@@ -39,7 +39,7 @@ import { SessionHistoryModal } from './session-history-modal';
 import { ChatComposer } from './chat/composer';
 import { ChatMessageList, SentMessage } from './chat/message-list';
 import { EditActionResult, problemText } from './chat/edit-card';
-import { featureIcon } from './settings/features';
+import { featureIcon, renderViewHeading } from './settings/features';
 
 export const CHAT_VIEW_TYPE = 'intra-copilot-chat-view';
 
@@ -270,6 +270,7 @@ export class ChatView extends ItemView {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass('intra-copilot-chat-view');
+		renderViewHeading(container, this.plugin, 'chatbot');
 
 		// 머리줄: 왼쪽은 대화에 관한 버튼([새 대화] [지난 대화]), 오른쪽은 서버 연결에 관한 것
 		// (모델 선택 · [연결 확인] · 상태). 모델 선택은 설정 화면과 완전히 같은 값(settings.llm.model)을

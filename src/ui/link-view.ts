@@ -18,7 +18,7 @@ import type IntraCopilotPlugin from '../main';
 import { describeLinkError, t, type LinkStrings } from '../i18n';
 import type { IndexState } from '../link/link-index';
 import { CHAT_VIEW_TYPE, ChatView, createHeaderButton, revealChatView } from './chat-view';
-import { featureIcon } from './settings/features';
+import { featureIcon, renderViewHeading } from './settings/features';
 import { setStatusDot } from './status-light';
 
 // 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
@@ -211,6 +211,7 @@ export class LinkView extends ItemView {
 		contentEl.empty();
 		this.removeChild(this.previews);
 		this.previews = this.addChild(new Component());
+		renderViewHeading(contentEl, this.plugin, 'link');
 
 		// 머리줄: 챗봇처럼 모델 · [연결 확인] · 상태등.
 		const { model } = this.plugin.settings.link;

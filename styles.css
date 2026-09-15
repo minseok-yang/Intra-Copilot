@@ -1298,6 +1298,27 @@ button.intra-copilot-doc-card:hover {
 	color: var(--text-accent-hover);
 }
 
+/* 오른쪽 사이드바 창(챗봇·링크·리마인더) 맨 위 "Intra Copilot: 기능" 제목 + 한 줄 소개 */
+.intra-copilot-view-heading {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.intra-copilot-view-heading-title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+}
+
+.intra-copilot-view-heading-tagline {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 /* ─── 리마인더·링크 화면(오른쪽 사이드바) ─────────────────────────────── */
 /* 링크 화면은 리마인더 카드 모양(.intra-copilot-reminder-*)을 그대로 씁니다. */
 .intra-copilot-reminder-view,

@@ -28,7 +28,7 @@ import {
 import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './chat-view';
 import { confirmTwice } from './delete-confirm';
 import { templateFolders } from '../template-folders';
-import { featureIcon } from './settings/features';
+import { featureIcon, renderViewHeading } from './settings/features';
 
 // 리마인더 화면(오른쪽 사이드바)입니다. 한 번 써 두고 묻힌 노트를 하루 몇 개씩 다시 보여 줍니다.
 //
@@ -266,6 +266,7 @@ export class ReminderView extends ItemView {
 		const { contentEl } = this;
 		const { due, shown } = list;
 		contentEl.empty();
+		renderViewHeading(contentEl, this.plugin, 'reminder');
 
 		contentEl.createDiv({
 			cls: 'intra-copilot-reminder-title',
