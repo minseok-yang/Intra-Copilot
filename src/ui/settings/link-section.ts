@@ -2,7 +2,7 @@ import { AbstractInputSuggest, type App, Setting } from 'obsidian';
 import { listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
 import { DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
-import { addIndexButton, describeIndexState } from '../link-view';
+import { addIndexButton, describeIndexState, indexLight } from '../link-view';
 import { createStatusLight, setStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
 import { addAdvancedSection, addNumberSetting, parseLimit } from './llm-section';
@@ -152,7 +152,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	const draw = () => {
 		const state = plugin.linkIndex.state();
 		const { text, detail } = describeIndexState(plugin, state);
-		const color = state.kind === 'error' ? 'error' : state.kind === 'ready' ? 'ok' : 'idle';
+		const color = indexLight(plugin, state).state;
 		setStatusLight(light.dot, light.text, color, text, detail);
 		// 버튼은 상태 종류가 바뀔 때만 다시 만듭니다(진행 숫자가 바뀔 때마다 만들면 한 번 눌러 둔 확인이 풀림).
 		if (state.kind === drawnKind) return;

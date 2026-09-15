@@ -1,4 +1,5 @@
-export type StatusState = 'idle' | 'ok' | 'error';
+// warning: 쓸 수는 있지만 손볼 것이 있음(예: 링크 색인에 아직 반영되지 않은 노트)
+export type StatusState = 'idle' | 'ok' | 'warning' | 'error';
 
 // 설정 화면과 챗봇 화면이 공통으로 쓰는 작은 점+문구 상태 표시입니다.
 export function createStatusLight(
@@ -30,5 +31,6 @@ export function setStatusLight(
 // 점 색만 바꿉니다. 긴 문구를 놓을 자리가 없는 챗봇 머리줄은 이것만 씁니다.
 export function setStatusDot(dot: HTMLElement, state: StatusState): void {
 	dot.toggleClass('is-ok', state === 'ok');
+	dot.toggleClass('is-warning', state === 'warning');
 	dot.toggleClass('is-error', state === 'error');
 }

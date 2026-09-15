@@ -342,7 +342,7 @@ export class LlmSettingsSection {
 	private fillDropdown(
 		dropdown: DropdownComponent,
 		models: string[],
-		lastState: 'idle' | 'ok' | 'error' = 'idle',
+		lastState: StatusState = 'idle',
 	): void {
 		fillModelDropdown(this.plugin, dropdown, models, {
 			lastState,

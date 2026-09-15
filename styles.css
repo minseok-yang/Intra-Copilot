@@ -118,6 +118,12 @@
 	box-shadow: 0 0 6px 2px currentColor;
 }
 
+.intra-copilot-status-dot.is-warning {
+	background: var(--color-yellow);
+	color: var(--color-yellow);
+	box-shadow: 0 0 6px 2px currentColor;
+}
+
 .intra-copilot-status-dot.is-error {
 	background: var(--color-red);
 	color: var(--color-red);

@@ -386,6 +386,16 @@ const ko = {
 			'고급 설정(노트당 벡터 수·문서 형식·조각 최대 글자 수·벡터 크기)이 바뀌어 지금 색인을 쓸 수 없습니다. [다시 만들기]로 새 설정에 맞게 다시 만드세요.',
 		advancedWarning:
 			'주의: 한 번에 보낼 조각 수를 뺀 아래 값을 바꾸면 지금 색인을 쓸 수 없어 [다시 만들기]로 볼트 노트 전체를 임베딩 서버로 다시 보내야 합니다. 노트가 많으면 오래 걸리고 서버 사용량도 많이 씁니다.',
+		// 링크 창 머리줄 왼쪽의 색인 상태등
+		indexLabelNone: '색인 없음',
+		indexLabelIndexing: '색인 중 {done}/{total}',
+		indexLabelError: '색인 오류',
+		indexLabelPending: '갱신 필요 {count}',
+		indexLabelReady: '색인 최신',
+		pendingTooltip: '노트 {count}개가 새로 생겼거나 바뀌어 색인이 최신이 아닙니다. 자동 갱신을 기다리거나 [업데이트]를 누르세요.',
+		updateButton: '업데이트',
+		updateTooltip:
+			'색인에 반영되지 않은 노트 {count}개를 지금 맞춥니다. 내용이 바뀐 노트만 임베딩 서버로 보내고, 링크·속성만 바뀐 노트는 보내지 않습니다.',
 		stateIndexing: '색인하는 중… {done}/{total}',
 		stateWaiting: '서버 사용량 제한에 걸려 잠시 기다린 뒤 이어서 보냅니다… {done}/{total}',
 		stateError: '색인 실패: {reason}',
@@ -928,6 +938,15 @@ const en: Dictionary = {
 			'Advanced settings (vectors per note, document format, max chunk length, vector size) changed, so the current index cannot be used. Use [Rebuild] to rebuild it for the new settings.',
 		advancedWarning:
 			'Caution: changing any value below except chunks per request makes the current index unusable, and [Rebuild] must send every note in the vault to the embedding server again. With many notes this takes a long time and uses a lot of server quota.',
+		indexLabelNone: 'No index',
+		indexLabelIndexing: 'Indexing {done}/{total}',
+		indexLabelError: 'Index error',
+		indexLabelPending: '{count} to update',
+		indexLabelReady: 'Up to date',
+		pendingTooltip: '{count} notes are new or changed, so the index is not up to date. Wait for the automatic update or click [Update].',
+		updateButton: 'Update',
+		updateTooltip:
+			'Bring {count} notes into the index now. Only notes whose content changed are sent to the embedding server; notes with only link or property changes are not sent.',
 		stateIndexing: 'Indexing… {done}/{total}',
 		stateWaiting: 'Hit the server rate limit; waiting a moment before continuing… {done}/{total}',
 		stateError: 'Indexing failed: {reason}',

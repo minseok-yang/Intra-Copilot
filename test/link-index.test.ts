@@ -619,6 +619,19 @@ async function main() {
 		assert.strictEqual(index.search('sections.md', 10)!.find((r) => r.path === 'car1.md')!.section, '');
 	});
 
+	await test('T40 pendingCount counts changed, new, and newly excluded notes without contacting the server', async () => {
+		const { vault, plugin, index } = await setup();
+		reset();
+		assert.strictEqual(index.pendingCount(), 0);
+		vault.put('car1.md', 'car car engine wheel');
+		vault.put('new.md', 'brand new');
+		plugin.settings.link.excludedFolders = ['Private', 'Fruit'];
+		assert.strictEqual(index.pendingCount(), 3);
+		assert.strictEqual(served, 0, 'counting contacted the server');
+		await index.sync();
+		assert.strictEqual(index.pendingCount(), 0);
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

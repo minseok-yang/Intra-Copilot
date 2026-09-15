@@ -350,15 +350,34 @@ export class LinkIndex {
 	}
 
 	// 제외 폴더·템플릿 폴더의 노트, Excalidraw 그림이면 true(색인하지도 추천하지도 않음).
-	isExcluded(path: string): boolean {
+	isExcluded(path: string, skip = this.skipFolders()): boolean {
 		const lower = path.toLowerCase();
-		const { app, settings } = this.plugin;
-		const skip = [...settings.link.excludedFolders, ...templateFolders(app)].map((folder) => folder.toLowerCase());
 		return lower.endsWith('.excalidraw.md') || skip.some((folder) => inFolder(lower, folder));
 	}
 
+	// 제외할 폴더(설정 + 템플릿 폴더, 소문자). 노트마다 다시 구하지 않게 한 번 구해 넘깁니다.
+	private skipFolders(): string[] {
+		const { app, settings } = this.plugin;
+		return [...settings.link.excludedFolders, ...templateFolders(app)].map((folder) => folder.toLowerCase());
+	}
+
 	private eligibleFiles(): TFile[] {
-		return this.plugin.app.vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path));
+		const skip = this.skipFolders();
+		return this.plugin.app.vault.getMarkdownFiles().filter((file) => !this.isExcluded(file.path, skip));
+	}
+
+	// 색인에 아직 반영되지 않은 노트 수: 새로 만들었거나 고친 노트 + 제외 폴더로 옮겨 빼야 할 기록(링크 창의 노란 상태등).
+	// 이 PC 안에서 세기만 합니다. 링크·속성만 바뀐 노트도 세지만, 맞출 때 내용이 그대로면 서버로 보내지 않습니다.
+	// 색인을 쓸 수 없거나 색인하는 중이면 0입니다.
+	pendingCount(): number {
+		if (!this.matchesSettings() || this.running) return 0;
+		const files = this.eligibleFiles();
+		const eligible = new Set(files.map((file) => file.path));
+		let count = files.filter((file) => this.notes.get(file.path)?.mtime !== file.stat.mtime).length;
+		for (const path of this.notes.keys()) {
+			if (!eligible.has(path)) count++;
+		}
+		return count;
 	}
 
 	// 노트 하나를 서버로 보낼 조각으로 만듭니다. hash는 보낼 글이 지난번과 같은지 비교하는 값입니다.

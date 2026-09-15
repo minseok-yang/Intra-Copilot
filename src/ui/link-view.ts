@@ -19,7 +19,7 @@ import { describeLinkError, t, type LinkStrings } from '../i18n';
 import type { IndexState } from '../link/link-index';
 import { CHAT_VIEW_TYPE, ChatView, createHeaderButton, revealChatView } from './chat-view';
 import { featureIcon, renderViewHeading } from './settings/features';
-import { setStatusDot } from './status-light';
+import { setStatusDot, type StatusState } from './status-light';
 
 // 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
 // 색인과 검색은 link/link-index.ts, 서버 요청은 llm/client.ts의 createEmbeddings가 맡습니다.
@@ -81,6 +81,31 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 		}
 		case 'ready':
 			return { text: strings.stateReady.replace('{count}', String(state.count)) };
+	}
+}
+
+// 색인 상태등 색과 짧은 글자(링크 창 머리줄·설정의 색인 상태가 함께 씁니다).
+// 회색 색인 없음 · 빨강 오류 · 노랑 색인 중이거나 아직 반영되지 않은 노트가 있음 · 초록 최신.
+export function indexLight(plugin: IntraCopilotPlugin, state: IndexState): { state: StatusState; label: string; pending: number } {
+	const strings = t(plugin.settings.general.language).link;
+	switch (state.kind) {
+		case 'not-configured':
+		case 'not-built':
+			return { state: 'idle', label: strings.indexLabelNone, pending: 0 };
+		case 'indexing':
+			return {
+				state: 'warning',
+				label: strings.indexLabelIndexing.replace('{done}', String(state.done)).replace('{total}', String(state.total)),
+				pending: 0,
+			};
+		case 'error':
+			return { state: 'error', label: strings.indexLabelError, pending: 0 };
+		case 'ready': {
+			const pending = plugin.linkIndex.pendingCount();
+			return pending > 0
+				? { state: 'warning', label: strings.indexLabelPending.replace('{count}', String(pending)), pending }
+				: { state: 'ok', label: strings.indexLabelReady, pending };
+		}
 	}
 }
 
@@ -148,6 +173,7 @@ export class LinkView extends ItemView {
 	private previews = new Component();
 	// 머리줄 상태등. 목록을 다시 그릴 때마다 새로 만들어지고, 색인하는 동안에는 상태등만 따로 바꿉니다.
 	private server: { wrap: HTMLElement; dot: HTMLElement; label: HTMLElement; button: ButtonComponent } | null = null;
+	private indexStatus: { wrap: HTMLElement; dot: HTMLElement; label: HTMLElement; button: ButtonComponent } | null = null;
 	private checking = false;
 
 	constructor(
@@ -180,6 +206,10 @@ export class LinkView extends ItemView {
 				if (file === this.file) refresh();
 			}),
 		);
+		// 노트를 고치거나 새로 만들면 색인 상태등이 노랑(갱신 필요)으로 바뀌어야 하므로, 잠잠해진 뒤 상태등만 다시 그립니다.
+		const refreshIndexLight = debounce(() => this.renderIndexStatus(), 1000, true);
+		this.registerEvent(this.app.vault.on('modify', refreshIndexLight));
+		this.registerEvent(this.app.vault.on('create', refreshIndexLight));
 		this.render();
 		return Promise.resolve();
 	}
@@ -194,6 +224,7 @@ export class LinkView extends ItemView {
 		if (state.kind === 'indexing' && this.renderedKind === 'indexing' && this.statusEl) {
 			this.statusEl.setText(describeIndexState(this.plugin, state).text);
 			this.renderServerStatus();
+			this.renderIndexStatus();
 			return;
 		}
 		this.render();
@@ -214,9 +245,18 @@ export class LinkView extends ItemView {
 		this.previews = this.addChild(new Component());
 		renderViewHeading(contentEl, this.plugin, 'link');
 
-		// 머리줄: 챗봇처럼 모델 · [연결 확인] · 상태등.
+		// 머리줄: 왼쪽은 색인 상태등 · [업데이트], 오른쪽은 챗봇처럼 모델 · [연결 확인] · 서버 상태등.
 		const { model } = this.plugin.settings.link;
 		const header = contentEl.createDiv({ cls: 'intra-copilot-chat-header' });
+		const indexGroup = header.createDiv({ cls: 'intra-copilot-chat-header-group' });
+		const indexWrap = indexGroup.createSpan({ cls: 'intra-copilot-chat-status' });
+		this.indexStatus = {
+			wrap: indexWrap,
+			dot: indexWrap.createSpan({ cls: 'intra-copilot-status-dot' }),
+			label: indexWrap.createSpan({ cls: 'intra-copilot-chat-status-label' }),
+			button: createHeaderButton(indexGroup, 'refresh-cw', strings.updateButton, '', () => void index.sync()),
+		};
+		this.renderIndexStatus();
 		const group = header.createDiv({ cls: 'intra-copilot-chat-header-group is-connection' });
 		if (model) setTooltip(group.createSpan({ cls: 'intra-copilot-link-model', text: model }), `${strings.modelName}: ${model}`);
 		const button = createHeaderButton(
@@ -326,6 +366,22 @@ export class LinkView extends ItemView {
 		setTooltip(wrap, status ? `${reason} · ${llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}` : link.serverIdleTooltip);
 		button.setDisabled(this.checking || this.plugin.linkIndex.state().kind === 'not-configured');
 		button.buttonEl.toggleClass('intra-copilot-is-checking', this.checking);
+	}
+
+	// 노랑(아직 반영되지 않은 노트가 있음)일 때만 [업데이트]를 보여 줍니다. 누르면 자동 갱신을 기다리지 않고 바로 맞춥니다.
+	private renderIndexStatus(): void {
+		if (!this.indexStatus) return;
+		const { wrap, dot, label, button } = this.indexStatus;
+		const strings = this.strings();
+		const state = this.plugin.linkIndex.state();
+		const light = indexLight(this.plugin, state);
+		setStatusDot(dot, light.state);
+		label.setText(light.label);
+		label.toggleClass('is-error', light.state === 'error');
+		const count = String(light.pending);
+		setTooltip(wrap, light.pending > 0 ? strings.pendingTooltip.replace('{count}', count) : describeIndexState(this.plugin, state).text);
+		button.buttonEl.toggle(light.pending > 0);
+		setTooltip(button.buttonEl, strings.updateTooltip.replace('{count}', count));
 	}
 
 	// [연결 확인]: 서버가 다시 답하면, 실패로 멈춰 있던 색인을 이어서 맞춥니다.
