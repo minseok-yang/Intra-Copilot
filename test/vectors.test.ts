@@ -16,6 +16,13 @@ assert.deepStrictEqual(
 	['', 'Apple part', 'Apple part', 'Car part', 'Car part'],
 	JSON.stringify(sections),
 );
+// 코드 블록 안의 "# 주석"은 제목이 아님(코드 블록 안에 빈 줄이 있어 문단이 나뉘어도)
+const fenced = splitChunks('# Real\nintro\n\n```python\n# comment\n\n# another\nx = 1\n```\n\nafter code', 30, 20);
+assert.deepStrictEqual(
+	fenced.map((c) => c.heading),
+	fenced.map(() => 'Real'),
+	JSON.stringify(fenced),
+);
 
 // 1개 = 평균, 길이 1
 const one = noteVectors([[3, 0], [0, 3]], 1);

@@ -8,7 +8,9 @@ export interface Chunk {
 	heading: string; // 조각이 시작하는 곳의 마크다운 제목(# 없이). 제목 아래가 아니면 ''
 }
 
-const HEADING_LINE = /^#{1,6}[ \t]+(.+?)[ \t#]*$/gm;
+const HEADING_LINE = /^#{1,6}[ \t]+(.+?)[ \t#]*\r?$/;
+// 코드 블록(``` 또는 ~~~로 여닫음)의 여는·닫는 줄. 코드 블록 안의 "# 주석"은 제목이 아닙니다.
+const FENCE_LINE = /^ {0,3}(```|~~~)/;
 
 // 노트를 문단(빈 줄) 단위로 모아 maxChars 이하의 조각으로 나눕니다. 서버와 모델이 한 번에 받는 길이에 한계가
 // 있어서입니다. 한 문단이 maxChars보다 길면 글자 수로 자릅니다. 조각은 maxChunks개까지만 만듭니다.
@@ -17,11 +19,24 @@ export function splitChunks(text: string, maxChars: number, maxChunks: number): 
 	const chunks: Chunk[] = [];
 	let current: Chunk | null = null;
 	let heading = '';
+	// 코드 블록은 빈 줄을 품을 수 있어 여러 문단에 걸치므로, 안에 있는지를 문단 사이에서도 이어서 셉니다.
+	let inFence = false;
 	for (const block of text.split(/\n\s*\n/)) {
 		const paragraph = block.trim();
-		// 문단이 제목 줄로 시작하면 그 제목부터, 아니면 앞에서 이어진 제목 아래입니다.
-		const headings = [...paragraph.matchAll(HEADING_LINE)].map((match) => match[1]!.trim());
-		const blockHeading = paragraph.startsWith('#') && headings.length > 0 ? headings[0]! : heading;
+		// 문단 첫 줄이 제목이면 그 제목부터, 아니면 앞에서 이어진 제목 아래입니다.
+		const headings: string[] = [];
+		let startsWithHeading = false;
+		paragraph.split('\n').forEach((line, i) => {
+			if (FENCE_LINE.test(line)) {
+				inFence = !inFence;
+				return;
+			}
+			const match = inFence ? null : HEADING_LINE.exec(line);
+			if (!match) return;
+			headings.push(match[1]!.trim());
+			if (i === 0) startsWithHeading = true;
+		});
+		const blockHeading = startsWithHeading ? headings[0]! : heading;
 		if (headings.length > 0) heading = headings[headings.length - 1]!;
 
 		for (let start = 0, end = 0; start < paragraph.length; start = end) {
