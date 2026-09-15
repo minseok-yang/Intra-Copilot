@@ -233,9 +233,17 @@ export class LinkView extends ItemView {
 				.onClick(() => void this.addToChat(results.map((result) => result.path)));
 		}
 
+		let dividerDrawn = false;
 		for (const result of results) {
 			const target = this.app.vault.getFileByPath(result.path);
-			if (target) this.renderCard(contentEl, source, target, result.score, result.path in linked, result.section);
+			if (!target) continue;
+			const isLinked = result.path in linked;
+			// "맨 아래로"면 새 노트와 링크된 노트 사이에 구분 제목을 한 번 둡니다.
+			if (isLinked && linkedNotes === 'bottom' && !dividerDrawn) {
+				contentEl.createDiv({ cls: 'intra-copilot-link-divider', text: strings.linkedNotesName });
+				dividerDrawn = true;
+			}
+			this.renderCard(contentEl, source, target, result.score, isLinked, result.section);
 		}
 	}
 
@@ -250,21 +258,29 @@ export class LinkView extends ItemView {
 	): void {
 		const strings = this.strings();
 		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-link-card' });
+		// 이미 링크된 노트는 흐리게 그리고 이름 옆에 배지를 달아, 새로 연결할 노트와 한눈에 구분되게 합니다.
+		card.toggleClass('is-linked', isLinked);
 		// 카드를 편집기에 끌어다 놓으면 링크 글자가 들어갑니다(Obsidian 편집기가 글자 놓기를 받아 줌).
 		card.draggable = true;
 		card.addEventListener('dragstart', (evt) => {
 			evt.dataTransfer?.setData('text/plain', this.app.fileManager.generateMarkdownLink(target, source.path));
 		});
 
-		const name = card.createEl('a', { cls: 'intra-copilot-reminder-name', text: target.basename });
+		const titleRow = card.createDiv({ cls: 'intra-copilot-link-title' });
+		const name = titleRow.createEl('a', { cls: 'intra-copilot-reminder-name', text: target.basename });
 		name.addEventListener('click', (evt) => {
 			evt.preventDefault();
 			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(target);
 		});
+		if (isLinked) {
+			const badge = titleRow.createSpan({ cls: 'intra-copilot-link-badge' });
+			setIcon(badge.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'link');
+			badge.createSpan({ text: strings.linked });
+			setTooltip(badge, strings.linkedTooltip);
+		}
 
 		const meta = [strings.score.replace('{score}', String(Math.round(Math.max(0, score) * 100)))];
 		if (target.parent && !target.parent.isRoot()) meta.unshift(target.parent.path);
-		if (isLinked) meta.push(strings.linked);
 		card.createDiv({ cls: 'intra-copilot-reminder-meta', text: meta.join(' · ') });
 		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
 
@@ -276,7 +292,8 @@ export class LinkView extends ItemView {
 			setTooltip(button, tooltip);
 			button.addEventListener('click', onClick);
 		};
-		addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
+		// 이미 링크된 노트에 [링크 넣기]를 누르면 같은 링크가 또 들어가므로 뺍니다. 섹션 링크는 다른 링크라 둡니다.
+		if (!isLinked) addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
 		addButton(featureIcon('chatbot'), strings.chatButton, strings.chatTooltip, () => void this.addToChat([target.path]));
 		if (section) {
 			addButton(

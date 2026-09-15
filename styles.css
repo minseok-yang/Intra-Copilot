@@ -1388,6 +1388,44 @@ button.intra-copilot-doc-card:hover {
 	cursor: grab;
 }
 
+.intra-copilot-link-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+/* 이미 링크된 노트: 배경을 비우고 이름을 흐리게 해서 새로 연결할 카드가 먼저 눈에 들어오게 합니다. */
+.intra-copilot-link-card.is-linked {
+	background: transparent;
+	border-style: dashed;
+}
+
+.intra-copilot-link-card.is-linked .intra-copilot-reminder-name {
+	color: var(--text-muted);
+}
+
+.intra-copilot-link-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: rgba(var(--color-green-rgb), 0.15);
+	color: var(--color-green);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+}
+
+/* "맨 아래로"일 때 링크된 노트 묶음 위의 구분 제목 */
+.intra-copilot-link-divider {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 /* 두 번 눌러 확정 상태의 붉은 글자(delete-armed)가 붉은 배경에 묻히지 않게 합니다. */
 .intra-copilot-reminder-action.mod-warning.intra-copilot-delete-armed {
 	color: var(--text-on-accent);
