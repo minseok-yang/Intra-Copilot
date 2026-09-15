@@ -142,6 +142,12 @@
 npm run lint
 ```
 
+```
+npm test
+```
+
+링크 모듈(색인·조각 나누기·벡터 계산)을 Obsidian 없이 확인합니다. `test/obsidian-mock.ts`가 Obsidian을, 테스트 안의 작은 HTTP 서버가 임베딩 서버를 대신합니다. 링크 모듈을 고친 뒤에는 꼭 돌려 보세요.
+
 `src/llm/client.ts`의 `fetch` 경고 1개는 **의도된 것**입니다 — 답변 스트리밍은 `requestUrl`로 할 수 없어 그 부분만 `fetch`를 씁니다.
 
 ## 소스 구조

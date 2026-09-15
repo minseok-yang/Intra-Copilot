@@ -13,6 +13,8 @@ export default defineConfig(
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
+		// Node에서 도는 테스트(가짜 Obsidian)라 Obsidian 플러그인 규칙을 적용하지 않습니다.
+		'test',
 	]),
 	{
 		languageOptions: {
