@@ -1,4 +1,4 @@
-import { Setting } from 'obsidian';
+import { AbstractInputSuggest, type App, Setting } from 'obsidian';
 import { createEmbeddings, listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
 import { DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
@@ -16,6 +16,33 @@ import { openFolder } from './skills-section';
 const defaults = DEFAULT_SETTINGS.link;
 // [연결 확인] 때 보내는 고정 문장입니다. 노트 내용은 보내지 않습니다.
 const TEST_TEXT = 'connection test';
+
+// 불러온 모델 이름 중 입력한 글자가 들어간 것만 보여 줍니다. 고르면 입력칸에 넣고 onChange(저장)를 부릅니다.
+class ModelSuggest extends AbstractInputSuggest<string> {
+	constructor(
+		app: App,
+		private modelInput: HTMLInputElement,
+		private getModels: () => string[],
+	) {
+		super(app, modelInput);
+		this.limit = 0; // 모델이 100개를 넘어도 전부 보여 줍니다(제안 창은 스크롤됨).
+	}
+
+	getSuggestions(query: string): string[] {
+		const lower = query.toLowerCase();
+		return this.getModels().filter((id) => id.toLowerCase().includes(lower));
+	}
+
+	renderSuggestion(id: string, el: HTMLElement): void {
+		el.setText(id);
+	}
+
+	selectSuggestion(id: string): void {
+		this.modelInput.value = id;
+		this.modelInput.dispatchEvent(new Event('input'));
+		this.close();
+	}
+}
 
 export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsContext): void {
 	const strings = ctx.strings.link;
@@ -47,10 +74,11 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 	addServerText('baseUrl', strings.baseUrlName, strings.baseUrlDesc).input.placeholder = strings.baseUrlPlaceholder;
 	addServerText('apiKey', strings.apiKeyName, strings.apiKeyDesc).input.type = 'password';
 
-	// 모델은 직접 입력하거나, 목록을 불러온 뒤 입력칸의 제안(datalist)에서 고릅니다. /models를 열지 않는 서버도 있어서입니다.
+	// 모델은 직접 입력하거나, 목록을 불러온 뒤 입력칸의 제안에서 고릅니다. /models를 열지 않는 서버도 있어서입니다.
+	// datalist는 Obsidian(Electron)에서 목록이 길면 창 밖 부분을 스크롤할 수 없어 Obsidian 제안 창을 씁니다.
 	const model = addServerText('model', strings.modelName, strings.modelDesc);
-	const modelList = containerEl.createEl('datalist', { attr: { id: 'intra-copilot-embedding-models' } });
-	model.input.setAttribute('list', modelList.id);
+	let modelIds: string[] = [];
+	new ModelSuggest(ctx.plugin.app, model.input, () => modelIds);
 	const modelStatus = createStatusLight(model.setting.descEl, strings.statusIdle);
 	model.setting.addButton((button) =>
 		button.setButtonText(strings.modelListButton).onClick(async () => {
@@ -68,10 +96,7 @@ export function renderLinkServerSection(containerEl: HTMLElement, ctx: SettingsC
 				setStatusLight(modelStatus.dot, modelStatus.text, 'error', summary, detail);
 				return;
 			}
-			modelList.empty();
-			for (const id of [...result.models].sort((a, b) => a.localeCompare(b))) {
-				modelList.createEl('option', { attr: { value: id } });
-			}
+			modelIds = [...result.models].sort((a, b) => a.localeCompare(b));
 			if (result.models.length === 0) {
 				setStatusLight(modelStatus.dot, modelStatus.text, 'error', strings.noModels);
 			} else {
