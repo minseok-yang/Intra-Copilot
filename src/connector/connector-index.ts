@@ -332,7 +332,10 @@ export class ConnectorIndex {
 		return this.running;
 	}
 
+	// 플러그인을 끌 때 부릅니다. 이름 변경·삭제 뒤 2초 기다리던 저장이 있으면 지금 합니다(안 하면 다음에 켰을 때
+	// 옮긴 노트의 기록이 옛 경로로 남아 새 경로로 다시 전송됩니다).
 	stop(): void {
+		this.settleSoon.run();
 		this.stopped = true;
 		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
 		this.syncTimer = null;

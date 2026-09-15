@@ -641,6 +641,15 @@ async function main() {
 		assert.deepStrictEqual(sentTexts, [], 'renamed note was sent again');
 	});
 
+	await test('T47 stop() saves a rename that was still waiting to be saved', async () => {
+		const { vault, index } = await setup();
+		index.rename('car1.md', 'car9.md');
+		index.stop();
+		await sleep(50);
+		const notes = Object.keys((indexHeader(vault) as { notes: Record<string, unknown> }).notes);
+		assert.ok(notes.includes('car9.md') && !notes.includes('car1.md'), JSON.stringify(notes));
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;
