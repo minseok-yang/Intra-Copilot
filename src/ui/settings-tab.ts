@@ -6,6 +6,7 @@ import { FEATURE_STATUS, FeatureId, featureIcon, SettingsTabId } from './setting
 import { renderGeneralSection } from './settings/general-section';
 import { LlmSettingsSection, renderSystemPromptSection } from './settings/llm-section';
 import { renderSkillsSection } from './settings/skills-section';
+import { renderLinkIndexSection, renderLinkServerSection } from './settings/link-section';
 import {
 	renderReminderPropertiesSection,
 	renderReminderScheduleSection,
@@ -152,7 +153,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					{ id: 'skills', label: labels.skills, render: renderSkillsSection },
 				];
 			case 'link':
-				return [upcoming('embedding'), upcoming('index')];
+				return [
+					{ id: 'embedding', label: labels.embedding, render: renderLinkServerSection },
+					{ id: 'index', label: labels.index, render: renderLinkIndexSection },
+				];
 			case 'templater':
 				return [upcoming('templates'), upcoming('prompts'), upcoming('mcp')];
 			case 'reminder':

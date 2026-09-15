@@ -633,6 +633,52 @@ export async function sendChatMessage(
 	return postChatCompletion(settings, messages, maxTokens, timeoutSeconds, cancelSignal);
 }
 
+// ─── 임베딩 요청(링크) ───────────────────────────────────────────
+// 글 여러 개를 한 번에 보내 글마다 숫자 목록(벡터)을 받습니다. 사내 API, llama-server·Ollama·vLLM 같은
+// 자체 서버, Gemini 같은 클라우드 모두 OpenAI 호환 /embeddings 모양이라 이 함수 하나로 붙습니다.
+// 느린 PC에서 돌리는 자체 서버는 조각 여러 개를 계산하는 데 오래 걸릴 수 있어 연결 확인보다 넉넉히 기다립니다.
+const EMBEDDING_TIMEOUT_SECONDS = 120;
+
+export type EmbeddingResult = { ok: true; vectors: number[][] } | LlmFailure;
+
+interface EmbeddingResponse {
+	data?: Array<{ index?: number; embedding?: unknown }>;
+}
+
+export async function createEmbeddings(
+	server: { baseUrl: string; apiKey: string; model: string },
+	inputs: string[],
+): Promise<EmbeddingResult> {
+	const invalidUrl = validateBaseUrl(server.baseUrl);
+	if (invalidUrl) return invalidUrl;
+
+	try {
+		const response = await sendHttp(
+			joinUrl(server.baseUrl, '/embeddings'),
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...authHeader(server.apiKey) },
+				body: JSON.stringify({ model: server.model, input: inputs }),
+			},
+			EMBEDDING_TIMEOUT_SECONDS,
+		);
+		if (response.status < 200 || response.status >= 300) {
+			return httpFailure(response);
+		}
+
+		const data = parseJson(response.text) as EmbeddingResponse | undefined;
+		// 서버마다 순서를 보장하지 않을 수 있어 index로 맞추고, 보낸 개수만큼 숫자 목록이 왔는지 확인합니다.
+		const items = Array.isArray(data?.data) ? [...data.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0)) : [];
+		const vectors = items.map((item) => item.embedding);
+		const valid =
+			vectors.length === inputs.length &&
+			vectors.every((vector) => Array.isArray(vector) && vector.length > 0 && typeof vector[0] === 'number');
+		return valid ? { ok: true, vectors: vectors as number[][] } : invalidResponse(response.text);
+	} catch (error) {
+		return exceptionFailure(error);
+	}
+}
+
 // OpenAI 호환 /models 엔드포인트로 서버가 제공하는 모델 이름 목록을 가져옵니다.
 export async function listLlmModels(
 	settings: Pick<LlmSettings, 'baseUrl' | 'apiKey'>,

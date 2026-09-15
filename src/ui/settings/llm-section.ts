@@ -63,6 +63,26 @@ export function addNumberSetting(
 		});
 }
 
+// [▸ 고급 설정] 버튼과 그 아래 접힌 영역을 만들고 영역을 돌려줍니다(챗봇 LLM 연결, 링크 인덱스).
+// 다른 버튼과 똑같은 ButtonComponent라서 배경색·글자 크기가 자동으로 맞습니다.
+// ButtonComponent.setIcon()은 글자를 지워버려서, 아이콘과 글자를 직접 함께 넣습니다.
+export function addAdvancedSection(parentEl: HTMLElement, label: string): HTMLElement {
+	const row = parentEl.createDiv({ cls: 'intra-copilot-inline-row' });
+	const button = new ButtonComponent(row);
+	button.buttonEl.empty();
+	const chevron = button.buttonEl.createSpan({ cls: 'intra-copilot-advanced-icon' });
+	setIcon(chevron, 'chevron-right');
+	button.buttonEl.createSpan({ text: label });
+
+	const section = parentEl.createDiv({ cls: 'intra-copilot-advanced-section' });
+	section.hidden = true;
+	button.onClick(() => {
+		section.hidden = !section.hidden;
+		setIcon(chevron, section.hidden ? 'chevron-right' : 'chevron-down');
+	});
+	return section;
+}
+
 // 챗봇 → 시스템 프롬프트. 서버 연결이 아니라 "대화 내용"에 관한 설정이라 LLM 연결에서 따로 떼어 둡니다.
 // 잘 써 둔 글을 실수로 지워도 [취소]로 되돌릴 수 있게, 자동 저장하지 않고 [저장]을 눌러야 반영합니다.
 export function renderSystemPromptSection(containerEl: HTMLElement, ctx: SettingsContext): void {
@@ -240,26 +260,7 @@ export class LlmSettingsSection {
 			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusModelChanged);
 		};
 
-		// 고급 설정 — 다른 두 버튼과 똑같은 ButtonComponent라서 배경색·글자 크기가 자동으로 맞습니다.
-		// ButtonComponent.setIcon()은 글자를 지워버려서, 아이콘과 글자를 직접 함께 넣습니다.
-		const advancedRow = modelSetting.controlEl.createDiv({ cls: 'intra-copilot-inline-row' });
-		const advancedButton = new ButtonComponent(advancedRow);
-		advancedButton.buttonEl.empty();
-		const advancedChevron = advancedButton.buttonEl.createSpan({
-			cls: 'intra-copilot-advanced-icon',
-		});
-		setIcon(advancedChevron, 'chevron-right');
-		advancedButton.buttonEl.createSpan({ text: strings.advancedName });
-
-		const advancedSection = modelSetting.controlEl.createDiv({
-			cls: 'intra-copilot-advanced-section',
-		});
-		advancedSection.hidden = true;
-
-		advancedButton.onClick(() => {
-			advancedSection.hidden = !advancedSection.hidden;
-			setIcon(advancedChevron, advancedSection.hidden ? 'chevron-right' : 'chevron-down');
-		});
+		const advancedSection = addAdvancedSection(modelSetting.controlEl, strings.advancedName);
 
 		const llm = this.plugin.settings.llm;
 		addNumberSetting(advancedSection, ctx, {

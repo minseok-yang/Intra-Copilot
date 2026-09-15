@@ -71,14 +71,6 @@ const ko = {
 	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
 	upcoming: {
 		notice: '이 기능은 아직 만드는 중입니다. 아래는 앞으로 들어갈 설정의 자리이며, 지금은 바꿀 수 없습니다.',
-		embeddingIntro: '비슷한 노트를 찾는 데 쓸 임베딩 서버를 연결합니다. 챗봇의 LLM 서버와 따로 둘 수 있습니다.',
-		embeddingUrl: { name: '서버 주소', desc: '임베딩 모델을 제공하는 OpenAI 호환 서버 주소' },
-		embeddingKey: { name: 'API 키', desc: '서버에 접속할 때 쓰는 인증 키' },
-		embeddingModel: { name: '모델', desc: '노트를 벡터로 바꿀 때 쓸 모델' },
-		indexIntro: '어떤 노트를 색인할지 정하고, 색인을 관리합니다.',
-		indexFolders: { name: '색인할 폴더', desc: '비워 두면 볼트 전체를 색인합니다' },
-		indexExclude: { name: '제외할 폴더', desc: '색인하지 않을 폴더' },
-		indexRebuild: { name: '다시 만들기', desc: '노트가 많이 바뀌었을 때 처음부터 다시 색인합니다' },
 		templatesIntro: '받은 파일로 새 노트를 만들 때 참고할 양식 노트를 관리합니다.',
 		templatesFolder: { name: '폴더', desc: '양식 노트를 모아 둔 폴더' },
 		templatesDefault: { name: '기본 양식', desc: '따로 고르지 않을 때 쓸 양식' },
@@ -86,7 +78,6 @@ const ko = {
 		promptsInstructions: { name: '노트 생성 지시문', desc: '양식을 채울 때 모델이 따를 규칙' },
 		mcpIntro: '새 노트를 만들 때 쓸 외부 도구(MCP 서버) 연결을 관리합니다.',
 		mcpServers: { name: '서버', desc: '연결할 MCP 서버 목록' },
-		buttonStart: '시작',
 		buttonAdd: '추가',
 	},
 	// 사용자 가이드·라이선스 창(ui/guide-view.ts)의 이동 버튼
@@ -99,7 +90,7 @@ const ko = {
 	llm: {
 		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
 		privacyNote:
-			'노트 내용은 여기서 설정한 LLM 서버 외에는 어디로도 보내지 않으며, 챗봇 입력칸 위에 칩으로 올라온 것만 전송됩니다.',
+			'챗봇은 노트 내용을 여기서 설정한 LLM 서버로만 보내며, 입력칸 위에 칩으로 올라온 것만 전송합니다. 링크 기능은 링크 설정의 임베딩 서버를 따로 씁니다.',
 		intro:
 			'OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
@@ -346,6 +337,83 @@ const ko = {
 		saveFailed: '스킬을 저장하지 못했습니다.',
 		saved: '스킬을 저장했습니다.',
 	},
+	// 링크 화면(ui/link-view.ts)과 설정(ui/settings/link-section.ts)
+	link: {
+		title: '링크',
+		ribbonTooltip: '링크 열기',
+		noNote: '노트를 열면 뜻이 비슷한 노트를 보여 줍니다.',
+		notIndexedNote: '이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 잠시 뒤 색인됩니다.',
+		noResults: '비슷한 노트가 없습니다.',
+		score: '유사도 {score}%',
+		linked: '링크됨',
+		insertButton: '링크 넣기',
+		insertTooltip:
+			'지금 노트의 커서 자리에 이 노트로 가는 링크를 넣습니다(편집 모드가 아니면 노트 끝에). 카드를 끌어다 노트에 놓아도 됩니다.',
+		inserted: '{name} 링크를 넣었습니다.',
+		insertFailed: '링크를 넣지 못했습니다.',
+		stateNotConfigured: '설정 → Intra Copilot → 링크 → 임베딩 서버에서 서버 주소와 모델을 먼저 입력하세요.',
+		stateNotBuilt: '아직 색인이 없습니다. [색인 만들기]를 두 번 누르면 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
+		stateOtherModel:
+			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]를 두 번 눌러 지금 설정으로 다시 만드세요.',
+		stateIndexing: '색인하는 중… {done}/{total}',
+		stateError: '색인 실패: {reason}',
+		stateReady: '노트 {count}개 색인됨',
+		buildButton: '색인 만들기',
+		rebuildButton: '다시 만들기',
+		confirmButton: '한 번 더 눌러 시작',
+		retryButton: '다시 시도',
+		serverIntro:
+			'노트를 벡터(뜻을 나타내는 숫자 목록)로 바꿀 임베딩 서버를 연결합니다. OpenAI 호환 /embeddings API를 지원하며(사내 API, 직접 띄운 llama-server·Ollama·vLLM 등), 챗봇의 LLM 서버와 따로 둡니다.',
+		privacyNote:
+			'색인하면 볼트 노트의 제목과 본문(속성 제외)이 여기서 설정한 임베딩 서버로 전송됩니다. 회사가 승인한 서버만 입력하고, 보내면 안 되는 노트가 있는 폴더는 인덱스의 제외 폴더에 넣으세요.',
+		baseUrlName: '서버 주소',
+		baseUrlDesc: '임베딩 서버의 API 주소입니다. 보통 /v1로 끝납니다. 예: http://서버주소:8080/v1',
+		baseUrlPlaceholder: 'http://서버주소:8080/v1',
+		apiKeyName: 'API 키',
+		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 키가 필요 없는 서버라면 비워두세요.',
+		modelName: '모델',
+		modelDesc:
+			'노트를 벡터로 바꿀 모델 이름입니다. 직접 입력하거나, [모델 목록 불러오기] 뒤 입력칸을 눌러 고릅니다. 모델이나 서버 주소를 바꾸면 색인을 다시 만들어야 합니다.',
+		modelListButton: '모델 목록 불러오기',
+		loadingModels: '불러오는 중...',
+		modelsLoaded: '모델 {count}개를 불러왔습니다. 입력칸을 눌러 고르세요.',
+		noModels: '서버가 알려 준 모델이 없습니다. 모델 이름을 직접 입력하세요.',
+		testName: '연결 확인',
+		testDesc: '정해진 테스트 문장 하나를 보내 벡터가 돌아오는지 확인합니다. 노트 내용은 보내지 않습니다.',
+		testButton: '연결 확인',
+		testing: '확인 중...',
+		testOk: '연결됨 · 벡터 {dims}차원',
+		fillFirst: '서버 주소와 모델을 먼저 입력하세요.',
+		statusIdle: '아직 확인하지 않음',
+		indexIntro:
+			'어떤 노트를 색인할지와 한 번에 보내는 양을 정합니다. 처음 색인은 [색인 만들기]를 눌러야 시작하고, 그 뒤로는 Obsidian을 켤 때와 노트를 고치고 15초쯤 지나면 바뀐 노트만 자동으로 보냅니다(속성만 바뀐 노트는 보내지 않음).',
+		statusName: '색인 상태',
+		statusDesc:
+			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 고급 설정의 노트당 벡터 수나 조각 최대 글자 수를 바꿨을 때 누르세요. 서버 주소나 모델을 바꾸면 자동 색인이 멈추고 [색인 만들기]가 나타납니다.',
+		excludedFoldersName: '제외 폴더',
+		excludedFoldersDesc:
+			'쉼표(,)로 구분합니다. 이 폴더의 노트는 서버로 보내지도, 추천하지도 않습니다. 하위 폴더도 함께 빠지며 대소문자는 가리지 않습니다. 켜 둔 템플릿 플러그인의 템플릿 폴더와 Excalidraw 그림은 자동으로 뺍니다.',
+		batchSizeName: '한 번에 보낼 조각 수',
+		batchSizeDesc: '요청 하나에 담는 조각 수입니다. 서버가 너무 많다고 거절하면 줄이세요. 비워두면 기본값(16)으로 돌아갑니다.',
+		chunkCharsName: '조각 최대 글자 수',
+		chunkCharsDesc:
+			'노트를 이 글자 수 이하의 조각으로 나눠 보냅니다(노트 하나에 최대 20조각, 넘는 뒷부분은 쓰지 않음). 서버가 입력이 너무 길다고 거절하면 줄이세요. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1000)으로 돌아갑니다.',
+		resultCountName: '보여 줄 노트 수',
+		resultCountDesc: '링크 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
+		vectorsPerNoteName: '노트당 벡터 수',
+		vectorsPerNoteDesc:
+			'노트 하나를 몇 개의 벡터로 저장할지 정합니다(1~5). 1이면 노트 전체의 평균 하나이고, 2 이상이면 뜻이 가까운 조각끼리 묶어 주제별로 저장해 주제가 여러 개인 긴 노트도 잘 찾습니다. 서버로 보내는 양은 같지만 색인 파일이 커지고 검색이 조금 느려집니다. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1)으로 돌아갑니다.',
+		// 챗봇 안내문(llm.errors)이 링크에는 맞지 않는 원인만 따로 둡니다. 나머지는 llm.errors를 그대로 씁니다.
+		errors: {
+			auth: 'API 키가 없거나 올바르지 않거나, 이 서버를 쓸 권한이 없습니다(인증 실패). 설정의 링크 → 임베딩 서버에서 API 키를 확인하세요.',
+			model:
+				'서버가 이 모델로는 벡터를 만들 수 없다고 응답했습니다. 모델 이름이 틀렸거나 임베딩용이 아닌 모델(대화용 등)일 수 있습니다.',
+			'context-length':
+				'조각이 모델이 한 번에 받을 수 있는 길이를 넘었습니다. 링크 → 인덱스에서 "조각 최대 글자 수"를 줄이고 [다시 만들기]를 누르세요.',
+			'bad-request':
+				'서버가 요청을 거절했습니다. 모델 이름을 확인하고, 링크 → 인덱스에서 "한 번에 보낼 조각 수"나 "조각 최대 글자 수"를 줄여 보세요.',
+		},
+	},
 	// 리마인더 화면(ui/reminder-view.ts)과 설정(ui/settings/reminder-section.ts)
 	reminder: {
 		title: '리마인더',
@@ -445,6 +513,7 @@ export type Dictionary = typeof ko;
 // 화면 부품들이 "이 화면의 문구 묶음"을 인자로 받을 때 쓰는 타입입니다.
 export type ChatStrings = Dictionary['chat'];
 export type ReminderStrings = Dictionary['reminder'];
+export type LinkStrings = Dictionary['link'];
 
 const en: Dictionary = {
 	general: {
@@ -494,14 +563,6 @@ const en: Dictionary = {
 	},
 	upcoming: {
 		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
-		embeddingIntro: 'Connect the embedding server used to find similar notes. It can be separate from the chatbot LLM server.',
-		embeddingUrl: { name: 'Server address', desc: 'Address of an OpenAI-compatible server that provides embedding models' },
-		embeddingKey: { name: 'API key', desc: 'Key used to access the server' },
-		embeddingModel: { name: 'Model', desc: 'Model used to turn notes into vectors' },
-		indexIntro: 'Choose which notes to index and manage the index.',
-		indexFolders: { name: 'Included folders', desc: 'Leave empty to index the whole vault' },
-		indexExclude: { name: 'Excluded folders', desc: 'Folders that are never indexed' },
-		indexRebuild: { name: 'Rebuild', desc: 'Index everything again from scratch after many changes' },
 		templatesIntro: 'Manage the template notes used when creating a new note from a received file.',
 		templatesFolder: { name: 'Folder', desc: 'Folder that holds template notes' },
 		templatesDefault: { name: 'Default', desc: 'Template used when none is chosen' },
@@ -509,7 +570,6 @@ const en: Dictionary = {
 		promptsInstructions: { name: 'Note creation instructions', desc: 'Rules the model follows when filling in a template' },
 		mcpIntro: 'Manage connections to external tools (MCP servers) used when creating new notes.',
 		mcpServers: { name: 'Servers', desc: 'List of MCP servers to connect to' },
-		buttonStart: 'Start',
 		buttonAdd: 'Add',
 	},
 	docs: {
@@ -520,7 +580,7 @@ const en: Dictionary = {
 	},
 	llm: {
 		privacyNote:
-			'Note content never leaves the LLM server you configure here, and only what is shown as a chip above the chat box is sent.',
+			'The chatbot sends note content only to the LLM server you configure here, and only what is shown as a chip above the chat box. The Link feature uses its own embedding server from the Link settings.',
 		intro:
 			'Supports OpenAI-compatible APIs ' +
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +
@@ -759,6 +819,82 @@ const en: Dictionary = {
 		saveFailed: 'Could not save the skill.',
 		saved: 'Skill saved.',
 	},
+	link: {
+		title: 'Link',
+		ribbonTooltip: 'Open link',
+		noNote: 'Open a note to see notes with similar meaning.',
+		notIndexedNote: 'This note is not indexed yet. New or edited notes are indexed after a short while.',
+		noResults: 'No similar notes.',
+		score: 'Similarity {score}%',
+		linked: 'Linked',
+		insertButton: 'Insert link',
+		insertTooltip:
+			'Insert a link to this note at the cursor in the current note (at the end of the note if it is not in editing mode). You can also drag the card into the note.',
+		inserted: 'Inserted a link to {name}.',
+		insertFailed: 'Could not insert the link.',
+		stateNotConfigured: 'Enter the server address and model in Settings → Intra Copilot → Link → Embedding server first.',
+		stateNotBuilt:
+			'No index yet. Click [Build index] twice to send the titles and bodies of the vault notes to the embedding server and index them.',
+		stateOtherModel:
+			'The current index was built with a different server or model ({model}) and cannot be used. Click [Build index] twice to rebuild it with the current settings.',
+		stateIndexing: 'Indexing… {done}/{total}',
+		stateError: 'Indexing failed: {reason}',
+		stateReady: '{count} notes indexed',
+		buildButton: 'Build index',
+		rebuildButton: 'Rebuild',
+		confirmButton: 'Click again to start',
+		retryButton: 'Retry',
+		serverIntro:
+			'Connect the embedding server that turns notes into vectors (lists of numbers that represent meaning). Supports OpenAI-compatible /embeddings APIs (an internal API, or a self-hosted llama-server, Ollama, vLLM, etc.), separate from the chatbot LLM server.',
+		privacyNote:
+			'Indexing sends the titles and bodies (without properties) of vault notes to the embedding server configured here. Enter only servers approved by your company, and put folders with notes that must not be sent in the excluded folders under Index.',
+		baseUrlName: 'Server address',
+		baseUrlDesc: 'The API address of the embedding server, usually ending in /v1. e.g. http://server:8080/v1',
+		baseUrlPlaceholder: 'http://server:8080/v1',
+		apiKeyName: 'API key',
+		apiKeyDesc: 'The key used to access the server. Leave empty if the server does not need one.',
+		modelName: 'Model',
+		modelDesc:
+			'The model that turns notes into vectors. Type it, or click [Load model list] and pick one from the input. Changing the model or server address requires rebuilding the index.',
+		modelListButton: 'Load model list',
+		loadingModels: 'Loading...',
+		modelsLoaded: 'Loaded {count} models. Click the input to pick one.',
+		noModels: 'The server listed no models. Type the model name yourself.',
+		testName: 'Check connection',
+		testDesc: 'Sends one fixed test sentence and checks that a vector comes back. No note content is sent.',
+		testButton: 'Check connection',
+		testing: 'Checking...',
+		testOk: 'Connected · {dims}-dimensional vectors',
+		fillFirst: 'Enter the server address and model first.',
+		statusIdle: 'Not checked yet',
+		indexIntro:
+			'Choose which notes to index and how much to send at once. The first index starts only when you click [Build index]; after that, only changed notes are sent automatically when Obsidian starts and about 15 seconds after you edit a note (notes whose properties alone changed are not sent).',
+		statusName: 'Index status',
+		statusDesc:
+			'[Rebuild] sends every note again from scratch. Use it after changing vectors per note or the max chunk length in advanced settings. Changing the server address or model stops automatic indexing and shows [Build index].',
+		excludedFoldersName: 'Excluded folders',
+		excludedFoldersDesc:
+			'Separate with commas. Notes in these folders are never sent to the server or suggested. Subfolders are excluded too, and case is ignored. Template folders of enabled template plugins and Excalidraw drawings are left out automatically.',
+		batchSizeName: 'Chunks per request',
+		batchSizeDesc: 'How many chunks go into one request. Lower it if the server says there are too many. Leave empty to restore the default (16).',
+		chunkCharsName: 'Max chunk length (characters)',
+		chunkCharsDesc:
+			'Notes are split into chunks of at most this many characters (up to 20 chunks per note; the rest is not used). Lower it if the server says the input is too long. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1000).',
+		resultCountName: 'Notes to show',
+		resultCountDesc: 'How many similar notes the link view shows. Leave empty to restore the default (10).',
+		vectorsPerNoteName: 'Vectors per note',
+		vectorsPerNoteDesc:
+			'How many vectors each note is stored as (1–5). 1 is the average of the whole note; 2 or more groups chunks with similar meaning and stores one vector per topic, so long notes with several topics are found better. The amount sent to the server stays the same, but the index file grows and search gets slightly slower. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1).',
+		errors: {
+			auth: 'The API key is missing or wrong, or you do not have access to this server (authentication failed). Check the API key in Settings → Link → Embedding server.',
+			model:
+				'The server says it cannot create vectors with this model. The name may be wrong, or it may not be an embedding model (e.g. a chat model).',
+			'context-length':
+				'A chunk is longer than the model accepts at once. Lower "Max chunk length" under Link → Index and click [Rebuild].',
+			'bad-request':
+				'The server rejected the request. Check the model name, and try lowering "Chunks per request" or "Max chunk length" under Link → Index.',
+		},
+	},
 	reminder: {
 		title: 'Reminder',
 		ribbonTooltip: 'Open reminder',
@@ -870,4 +1006,13 @@ export function describeLlmError(
 		summary: template.replace('{seconds}', String(failure.timeoutSeconds ?? '')),
 		detail: failure.detail,
 	};
+}
+
+// 링크(임베딩 서버) 요청 실패. 챗봇 안내문이 맞지 않는 원인만 link.errors로 바꿉니다.
+export function describeLinkError(
+	language: UiLanguage,
+	failure: { kind: LlmErrorKind; detail: string; timeoutSeconds?: number },
+): { summary: string; detail: string } {
+	const override = (t(language).link.errors as Partial<Record<LlmErrorKind, string>>)[failure.kind];
+	return override ? { summary: override, detail: failure.detail } : describeLlmError(language, failure);
 }

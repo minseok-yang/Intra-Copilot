@@ -144,7 +144,7 @@ function folderPath(value: unknown): string {
 
 // 켜 둔 코어 "템플릿" 플러그인·Templater에 지정한 템플릿 폴더. 템플릿은 다시 읽을 지식 노트가 아니라서 자동으로 뺍니다.
 // 두 플러그인 모두 설정을 읽는 공개 API가 없어 내부 값을 읽으며, 구조가 바뀌어 못 읽으면 조용히 건너뜁니다.
-function templateFolders(app: App): string[] {
+export function templateFolders(app: App): string[] {
 	const internal = app as unknown as {
 		internalPlugins?: {
 			getPluginById?: (id: string) => { enabled?: boolean; instance?: { options?: { folder?: unknown } } } | null;

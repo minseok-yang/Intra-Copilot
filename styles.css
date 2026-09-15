@@ -1298,8 +1298,10 @@ button.intra-copilot-doc-card:hover {
 	color: var(--text-accent-hover);
 }
 
-/* ─── 리마인더 화면(오른쪽 사이드바) ─────────────────────────────────── */
-.intra-copilot-reminder-view {
+/* ─── 리마인더·링크 화면(오른쪽 사이드바) ─────────────────────────────── */
+/* 링크 화면은 리마인더 카드 모양(.intra-copilot-reminder-*)을 그대로 씁니다. */
+.intra-copilot-reminder-view,
+.intra-copilot-link-view {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -1370,6 +1372,20 @@ button.intra-copilot-doc-card:hover {
 	margin-left: 4px;
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
+}
+
+/* 링크 화면: 색인 상태 줄(버튼이 좁으면 다음 줄로), 끌어서 놓을 수 있는 카드 */
+.intra-copilot-link-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-link-card {
+	cursor: grab;
 }
 
 /* 두 번 눌러 확정 상태의 붉은 글자(delete-armed)가 붉은 배경에 묻히지 않게 합니다. */

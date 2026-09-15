@@ -48,6 +48,23 @@ export interface ReminderSettings {
 	propReview: string;
 }
 
+// 링크 설정입니다. 임베딩 서버는 챗봇의 LLM 서버와 따로 둡니다(사내에서 다른 서버로 열릴 수 있음).
+// 색인 자체(노트별 벡터)는 설정이 아니라 플러그인 폴더의 link-index.json에 있습니다(link/link-index.ts).
+export interface LinkSettings {
+	baseUrl: string;
+	apiKey: string;
+	model: string;
+	excludedFolders: string[]; // 볼트 기준 폴더 경로. 하위 폴더도 함께 빠지며, 대소문자는 가리지 않습니다.
+	batchSize: number; // 한 번의 요청에 담을 조각 수. 서버가 한 번에 받는 개수에 맞춥니다.
+	chunkChars: number; // 노트를 나눌 조각 하나의 최대 글자 수. 모델이 한 번에 받는 길이에 맞춥니다.
+	resultCount: number; // 비슷한 노트를 몇 개 보여 줄지
+	// 노트 하나에 저장할 벡터 수(1~MAX_VECTORS_PER_NOTE). 1이면 노트 전체 평균, 2 이상이면 주제별로 나눠 저장합니다.
+	vectorsPerNote: number;
+}
+
+// 노트당 벡터 수의 최대값. 검색 때 두 노트의 벡터를 모든 쌍으로 비교하므로(수의 제곱), 크게 두면 느려집니다.
+export const MAX_VECTORS_PER_NOTE = 5;
+
 // 리마인더의 하루 단위 값입니다. 설정이 아니라 상태지만 노트와 상관없어 data.json에 함께 둡니다(reminder/daily-count.ts).
 export interface ReminderDaily {
 	day: string; // handled·extra를 센 날(YYYY-MM-DD). 날짜가 바뀌면 0부터 다시 셉니다.
@@ -59,6 +76,7 @@ export interface ReminderDaily {
 export interface IntraCopilotSettings {
 	general: GeneralSettings;
 	llm: LlmSettings;
+	link: LinkSettings;
 	reminder: ReminderSettings;
 	reminderDaily: ReminderDaily;
 }
@@ -81,6 +99,17 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		// 길이를 넘으면 답변이 실패하므로, 그때는 설정에서 줄이면 됩니다(코드 수정 불필요).
 		maxContextChars: 8000,
 		streaming: true,
+	},
+	link: {
+		baseUrl: '',
+		apiKey: '',
+		model: '',
+		excludedFolders: [],
+		batchSize: 16,
+		// embeddinggemma는 한 번에 2048토큰까지 받습니다. 한국어는 글자당 토큰이 많아 1000자면 넉넉히 들어갑니다.
+		chunkChars: 1000,
+		resultCount: 10,
+		vectorsPerNote: 1,
 	},
 	reminder: {
 		excludedFolders: [],

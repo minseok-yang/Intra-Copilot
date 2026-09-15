@@ -9,13 +9,13 @@ import { addNumberSetting, parseLimit } from './llm-section';
 const defaults = DEFAULT_SETTINGS.reminder;
 
 // "Templates, /Daily/" 같은 폴더 입력을 볼트 기준 경로로 맞춥니다. 볼트 맨 위('/')는 뺍니다.
-function cleanFolder(item: string): string {
+export function cleanFolder(item: string): string {
 	const path = item ? normalizePath(item) : '';
 	return path === '/' ? '' : path;
 }
 
 // 쉼표로 구분한 목록 입력칸. 입력칸에서 벗어나면 실제로 저장된 목록을 다시 보여 줍니다.
-function addListSetting(
+export function addListSetting(
 	containerEl: HTMLElement,
 	ctx: SettingsContext,
 	options: {

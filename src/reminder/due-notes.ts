@@ -42,7 +42,7 @@ export interface DueNote {
 
 // path와 folder는 소문자로 받습니다. Windows는 폴더 이름의 대소문자를 구분하지 않아서, 설정에
 // "templates"라고 적어도 "Templates" 폴더가 빠지도록 대소문자를 무시하고 비교합니다.
-function inFolder(path: string, folder: string): boolean {
+export function inFolder(path: string, folder: string): boolean {
 	return folder !== '' && path.startsWith(`${folder}/`);
 }
 

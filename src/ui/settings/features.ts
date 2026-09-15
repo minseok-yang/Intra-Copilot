@@ -18,7 +18,7 @@ export type FeatureStatus = 'available' | 'upcoming';
 
 export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
 	chatbot: 'available',
-	link: 'upcoming',
+	link: 'available',
 	templater: 'upcoming',
 	reminder: 'available',
 };
