@@ -7,6 +7,7 @@ import { createStatusLight, setStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
 import { addAdvancedSection, addNumberSetting, parseLimit } from './llm-section';
 import { addListSetting, cleanFolder } from './reminder-section';
+import { openFolder } from './skills-section';
 
 // 링크 → 임베딩 서버 / 인덱스.
 // 임베딩 서버는 챗봇 LLM 서버와 따로 둡니다. 사내 API든 직접 띄운 자체 서버(llama-server·Ollama 등)든
@@ -145,6 +146,18 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		draw();
 	});
 	draw();
+
+	// 색인 파일을 지우거나 동기화에서 뺄 때 바로 찾아가도록 위치와 [폴더 열기]를 둡니다.
+	const indexPath = plugin.linkIndex.path;
+	const indexFolder = indexPath.slice(0, indexPath.lastIndexOf('/'));
+	new Setting(containerEl)
+		.setName(strings.indexFileName)
+		.setDesc(strings.indexFileDesc.replace('{path}', indexPath))
+		.addButton((button) =>
+			button
+				.setButtonText(ctx.strings.skills.openFolderButton)
+				.onClick(() => void openFolder(ctx, indexFolder, strings.openFolderFailed)),
+		);
 
 	addListSetting(containerEl, ctx, {
 		name: strings.excludedFoldersName,

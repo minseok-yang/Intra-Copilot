@@ -409,6 +409,10 @@ const ko = {
 		statusName: '색인 상태',
 		statusDesc:
 			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 고급 설정의 노트당 벡터 수나 조각 최대 글자 수를 바꿨을 때 누르세요. 서버 주소나 모델을 바꾸면 자동 색인이 멈추고 [색인 만들기]가 나타납니다.',
+		indexFileName: '색인 파일 위치',
+		indexFileDesc:
+			'{path} — 볼트 폴더 기준 경로입니다. 색인을 지우려면 이 파일을 지우고, 여러 기기에서 동기화한다면 이 파일(과 .tmp)을 동기화에서 빼세요.',
+		openFolderFailed: '색인 파일이 있는 폴더를 열지 못했습니다.',
 		excludedFoldersName: '제외 폴더',
 		excludedFoldersDesc:
 			'쉼표(,)로 구분합니다. 이 폴더의 노트는 서버로 보내지도, 추천하지도 않습니다. 하위 폴더도 함께 빠지며 대소문자는 가리지 않습니다. 켜 둔 템플릿 플러그인의 템플릿 폴더와 Excalidraw 그림은 자동으로 뺍니다.',
@@ -925,6 +929,10 @@ const en: Dictionary = {
 		statusName: 'Index status',
 		statusDesc:
 			'[Rebuild] sends every note again from scratch. Use it after changing vectors per note or the max chunk length in advanced settings. Changing the server address or model stops automatic indexing and shows [Build index].',
+		indexFileName: 'Index file location',
+		indexFileDesc:
+			'{path} — relative to the vault folder. Delete this file to clear the index, and exclude it (and .tmp) from sync if you sync across devices.',
+		openFolderFailed: 'Could not open the folder containing the index file.',
 		excludedFoldersName: 'Excluded folders',
 		excludedFoldersDesc:
 			'Separate with commas. Notes in these folders are never sent to the server or suggested. Subfolders are excluded too, and case is ignored. Template folders of enabled template plugins and Excalidraw drawings are left out automatically.',

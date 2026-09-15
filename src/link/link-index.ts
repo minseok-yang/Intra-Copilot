@@ -98,7 +98,8 @@ export class LinkIndex {
 		private readonly rateLimitWaitMs = RATE_LIMIT_WAIT_MS,
 	) {}
 
-	private get path(): string {
+	// 설정 화면의 [폴더 열기]가 위치를 보여 주려고 씁니다.
+	get path(): string {
 		return `${pluginDir(this.plugin)}/${INDEX_FILE}`;
 	}
 

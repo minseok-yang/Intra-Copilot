@@ -18,7 +18,7 @@ export function renderSkillsSection(containerEl: HTMLElement, ctx: SettingsConte
 	folderRow.createSpan({ cls: 'intra-copilot-skill-folder', text: `${strings.folderLabel}${folder}/` });
 	new ButtonComponent(folderRow)
 		.setButtonText(strings.openFolderButton)
-		.onClick(() => void openSkillFolder(ctx, folder));
+		.onClick(() => void openFolder(ctx, folder, strings.openFolderFailed));
 
 	new Setting(containerEl)
 		.addButton((button) =>
@@ -33,13 +33,13 @@ export function renderSkillsSection(containerEl: HTMLElement, ctx: SettingsConte
 	void fillSkillList(containerEl.createDiv({ cls: 'intra-copilot-skill-list' }), ctx);
 }
 
-// 스킬 폴더를 파일 탐색기로 엽니다. 데스크톱 전용 플러그인이라 볼트는 늘 실제 폴더에 있습니다.
-// (폴더는 목록을 그릴 때 listSkills가 이미 만들어 둡니다.)
-async function openSkillFolder(ctx: SettingsContext, folder: string): Promise<void> {
+// 볼트 안 폴더를 파일 탐색기로 엽니다. 데스크톱 전용 플러그인이라 볼트는 늘 실제 폴더에 있습니다.
+// (스킬 폴더는 목록을 그릴 때 listSkills가, 플러그인 폴더는 Obsidian이 이미 만들어 둡니다.) 링크 설정도 씁니다.
+export async function openFolder(ctx: SettingsContext, folder: string, failedMessage: string): Promise<void> {
 	const { adapter } = ctx.plugin.app.vault;
 	const error =
 		adapter instanceof FileSystemAdapter ? await shell.openPath(adapter.getFullPath(folder)) : 'no folder';
-	if (error) new Notice(ctx.strings.skills.openFolderFailed);
+	if (error) new Notice(failedMessage);
 }
 
 async function fillSkillList(listEl: HTMLElement, ctx: SettingsContext): Promise<void> {
