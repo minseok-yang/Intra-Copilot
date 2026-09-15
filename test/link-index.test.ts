@@ -632,6 +632,28 @@ async function main() {
 		assert.strictEqual(index.pendingCount(), 0);
 	});
 
+	await test('T41 auto update waits while editing, follows the interval, and 0 never syncs on its own', async () => {
+		const { vault, plugin, index } = await setup();
+		plugin.settings.link.autoSyncSeconds = 1;
+		reset();
+		vault.put('car1.md', 'car one');
+		index.requestSync();
+		await sleep(500);
+		vault.put('car1.md', 'car two');
+		index.requestSync(); // 1분 미만: 고칠 때마다 다시 기다림
+		await sleep(700);
+		assert.strictEqual(served, 0, 'sent while still editing');
+		await sleep(700);
+		assert.deepStrictEqual(sentTexts, ['car1\n\ncar two']);
+		plugin.settings.link.autoSyncSeconds = 0;
+		reset();
+		vault.put('car1.md', 'car three');
+		index.requestSync();
+		await sleep(1300);
+		assert.strictEqual(served, 0, 'synced while automatic update is off');
+		assert.strictEqual(index.pendingCount(), 1);
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

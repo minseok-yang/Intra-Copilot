@@ -439,7 +439,15 @@ const ko = {
 		fillFirst: '서버 주소와 모델을 먼저 입력하세요.',
 		statusIdle: '아직 확인하지 않음',
 		indexIntro:
-			'어떤 노트를 색인할지와 한 번에 보내는 양을 정합니다. 처음 색인은 [색인 만들기]를 눌러야 시작하고, 그 뒤로는 Obsidian을 켤 때와 노트를 고치고 15초쯤 지나면 바뀐 노트만 자동으로 보냅니다(속성만 바뀐 노트는 보내지 않음).',
+			'어떤 노트를 색인할지와 한 번에 보내는 양을 정합니다. 처음 색인은 [색인 만들기]를 눌러야 시작하고, 그 뒤로는 자동 갱신 주기에 따라 바뀐 노트만 보냅니다(속성만 바뀐 노트는 보내지 않음).',
+		autoSyncName: '자동 갱신',
+		autoSyncDesc:
+			'바뀐 노트를 언제 임베딩 서버로 보내 색인할지 정합니다. Obsidian을 켤 때도 이 주기를 따릅니다. 10분·30분·1시간은 첫 변경부터 그 시간이 지나면 그동안 바뀐 노트를 한꺼번에 보냅니다. 주기를 길게 하거나 끄면 서버 호출이 줄고, 그동안은 링크 창 색인 상태등이 노랑이 되며 [업데이트]로 필요할 때 직접 맞출 수 있습니다.',
+		autoSyncQuiet: '노트를 고치고 15초 뒤(기본)',
+		autoSync10m: '10분마다',
+		autoSync30m: '30분마다',
+		autoSync1h: '1시간마다',
+		autoSyncOff: '끄기(직접 [업데이트])',
 		statusName: '색인 상태',
 		statusDesc:
 			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 서버 주소·모델이나 고급 설정(한 번에 보낼 조각 수 제외)을 바꾸면 지금 색인을 쓸 수 없어 자동 색인이 멈추고 [색인 만들기]·[다시 만들기]가 나타납니다.',
@@ -990,7 +998,15 @@ const en: Dictionary = {
 		fillFirst: 'Enter the server address and model first.',
 		statusIdle: 'Not checked yet',
 		indexIntro:
-			'Choose which notes to index and how much to send at once. The first index starts only when you click [Build index]; after that, only changed notes are sent automatically when Obsidian starts and about 15 seconds after you edit a note (notes whose properties alone changed are not sent).',
+			'Choose which notes to index and how much to send at once. The first index starts only when you click [Build index]; after that, only changed notes are sent on the automatic update schedule (notes whose properties alone changed are not sent).',
+		autoSyncName: 'Automatic update',
+		autoSyncDesc:
+			'When to send changed notes to the embedding server for indexing. Startup follows the same schedule. With 10 minutes, 30 minutes, or 1 hour, notes changed in that time are sent together once it has passed since the first change. A longer schedule or Off means fewer server calls; meanwhile the index light in the link view turns yellow and you can click [Update] whenever you need.',
+		autoSyncQuiet: '15 seconds after you stop editing (default)',
+		autoSync10m: 'Every 10 minutes',
+		autoSync30m: 'Every 30 minutes',
+		autoSync1h: 'Every hour',
+		autoSyncOff: 'Off (click [Update] yourself)',
 		statusName: 'Index status',
 		statusDesc:
 			'[Rebuild] sends every note again from scratch. Changing the server address, model, or advanced settings (except chunks per request) makes the current index unusable, stops automatic indexing, and shows [Build index] or [Rebuild].',

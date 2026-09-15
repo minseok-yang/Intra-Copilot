@@ -1,7 +1,7 @@
 import { AbstractInputSuggest, type App, Setting } from 'obsidian';
 import { listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
-import { DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
+import { AUTO_SYNC_CHOICES, DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
 import { addIndexButton, describeIndexState, indexLight } from '../link-view';
 import { createStatusLight, setStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
@@ -200,6 +200,25 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		set: (value) => (link.excludedFolders = value),
 		clean: cleanFolder,
 	});
+	const autoSyncLabels: Record<(typeof AUTO_SYNC_CHOICES)[number], string> = {
+		15: strings.autoSyncQuiet,
+		600: strings.autoSync10m,
+		1800: strings.autoSync30m,
+		3600: strings.autoSync1h,
+		0: strings.autoSyncOff,
+	};
+	new Setting(containerEl)
+		.setName(strings.autoSyncName)
+		.setDesc(strings.autoSyncDesc)
+		.addDropdown((dropdown) => {
+			for (const seconds of AUTO_SYNC_CHOICES) dropdown.addOption(String(seconds), autoSyncLabels[seconds]);
+			dropdown.setValue(String(link.autoSyncSeconds)).onChange((value) => {
+				link.autoSyncSeconds = Number(value);
+				// 주기를 줄였거나 껐으면 이미 잡아 둔 예약도 새 주기에 맞춥니다.
+				plugin.linkIndex.requestSync();
+				ctx.saveSoon();
+			});
+		});
 	const addAtLeastOne = (
 		parentEl: HTMLElement,
 		key: 'batchSize' | 'chunkChars' | 'resultCount' | 'vectorsPerNote',

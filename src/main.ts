@@ -99,8 +99,8 @@ export default class IntraCopilotPlugin extends Plugin {
 		refreshChatViews(this);
 		refreshLinkViews(this);
 		refreshReminderViews(this);
-		// 제외 폴더가 바뀌었으면 빠진 노트는 색인에서 지우고 새로 들어온 노트를 색인합니다(서버·모델이 바뀌었으면 하지 않음).
-		void this.linkIndex.sync();
+		// 제외 폴더 등이 바뀌었을 수 있으니 자동 갱신 주기에 맞춰 색인 맞추기를 예약합니다(끄기면 링크 창 [업데이트]로 맞춤).
+		this.linkIndex.requestSync();
 	}
 
 	// 리본에는 다른 플러그인 아이콘도 함께 있으므로 "Intra Copilot: 챗봇 열기"처럼 플러그인 이름을 붙입니다.
@@ -176,6 +176,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		}
 		link.vectorsPerNote = Math.min(MAX_VECTORS_PER_NOTE, link.vectorsPerNote);
 		link.dimensions = nonNegativeInt(link.dimensions, linkDefaults.dimensions);
+		link.autoSyncSeconds = nonNegativeInt(link.autoSyncSeconds, linkDefaults.autoSyncSeconds);
 		if (!LINKED_NOTES_MODES.includes(link.linkedNotes)) link.linkedNotes = linkDefaults.linkedNotes;
 		if (typeof link.documentFormat !== 'string' || !link.documentFormat.includes('{text}')) {
 			link.documentFormat = linkDefaults.documentFormat;

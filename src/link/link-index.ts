@@ -34,6 +34,8 @@ const SAVE_INTERVAL_MS = 30_000;
 // 그때마다 멈추면 사용자가 [다시 시도]를 여러 번 눌러야 합니다. 기다리는 시간은 횟수마다 늘립니다(20초·40초·60초).
 const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_WAIT_MS = 20_000;
+// 자동 갱신 주기가 이보다 짧으면 노트를 고칠 때마다 다시 기다리고(쓰는 동안 보내지 않음), 길면 첫 변경부터 셉니다.
+const QUIET_LIMIT_SECONDS = 60;
 // [[위키링크]]·![[임베드]]·[글자](주소) 모양의 링크 문법
 const LINK_SYNTAX = /!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)/g;
 // [연결 확인] 때 보내는 고정 문장입니다. 노트 내용은 보내지 않습니다.
@@ -101,6 +103,7 @@ export class LinkIndex {
 	// 임베딩 서버 상태등(링크 창 머리줄). 상태를 알려고 서버에 따로 묻지 않고, 색인하며 보낸 요청과 [연결 확인]의
 	// 결과만 적어 둡니다(자주 물으면 공용 서버·무료 API 사용량을 씁니다). key는 그때의 주소·키·모델입니다.
 	private lastServer: { key: string; failure: LlmFailure | null; checkedAt: Date } | null = null;
+	private syncTimer: number | null = null;
 
 	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
 	constructor(
@@ -300,14 +303,30 @@ export class LinkIndex {
 
 	stop(): void {
 		this.stopped = true;
+		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
+		this.syncTimer = null;
 	}
 
-	// 이름 변경·삭제는 폴더를 옮기거나 지우면 여러 번 오므로, 잠잠해진 뒤 한 번만 색인을 맞춥니다.
-	// 맞추기(sync)는 제외 폴더로 옮겨진 노트를 빼고 저장까지 합니다(바뀐 내용이 없으면 서버로 보내지 않음).
+	// 자동 갱신: 노트가 바뀌었거나 켤 때 부르면, 설정한 주기(autoSyncSeconds)에 맞춰 맞추기(sync)를 예약합니다.
+	// 1분 미만이면 부를 때마다 다시 기다려 쓰는 동안에는 보내지 않고, 1분 이상이면 첫 변경부터 세어 그 시각에 한꺼번에 보냅니다
+	// (계속 고쳐도 주기마다 한 번은 맞춤). 0이면 예약하지 않으며, 링크 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
+	requestSync(): void {
+		const seconds = this.plugin.settings.link.autoSyncSeconds;
+		if (seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null) return;
+		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
+		this.syncTimer = null;
+		if (seconds <= 0 || this.stopped) return;
+		this.syncTimer = window.setTimeout(() => {
+			this.syncTimer = null;
+			void this.sync();
+		}, seconds * 1000);
+	}
+
+	// 이름 변경·삭제는 폴더를 옮기거나 지우면 여러 번 오므로, 잠잠해진 뒤 한 번만 저장합니다. 옮기거나 지운 기록은 서버로 보낼 것이
+	// 없어 맞추기를 기다리지 않습니다. 제외 폴더로 옮긴 노트는 검색에서 바로 빠지고, 기록은 다음 맞추기에서 지웁니다.
 	private readonly settleSoon = debounce(
 		() => {
-			if (this.matchesSettings()) void this.sync();
-			else void this.save().catch(() => {});
+			void this.save().catch(() => {});
 			this.emit();
 		},
 		2000,
@@ -339,10 +358,12 @@ export class LinkIndex {
 	// 지금 노트와 비슷한 노트(자신 제외)를 비슷한 순서로. 지금 노트가 아직 색인되지 않았으면 null입니다.
 	search(path: string, limit: number): SimilarNote[] | null {
 		const current = this.notes.get(path)?.vectors;
-		if (!current?.length || !this.matchesSettings()) return null;
+		const skip = this.skipFolders();
+		if (!current?.length || !this.matchesSettings() || this.isExcluded(path, skip)) return null;
 		const results: SimilarNote[] = [];
 		for (const [otherPath, note] of this.notes) {
-			if (otherPath === path) continue;
+			// 제외 폴더로 옮겼지만 아직 맞추기 전이라 기록이 남은 노트도 추천하지 않습니다.
+			if (otherPath === path || this.isExcluded(otherPath, skip)) continue;
 			const best = noteSimilarity(current, note.vectors);
 			if (best.score > -Infinity) results.push({ path: otherPath, score: best.score, section: note.sections[best.b] ?? '' });
 		}

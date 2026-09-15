@@ -26,8 +26,6 @@ import { setStatusDot, type StatusState } from './status-light';
 // 비슷한 노트를 찾는 계산은 이 PC 안에서 하며, 이 화면을 여는 것만으로는 아무것도 보내지 않습니다.
 
 export const LINK_VIEW_TYPE = 'intra-copilot-link-view';
-// 노트를 고친 뒤 이만큼 조용하면 바뀐 노트를 색인합니다. 쓰는 동안 Obsidian이 몇 초마다 저장해도 매번 보내지 않게 합니다.
-const SYNC_DELAY_MS = 15000;
 
 export async function revealLinkView(plugin: IntraCopilotPlugin): Promise<void> {
 	await plugin.app.workspace.ensureSideLeaf(LINK_VIEW_TYPE, 'right', { active: true, reveal: true });
@@ -44,13 +42,12 @@ export function registerLink(plugin: IntraCopilotPlugin): void {
 	const index = plugin.linkIndex;
 	plugin.registerView(LINK_VIEW_TYPE, (leaf) => new LinkView(leaf, plugin));
 
-	const syncSoon = debounce(() => void index.sync(), SYNC_DELAY_MS, true);
-	// 켤 때 Obsidian이 파일을 불러오며 보내는 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 바뀐 노트를 맞춥니다.
+	// 켤 때 Obsidian이 파일을 불러오며 보내는 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 자동 갱신 주기에 맞춰 바뀐 노트를 맞춥니다.
 	workspace.onLayoutReady(() => {
-		void index.load().then(() => index.sync());
+		void index.load().then(() => index.requestSync());
 		plugin.registerEvent(
 			vault.on('modify', (file) => {
-				if (file instanceof TFile && file.extension === 'md') syncSoon();
+				if (file instanceof TFile && file.extension === 'md') index.requestSync();
 			}),
 		);
 	});
