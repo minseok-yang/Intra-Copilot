@@ -575,6 +575,16 @@ async function main() {
 		assert.ok(sentTexts.includes('music1\n\nmusic music drums'), JSON.stringify(sentTexts.slice(0, 3)));
 	});
 
+	await test('T43 $ signs in note text ($$ math, $&) are sent unchanged', async () => {
+		const { vault, index } = await setup(false);
+		vault.files.clear();
+		vault.put('math.md', 'apple $$E=mc^2$$ and $& here');
+		vault.put('$&$$.md', 'car');
+		reset();
+		await index.rebuild();
+		assert.deepStrictEqual(sentTexts.sort(), ['$&$$\n\ncar', 'math\n\napple $$E=mc^2$$ and $& here']);
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;

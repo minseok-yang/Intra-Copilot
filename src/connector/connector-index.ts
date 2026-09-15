@@ -435,8 +435,12 @@ export class ConnectorIndex {
 		return {
 			hash: createHash('sha1').update(meaning).digest('hex'),
 			// 본문이 비어도 제목만으로 한 조각을 보냅니다(제목만 있는 노트도 추천에 나오게).
+			// 바꿔 넣을 글은 함수로 넘깁니다. 글자로 넘기면 JS가 $$·$& 같은 기호를 규칙으로 읽어 수식($$…$$) 등이 바뀐 채 전송됩니다.
 			chunks: (pieces.length > 0 ? pieces : [{ text: '', heading: '' }]).map((piece) => ({
-				text: format.replace('{title}', title).replace('{text}', piece.text).trim(),
+				text: format
+					.replace('{title}', () => title)
+					.replace('{text}', () => piece.text)
+					.trim(),
 				heading: piece.heading,
 			})),
 		};
