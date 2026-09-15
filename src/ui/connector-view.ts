@@ -42,16 +42,24 @@ export function registerConnector(plugin: IntraCopilotPlugin): void {
 	const index = plugin.connectorIndex;
 	plugin.registerView(CONNECTOR_VIEW_TYPE, (leaf) => new ConnectorView(leaf, plugin));
 
-	// 켤 때 Obsidian이 파일을 불러오며 보내는 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 자동 갱신 주기에 맞춰 바뀐 노트를 맞춥니다.
+	// 켤 때 Obsidian이 파일마다 보내는 create 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 자동 갱신 주기에 맞춰 바뀐 노트를 맞춥니다.
+	// 새 노트는 modify 없이 create만 오는 경우가 있어(플러그인이 내용을 채워 만든 노트, 밖에서 복사해 넣은 파일) 둘 다 받습니다.
 	workspace.onLayoutReady(() => {
 		void index.load().then(() => index.requestSync());
-		plugin.registerEvent(
-			vault.on('modify', (file) => {
-				if (file instanceof TFile && file.extension === 'md') index.requestSync();
-			}),
-		);
+		const onChanged = (file: unknown) => {
+			if (file instanceof TFile && file.extension === 'md') index.requestSync();
+		};
+		plugin.registerEvent(vault.on('modify', onChanged));
+		plugin.registerEvent(vault.on('create', onChanged));
 	});
-	plugin.registerEvent(vault.on('rename', (file, oldPath) => index.rename(oldPath, file.path)));
+	// 이름을 바꾸거나 옮긴 노트는 기록만 옮기고, 제외 폴더 밖으로 나온 노트가 색인되도록 맞추기도 예약합니다
+	// (기록이 있는 노트는 수정 시각이 그대로라 맞출 때 서버로 보내지 않습니다).
+	plugin.registerEvent(
+		vault.on('rename', (file, oldPath) => {
+			index.rename(oldPath, file.path);
+			index.requestSync();
+		}),
+	);
 	plugin.registerEvent(vault.on('delete', (file) => index.remove(file.path)));
 	plugin.register(() => index.stop());
 }
@@ -202,10 +210,12 @@ export class ConnectorView extends ItemView {
 				if (file === this.file) refresh();
 			}),
 		);
-		// 노트를 고치거나 새로 만들면 색인 상태등이 노랑(갱신 필요)으로 바뀌어야 하므로, 잠잠해진 뒤 상태등만 다시 그립니다.
+		// 노트를 고치거나 새로 만들거나 옮기면 색인 상태등이 노랑(갱신 필요)으로 바뀔 수 있으므로, 잠잠해진 뒤 상태등만 다시 그립니다.
 		const refreshIndexLight = debounce(() => this.renderIndexStatus(), 1000, true);
 		this.registerEvent(this.app.vault.on('modify', refreshIndexLight));
 		this.registerEvent(this.app.vault.on('create', refreshIndexLight));
+		this.registerEvent(this.app.vault.on('rename', refreshIndexLight));
+		this.registerEvent(this.app.vault.on('delete', refreshIndexLight));
 		this.render();
 		return Promise.resolve();
 	}
