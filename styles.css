@@ -1405,6 +1405,14 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-smaller);
 }
 
+/* 링크 → 인덱스 → 고급 설정 맨 위 경고: 값을 바꾸면 볼트 전체를 다시 색인해야 함 */
+.intra-copilot-rebuild-warning {
+	margin: 0 0 8px;
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+}
+
 /* 머리줄의 임베딩 모델 이름. 긴 이름은 말줄임으로 줄여 버튼·상태등이 밀리지 않게 합니다. */
 .intra-copilot-link-model {
 	min-width: 0;

@@ -236,6 +236,8 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 
 	// 서버·모델에 맞춰 조절하는 값은 챗봇처럼 고급 설정에 접어 둡니다.
 	const advanced = addAdvancedSection(containerEl, ctx.strings.llm.advancedName);
+	// 고급 설정을 연 사람이 값을 고치기 전에 보도록 맨 위에 붉은 글씨로 둡니다.
+	advanced.createEl('p', { cls: 'intra-copilot-rebuild-warning', text: strings.advancedWarning });
 	addAtLeastOne(advanced, 'vectorsPerNote', strings.vectorsPerNoteName, strings.vectorsPerNoteDesc, MAX_VECTORS_PER_NOTE);
 	new Setting(advanced)
 		.setName(strings.documentFormatName)

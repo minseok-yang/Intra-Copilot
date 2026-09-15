@@ -384,6 +384,8 @@ const ko = {
 			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
 		stateOptionsChanged:
 			'고급 설정(노트당 벡터 수·문서 형식·조각 최대 글자 수·벡터 크기)이 바뀌어 지금 색인을 쓸 수 없습니다. [다시 만들기]로 새 설정에 맞게 다시 만드세요.',
+		advancedWarning:
+			'주의: 한 번에 보낼 조각 수를 뺀 아래 값을 바꾸면 지금 색인을 쓸 수 없어 [다시 만들기]로 볼트 노트 전체를 임베딩 서버로 다시 보내야 합니다. 노트가 많으면 오래 걸리고 서버 사용량도 많이 씁니다.',
 		stateIndexing: '색인하는 중… {done}/{total}',
 		stateWaiting: '서버 사용량 제한에 걸려 잠시 기다린 뒤 이어서 보냅니다… {done}/{total}',
 		stateError: '색인 실패: {reason}',
@@ -924,6 +926,8 @@ const en: Dictionary = {
 			'The current index was built with a different server or model ({model}) and cannot be used. Use [Build index] to rebuild it for the current settings.',
 		stateOptionsChanged:
 			'Advanced settings (vectors per note, document format, max chunk length, vector size) changed, so the current index cannot be used. Use [Rebuild] to rebuild it for the new settings.',
+		advancedWarning:
+			'Caution: changing any value below except chunks per request makes the current index unusable, and [Rebuild] must send every note in the vault to the embedding server again. With many notes this takes a long time and uses a lot of server quota.',
 		stateIndexing: 'Indexing… {done}/{total}',
 		stateWaiting: 'Hit the server rate limit; waiting a moment before continuing… {done}/{total}',
 		stateError: 'Indexing failed: {reason}',
