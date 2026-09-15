@@ -18,6 +18,7 @@ export interface ConnectionStatus {
 	message: string; // ''이면 아직 아무 확인도 하지 않은 상태
 	checkedAt: Date | null; // 마지막으로 성공/실패 결과가 나온 시각
 	source: ConnectionSource | null; // null이면 설정이 바뀌어 아직 확인 전
+	detail?: string; // 서버 원문(설정 화면 상태등에 마우스를 올리면 보임)
 }
 
 export class ConnectionStatusStore {
@@ -28,17 +29,35 @@ export class ConnectionStatusStore {
 		source: null,
 	};
 	private listeners = new Set<() => void>();
+	// 지금 진행 중인 확인 수. 챗봇 머리줄과 설정 화면이 같은 "확인 중"을 보여 주도록 여기서 셉니다.
+	private pending = 0;
 
 	get(): ConnectionStatus {
 		return this.status;
 	}
 
-	// 서버 주소·키·모델이 바뀌었을 때: 이전 결과는 더 이상 믿을 수 없으므로 회색(확인 필요)으로.
-	markChanged(message: string): void {
-		this.update({ ...this.status, state: 'idle', message, source: null });
+	isChecking(): boolean {
+		return this.pending > 0;
 	}
 
-	record(source: ConnectionSource, state: StatusState, message: string): void {
+	// 확인 작업을 감싸 끝날 때까지 "확인 중"으로 둡니다. 겹쳐 시작해도 마지막 것이 끝나야 풀립니다.
+	async track<T>(work: () => Promise<T>): Promise<T> {
+		this.pending++;
+		this.notify();
+		try {
+			return await work();
+		} finally {
+			this.pending--;
+			this.notify();
+		}
+	}
+
+	// 서버 주소·키·모델이 바뀌었을 때: 이전 결과는 더 이상 믿을 수 없으므로 회색(확인 필요)으로.
+	markChanged(message: string): void {
+		this.update({ ...this.status, state: 'idle', message, source: null, detail: undefined });
+	}
+
+	record(source: ConnectionSource, state: StatusState, message: string, detail?: string): void {
 		if (source === 'models' && state === 'ok') {
 			// 목록 조회 성공만으로는 녹색을 켜지 않습니다(위 설명 참고). 이미 대화로 녹색이 됐다면
 			// 그대로 두고, 아니면 "목록은 확인됨, 연결 확인은 아직" 상태를 회색으로 알려줍니다.
@@ -50,6 +69,7 @@ export class ConnectionStatusStore {
 			message,
 			checkedAt: state === 'idle' ? this.status.checkedAt : new Date(),
 			source,
+			detail,
 		});
 	}
 
@@ -63,6 +83,10 @@ export class ConnectionStatusStore {
 
 	private update(next: ConnectionStatus): void {
 		this.status = next;
+		this.notify();
+	}
+
+	private notify(): void {
 		for (const listener of this.listeners) listener();
 	}
 }

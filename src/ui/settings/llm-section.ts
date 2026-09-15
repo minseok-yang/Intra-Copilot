@@ -10,7 +10,6 @@ import type { Dictionary } from '../../i18n';
 import { createStatusLight, setStatusLight, StatusState } from '../status-light';
 import {
 	checkSelectedModel,
-	CheckOutcome,
 	fetchModelList,
 	fillModelDropdown,
 	ModelListOutcome,
@@ -126,11 +125,9 @@ export class LlmSettingsSection {
 	// 설정 창을 새로 열었을 때만 자동으로 확인하기 위한 표시입니다. 탭 전환이나 언어 변경으로
 	// 화면을 다시 그릴 때는 재확인하지 않습니다.
 	private autoCheckPending = true;
-	// 모델을 바꿨을 때 할 일(연결 확인 표시등을 "확인 필요"로). 화면을 그릴 때 채워집니다.
-	private onModelSelectedInTab: () => void = () => {};
-	// 마지막 확인 결과. 서버 주소·키가 바뀌거나 설정 창을 닫으면 지웁니다.
+	// 마지막 모델 목록 확인 결과. 서버 주소·키가 바뀌거나 설정 창을 닫으면 지웁니다.
+	// (연결 확인 결과는 챗봇 머리줄과 함께 plugin.connectionStatus에 있습니다.)
 	private lastModelList: ModelListOutcome | null = null;
-	private lastTest: CheckOutcome | null = null;
 	// render()가 채웁니다. 아래 메서드들은 모두 render()가 그린 화면에서만 불립니다.
 	private ctx!: SettingsContext;
 
@@ -138,7 +135,6 @@ export class LlmSettingsSection {
 	reset(): void {
 		this.autoCheckPending = true;
 		this.lastModelList = null;
-		this.lastTest = null;
 	}
 
 	private get plugin(): IntraCopilotPlugin {
@@ -226,38 +222,41 @@ export class LlmSettingsSection {
 		});
 		const testButton = new ButtonComponent(testActionRow)
 			.setButtonText(strings.testButton)
-			.setTooltip(strings.testDesc);
+			.setTooltip(strings.testDesc)
+			.onClick(() => void checkSelectedModel(this.plugin));
 		const testStatus = createStatusLight(testActionRow, strings.statusIdle);
-		if (this.lastTest) {
-			const { state, message, detail } = this.lastTest;
-			setStatusLight(testStatus.dot, testStatus.text, state, message, detail);
-		}
 
 		const connectionStatusText = modelSetting.controlEl.createEl('p', {
 			cls: 'intra-copilot-connection-status-text',
-			text: this.formatLastVerified(strings),
 		});
 
-		const checkConnection = async () => {
-			testButton.setButtonText(strings.testing).setDisabled(true);
-			await this.runConnectionTest(testStatus.dot, testStatus.text, connectionStatusText);
-			testButton.setButtonText(strings.testButton).setDisabled(false);
+		// 연결 상태등은 챗봇 머리줄과 같은 기록(plugin.connectionStatus)을 그립니다. 챗봇에서 확인했든,
+		// 실제 대화 결과든, 모델을 바꿔 "확인 필요"가 됐든 두 화면이 같은 색·문구를 보여 줍니다.
+		const drawTest = () => {
+			const status = this.plugin.connectionStatus;
+			const checking = status.isChecking();
+			testButton.setButtonText(checking ? strings.testing : strings.testButton).setDisabled(checking);
+			const { state, message, detail, checkedAt } = status.get();
+			const time = checkedAt ? `${strings.lastVerifiedPrefix}${checkedAt.toLocaleString()}` : '';
+			const tooltip = [detail, time].filter(Boolean).join('\n');
+			setStatusLight(testStatus.dot, testStatus.text, state, message || strings.statusIdle, tooltip);
+			connectionStatusText.setText(this.formatLastVerified(strings));
 		};
-		testButton.onClick(() => void checkConnection());
+		// 설정 화면을 다시 그리면 옛 상태등은 화면에서 빠지므로, 그때 구독도 풉니다.
+		const unsubscribe = this.plugin.connectionStatus.subscribe(() => {
+			if (!testStatus.dot.isConnected) {
+				unsubscribe();
+				return;
+			}
+			drawTest();
+		});
+		drawTest();
 
 		resetStatuses = () => {
 			this.lastModelList = null;
-			this.lastTest = null;
 			setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
-			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
-			// 챗봇 상단 상태등도 함께 회색(미확인)으로 되돌립니다.
+			// 챗봇 상단 상태등과 위 연결 상태등이 함께 회색(미확인)으로 돌아갑니다.
 			this.plugin.connectionStatus.markChanged(strings.statusConnectionChanged);
-		};
-
-		// 모델을 바꾸면 목록 확인 결과는 그대로 유효하지만, 연결 확인은 새 모델로 다시 해야 합니다.
-		this.onModelSelectedInTab = () => {
-			this.lastTest = { state: 'idle', message: strings.statusModelChanged };
-			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusModelChanged);
 		};
 
 		const advancedSection = addAdvancedSection(modelSetting.controlEl, strings.advancedName);
@@ -347,70 +346,10 @@ export class LlmSettingsSection {
 		fillModelDropdown(this.plugin, dropdown, models, {
 			lastState,
 			onSelected: () => {
-				this.onModelSelectedInTab();
-				// 여기서 고른 모델이 열려 있는 챗봇 화면의 드롭다운에도 바로 보이게 합니다.
+				// 연결 상태등은 fillModelDropdown이 "확인 필요"로 바꿉니다. 여기서 고른 모델이 열려 있는 챗봇 화면의 드롭다운에도 바로 보이게 합니다.
 				this.plugin.notifySettingsChanged();
 			},
 		});
-	}
-
-	// [연결 확인] 버튼을 누르면 실행됩니다(자동으로는 실행하지 않음 — 공용 서버 부담).
-	// 선택된 모델로 실제 대화 요청을 보내 서버가 정상 응답하는지 확인합니다.
-	private async runConnectionTest(
-		statusDot: HTMLElement,
-		statusText: HTMLElement,
-		connectionStatusEl: HTMLElement,
-	): Promise<void> {
-		const { strings: allStrings } = this.ctx;
-		const strings = allStrings.llm;
-		const { baseUrl, model } = this.plugin.settings.llm;
-
-		if (!baseUrl || !model) {
-			this.showTestResult(statusDot, statusText, 'idle', strings.statusMissing);
-			connectionStatusEl.setText(this.formatLastVerified(strings));
-			return;
-		}
-
-		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
-		// 결과는 checkSelectedModel이 챗봇 상단 상태등에도 기록합니다.
-		const snapshot = this.plugin.connectionSnapshot();
-		const check = await checkSelectedModel(this.plugin);
-		// 기다리는 사이 서버 주소·키·모델이 바뀌었다면 옛 설정의 결과이므로 보여주지 않습니다.
-		if (snapshot !== this.plugin.connectionSnapshot()) return;
-
-		if (check.state === 'ok') {
-			const reply = check.reply || allStrings.chat.emptyReply;
-			this.showTestResult(
-				statusDot,
-				statusText,
-				'ok',
-				`${strings.statusOk} · ${strings.statusReplyPrefix}${reply}`,
-			);
-			this.plugin.settings.llm.lastVerified = {
-				at: new Date().toISOString(),
-				baseUrl,
-				model,
-			};
-			await this.plugin.saveSettings();
-		} else {
-			// 원인과 해결 방법을 표시등 옆 글자로 바로 보여주고, 서버 원문은 마우스를 올리면 보이게 합니다.
-			const message =
-				check.state === 'error' ? `${strings.statusError}: ${check.message}` : check.message;
-			this.showTestResult(statusDot, statusText, check.state, message, check.detail);
-		}
-		connectionStatusEl.setText(this.formatLastVerified(strings));
-	}
-
-	// 연결 확인 표시등을 그리고, 화면을 다시 그릴 때 복원할 수 있게 기억해 둡니다.
-	private showTestResult(
-		statusDot: HTMLElement,
-		statusText: HTMLElement,
-		state: StatusState,
-		message: string,
-		detail?: string,
-	): void {
-		this.lastTest = { state, message, detail };
-		setStatusLight(statusDot, statusText, state, message, detail);
 	}
 
 	private formatLastVerified(strings: Dictionary['llm']): string {

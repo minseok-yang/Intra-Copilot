@@ -18,7 +18,12 @@ export interface ModelListOutcome extends CheckOutcome {
 
 // 모델 목록을 가져오고, 실패하면 챗봇 상태등에도 빨간색으로 기록합니다.
 // (성공만으로는 녹색을 켜지 않습니다 — connection-status.ts 참고)
-export async function fetchModelList(plugin: IntraCopilotPlugin): Promise<ModelListOutcome> {
+// 확인하는 동안은 챗봇 머리줄과 설정 화면이 함께 "확인 중"을 보여 줍니다(connectionStatus.track).
+export function fetchModelList(plugin: IntraCopilotPlugin): Promise<ModelListOutcome> {
+	return plugin.connectionStatus.track(() => fetchModelListNow(plugin));
+}
+
+async function fetchModelListNow(plugin: IntraCopilotPlugin): Promise<ModelListOutcome> {
 	const language = plugin.settings.general.language;
 	const strings = t(language).llm;
 	const llm = plugin.settings.llm;
@@ -51,23 +56,31 @@ export async function fetchModelList(plugin: IntraCopilotPlugin): Promise<ModelL
 	// 챗봇 상태등에는 "연결은 첫 대화나 [연결 확인]으로 확인된다"는 안내를 덧붙입니다(목록 조회만으로는 녹색이 안 되므로).
 	const statusMessage =
 		outcome.state === 'ok' ? `${outcome.message} · ${strings.modelsOkHint}` : outcome.message;
-	plugin.reportConnection('models', snapshot, outcome.state, statusMessage);
+	plugin.reportConnection('models', snapshot, outcome.state, statusMessage, outcome.detail);
 	return outcome;
 }
 
 // 선택된 모델에 짧은 테스트 문장을 보내 "실제로 답하는지" 확인하고, 결과를 챗봇 상태등에
 // 기록합니다. 설정 화면과 챗봇 머리줄의 [연결 확인] 버튼이 함께 씁니다.
 // availableModels를 주면, 선택한 모델이 서버 목록에 없을 때 요청을 보내지 않고 바로 알려줍니다.
-export async function checkSelectedModel(
+// 성공하면 어느 화면에서 눌렀든 "마지막 연결 성공"(settings.llm.lastVerified)도 적어 둡니다.
+export function checkSelectedModel(
 	plugin: IntraCopilotPlugin,
 	availableModels?: string[],
-): Promise<CheckOutcome & { reply?: string }> {
+): Promise<CheckOutcome> {
+	return plugin.connectionStatus.track(() => checkSelectedModelNow(plugin, availableModels));
+}
+
+async function checkSelectedModelNow(
+	plugin: IntraCopilotPlugin,
+	availableModels?: string[],
+): Promise<CheckOutcome> {
 	const language = plugin.settings.general.language;
 	const strings = t(language).llm;
 	const { baseUrl, model } = plugin.settings.llm;
 	const snapshot = plugin.connectionSnapshot();
 
-	let outcome: CheckOutcome & { reply?: string };
+	let outcome: CheckOutcome;
 	if (!baseUrl) {
 		outcome = { state: 'idle', message: strings.fillBaseUrlFirst };
 	} else if (!model) {
@@ -77,19 +90,19 @@ export async function checkSelectedModel(
 	} else {
 		const result = await testLlmConnection(plugin.settings.llm);
 		if (result.ok) {
-			outcome = { state: 'ok', message: strings.statusOk, reply: result.reply };
+			const reply = result.reply || t(language).chat.emptyReply;
+			outcome = { state: 'ok', message: `${strings.statusOk} · ${strings.statusReplyPrefix}${reply}` };
 		} else {
 			const { summary, detail } = describeLlmError(language, result);
-			outcome = { state: 'error', message: summary, detail };
+			outcome = { state: 'error', message: `${strings.statusError} — ${summary}`, detail };
 		}
 	}
 
-	plugin.reportConnection(
-		'chat',
-		snapshot,
-		outcome.state,
-		outcome.state === 'error' ? `${strings.statusError} — ${outcome.message}` : outcome.message,
-	);
+	plugin.reportConnection('chat', snapshot, outcome.state, outcome.message, outcome.detail);
+	if (outcome.state === 'ok' && snapshot === plugin.connectionSnapshot()) {
+		plugin.settings.llm.lastVerified = { at: new Date().toISOString(), baseUrl, model };
+		await plugin.saveSettings(); // 확인이 끝나며(track) 화면들이 다시 그려 이 시각도 보입니다.
+	}
 	return outcome;
 }
 

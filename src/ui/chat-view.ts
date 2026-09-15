@@ -155,8 +155,6 @@ export class ChatView extends ItemView {
 	private modelStatusEl!: HTMLElement; // 상태등 + 상태 글자 묶음(마우스를 올리면 자세한 설명)
 	private modelStatusDot!: HTMLElement;
 	private modelStatusLabel!: HTMLElement;
-	// 모델 목록·연결을 확인하는 중인지. 이 동안 상태 글자를 "확인 중"으로 보여줍니다.
-	private checking = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: IntraCopilotPlugin) {
 		super(leaf);
@@ -567,31 +565,18 @@ export class ChatView extends ItemView {
 	// ① 모델 목록을 다시 불러오고, testModel이면([연결 확인] 버튼) ② 선택한 모델에 짧은 테스트 문장을 보내
 	// 실제로 답하는지까지 확인합니다. 목록에 이름이 있어도 대화가 안 되는 모델(음성·임베딩 등)이 있어서,
 	// ②나 실제 대화가 성공해야 상태등이 녹색이 됩니다. 확인하는 동안에는 [연결 확인] 버튼의 아이콘이 돕니다.
-	// (두 결과 모두 fetchModelList/checkSelectedModel이 상태등에 직접 기록합니다.)
+	// (두 결과와 "확인 중" 모두 fetchModelList/checkSelectedModel이 connectionStatus에 기록해 설정 화면과 같게 보입니다.)
 	private async refreshModels(options: { testModel: boolean }): Promise<void> {
 		const seq = ++this.modelCheckSeq;
 		this.checkedConnectionKey = this.plugin.serverSnapshot();
-		this.setChecking(true);
-		try {
-			const outcome = await fetchModelList(this.plugin);
-			if (seq !== this.modelCheckSeq) return; // 그 사이 더 새로운 확인이 시작됨
-			this.availableModels = outcome.models;
-			this.lastModelState = outcome.state;
-			this.fillDropdown();
-			if (options.testModel && outcome.state === 'ok') {
-				await checkSelectedModel(this.plugin, outcome.models);
-			}
-		} finally {
-			// 옛 확인이 끝났다고 아이콘을 멈추면, 아직 진행 중인 새 확인이 끝난 것처럼 보입니다.
-			if (seq === this.modelCheckSeq) this.setChecking(false);
+		const outcome = await fetchModelList(this.plugin);
+		if (seq !== this.modelCheckSeq) return; // 그 사이 더 새로운 확인이 시작됨
+		this.availableModels = outcome.models;
+		this.lastModelState = outcome.state;
+		this.fillDropdown();
+		if (options.testModel && outcome.state === 'ok') {
+			await checkSelectedModel(this.plugin, outcome.models);
 		}
-	}
-
-	private setChecking(checking: boolean): void {
-		this.checking = checking;
-		this.checkButton.setDisabled(checking);
-		this.checkButton.buttonEl.toggleClass('intra-copilot-is-checking', checking);
-		this.renderConnectionStatus();
 	}
 
 	private fillDropdown(): void {
@@ -606,6 +591,9 @@ export class ChatView extends ItemView {
 		const strings = this.strings();
 		const llmStrings = t(this.plugin.settings.general.language).llm;
 		const { state, message, checkedAt } = this.plugin.connectionStatus.get();
+		const checking = this.plugin.connectionStatus.isChecking();
+		this.checkButton.setDisabled(checking);
+		this.checkButton.buttonEl.toggleClass('intra-copilot-is-checking', checking);
 		const text = message || llmStrings.statusIdle;
 		const tooltip = checkedAt
 			? `${text} · ${llmStrings.lastVerifiedPrefix}${checkedAt.toLocaleString()}`
@@ -614,7 +602,7 @@ export class ChatView extends ItemView {
 		setTooltip(this.modelStatusEl, tooltip);
 
 		// 확인하는 동안에는 이전 결과 대신 "확인 중"을 보여줍니다(상태등 색은 이전 결과 그대로).
-		const label = this.checking
+		const label = checking
 			? strings.statusLabelChecking
 			: state === 'ok'
 				? strings.statusLabelOk
@@ -622,7 +610,7 @@ export class ChatView extends ItemView {
 					? strings.statusLabelError
 					: strings.statusLabelIdle;
 		this.modelStatusLabel.setText(label);
-		this.modelStatusLabel.toggleClass('is-error', !this.checking && state === 'error');
+		this.modelStatusLabel.toggleClass('is-error', !checking && state === 'error');
 	}
 
 	// retry를 주면 입력칸·선택한 스킬 대신 그 내용을 보냅니다([다시 시도] 버튼).

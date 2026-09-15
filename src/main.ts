@@ -129,9 +129,10 @@ export default class IntraCopilotPlugin extends Plugin {
 		snapshot: string,
 		state: StatusState,
 		message: string,
+		detail?: string,
 	): void {
 		if (snapshot === this.connectionSnapshot()) {
-			this.connectionStatus.record(source, state, message);
+			this.connectionStatus.record(source, state, message, detail);
 		}
 	}
 
