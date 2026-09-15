@@ -1405,6 +1405,21 @@ button.intra-copilot-doc-card:hover {
 	color: var(--text-muted);
 }
 
+/* 이름을 눌러 펼친 카드: 이름을 강조색으로, 노트 내용은 카드 안에서 스크롤합니다. */
+.intra-copilot-link-card.is-open .intra-copilot-reminder-name {
+	color: var(--text-accent);
+}
+
+.intra-copilot-link-preview:not(:empty) {
+	max-height: 320px;
+	overflow-y: auto;
+	margin-top: 6px;
+	padding: 4px 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+	cursor: auto;
+}
+
 .intra-copilot-link-badge {
 	display: inline-flex;
 	align-items: center;

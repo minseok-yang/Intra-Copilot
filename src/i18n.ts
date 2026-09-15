@@ -348,6 +348,8 @@ const ko = {
 		score: '유사도 {score}%',
 		linked: '링크됨',
 		linkedTooltip: '지금 노트에 이미 이 노트로 가는 링크가 있습니다. 같은 링크가 또 들어가지 않게 [링크 넣기]는 빠집니다.',
+		previewTooltip:
+			'누르면 이 카드 안에 노트 내용을 펼치고, 다시 누르면 접습니다. 링크 창은 지금 노트에 그대로 머뭅니다. Ctrl/Cmd를 누른 채 누르면 새 탭에서 엽니다.',
 		chatButton: '챗봇에 올리기',
 		chatTooltip: '챗봇을 열고 이 노트를 입력칸 위에 칩으로 올립니다. 누르는 것만으로는 보내지 않고, 질문을 보낼 때 함께 전송됩니다.',
 		chatAllButton: '목록 {count}개를 챗봇에 올리기',
@@ -866,6 +868,8 @@ const en: Dictionary = {
 		score: 'Similarity {score}%',
 		linked: 'Linked',
 		linkedTooltip: 'The current note already links to this note. [Insert link] is hidden so the same link is not added twice.',
+		previewTooltip:
+			'Click to expand the note’s content inside this card; click again to collapse. The link view stays on the current note. Ctrl/Cmd-click opens it in a new tab.',
 		chatButton: 'Add to chatbot',
 		chatTooltip:
 			'Open the chatbot and add this note as a chip above the input. Clicking sends nothing; the note is sent along with your next question.',

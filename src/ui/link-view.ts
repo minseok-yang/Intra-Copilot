@@ -1,9 +1,11 @@
 import {
 	ButtonComponent,
+	Component,
 	debounce,
 	ItemView,
 	Modal,
 	Keymap,
+	MarkdownRenderer,
 	MarkdownView,
 	Notice,
 	setIcon,
@@ -135,6 +137,11 @@ export class LinkView extends ItemView {
 	private file: TFile | null = null;
 	private statusEl: HTMLElement | null = null;
 	private renderedKind = '';
+	// 이름을 눌러 펼친 카드(노트 경로). 목록을 다시 그려도 펼친 채로 두고, 다른 노트로 옮기면 접습니다.
+	private expanded = new Set<string>();
+	private listedPath = '';
+	// 펼친 노트를 그릴 때 생기는 자원(임베드 등)을 모아 두었다가 목록을 다시 그릴 때 한꺼번에 풉니다.
+	private previews = new Component();
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -195,6 +202,8 @@ export class LinkView extends ItemView {
 		this.renderedKind = state.kind;
 		const { contentEl } = this;
 		contentEl.empty();
+		this.removeChild(this.previews);
+		this.previews = this.addChild(new Component());
 
 		contentEl.createDiv({ cls: 'intra-copilot-reminder-title', text: this.file?.basename ?? strings.title });
 		const statusRow = contentEl.createDiv({ cls: 'intra-copilot-link-status' });
@@ -212,6 +221,10 @@ export class LinkView extends ItemView {
 		if (!source) {
 			empty(strings.noNote);
 			return;
+		}
+		if (source.path !== this.listedPath) {
+			this.listedPath = source.path;
+			this.expanded.clear();
 		}
 		const { resultCount, linkedNotes } = this.plugin.settings.link;
 		// 이미 링크된 노트를 빼거나 뒤로 보낸 뒤 개수를 자르므로, 먼저 전체를 비슷한 순서로 받습니다.
@@ -268,10 +281,7 @@ export class LinkView extends ItemView {
 
 		const titleRow = card.createDiv({ cls: 'intra-copilot-link-title' });
 		const name = titleRow.createEl('a', { cls: 'intra-copilot-reminder-name', text: target.basename });
-		name.addEventListener('click', (evt) => {
-			evt.preventDefault();
-			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(target);
-		});
+		setTooltip(name, strings.previewTooltip);
 		if (isLinked) {
 			const badge = titleRow.createSpan({ cls: 'intra-copilot-link-badge' });
 			setIcon(badge.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'link');
@@ -283,6 +293,33 @@ export class LinkView extends ItemView {
 		if (target.parent && !target.parent.isRoot()) meta.unshift(target.parent.path);
 		card.createDiv({ cls: 'intra-copilot-reminder-meta', text: meta.join(' · ') });
 		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
+
+		// 이름을 누르면 노트로 옮겨 가지 않고 카드 안에 내용을 펼칩니다. 옮겨 가면 링크 창이 그 노트 기준으로 바뀌어
+		// 보던 목록으로 돌아올 수 없기 때문입니다. Ctrl/Cmd를 누른 채 누르면 예전처럼 새 탭에서 엽니다.
+		const preview = card.createDiv({ cls: 'intra-copilot-link-preview' });
+		const showPreview = (open: boolean) => {
+			card.toggleClass('is-open', open);
+			preview.empty();
+			if (!open) return;
+			// 읽는 동안 접었다 펼치면 옛 body는 이미 화면에서 빠져 있어, 늦게 온 결과가 두 번 그려지지 않습니다.
+			const body = preview.createDiv({ cls: 'markdown-rendered' });
+			void this.app.vault.cachedRead(target).then((text) => {
+				const frontmatterEnd = this.app.metadataCache.getFileCache(target)?.frontmatterPosition?.end.offset ?? 0;
+				return MarkdownRenderer.render(this.app, text.slice(frontmatterEnd), body, target.path, this.previews);
+			});
+		};
+		name.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			if (Keymap.isModEvent(evt)) {
+				void this.app.workspace.getLeaf(true).openFile(target);
+				return;
+			}
+			const open = !this.expanded.has(target.path);
+			if (open) this.expanded.add(target.path);
+			else this.expanded.delete(target.path);
+			showPreview(open);
+		});
+		showPreview(this.expanded.has(target.path));
 
 		const actions = card.createDiv({ cls: 'intra-copilot-reminder-actions' });
 		const addButton = (icon: string, label: string, tooltip: string, onClick: () => void) => {
