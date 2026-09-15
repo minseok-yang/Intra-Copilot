@@ -383,7 +383,7 @@ const ko = {
 		stateNotBuilt:
 			'아직 색인이 없습니다. [색인 만들기]를 누르면 보낼 양과 서버가 나오고, 거기서 [색인 시작]을 눌러야 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
 		stateOtherModel:
-			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
+			'지금 색인은 다른 서버 주소나 모델로 만들어 쓸 수 없습니다(색인을 만든 모델: {model}). [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
 		stateOptionsChanged:
 			'고급 설정(노트당 벡터 수·문서 형식·조각 최대 글자 수·벡터 크기)이 바뀌어 지금 색인을 쓸 수 없습니다. [다시 만들기]로 새 설정에 맞게 다시 만드세요.',
 		advancedWarning:
@@ -945,7 +945,7 @@ const en: Dictionary = {
 		stateNotBuilt:
 			'No index yet. [Build index] shows how much will be sent and where; only [Start indexing] there sends the titles and bodies of the vault notes to the embedding server and indexes them.',
 		stateOtherModel:
-			'The current index was built with a different server or model ({model}) and cannot be used. Use [Build index] to rebuild it for the current settings.',
+			'The current index was built with a different server address or model and cannot be used (model used for the index: {model}). Use [Build index] to rebuild it for the current settings.',
 		stateOptionsChanged:
 			'Advanced settings (vectors per note, document format, max chunk length, vector size) changed, so the current index cannot be used. Use [Rebuild] to rebuild it for the new settings.',
 		advancedWarning:
