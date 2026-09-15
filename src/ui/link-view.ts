@@ -67,6 +67,7 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 		case 'not-configured':
 			return { text: strings.stateNotConfigured };
 		case 'not-built':
+			if (state.optionsChanged) return { text: strings.stateOptionsChanged };
 			return { text: state.builtWith ? strings.stateOtherModel.replace('{model}', state.builtWith) : strings.stateNotBuilt };
 		case 'indexing':
 			return {
@@ -239,7 +240,9 @@ export class LinkView extends ItemView {
 		const { text, detail } = describeIndexState(this.plugin, state);
 		this.statusEl = statusRow.createSpan({ text });
 		if (detail) setTooltip(this.statusEl, detail);
-		if (state.kind === 'not-built') addIndexButton(statusRow, this.plugin, strings.buildButton);
+		if (state.kind === 'not-built') {
+			addIndexButton(statusRow, this.plugin, state.optionsChanged ? strings.rebuildButton : strings.buildButton);
+		}
 		if (state.kind === 'error') {
 			new ButtonComponent(statusRow).setButtonText(strings.retryButton).onClick(() => void index.sync());
 		}

@@ -52,8 +52,12 @@ interface StoredIndex {
 	version: number;
 	baseUrl: string;
 	model: string;
+	// 색인을 만든 고급 설정(currentOptions). 이 값이 생기기 전에 만든 파일에는 없고, 그때는 지금 설정으로 만든 것으로 봅니다.
+	options?: string;
 	notes: Record<string, StoredNote>;
 }
+
+type Owner = { baseUrl: string; model: string; options: string };
 
 interface NoteEntry {
 	mtime: number;
@@ -64,7 +68,8 @@ interface NoteEntry {
 
 export type IndexState =
 	| { kind: 'not-configured' } // 서버 주소나 모델이 비어 있음
-	| { kind: 'not-built'; builtWith: string } // 색인이 없거나(builtWith '') 다른 서버·모델로 만든 색인
+	// 색인이 없거나(builtWith '') 다른 서버·모델로 만든 색인. optionsChanged: 같은 서버·모델이지만 고급 설정이 바뀜
+	| { kind: 'not-built'; builtWith: string; optionsChanged: boolean }
 	| { kind: 'indexing'; done: number; total: number; waiting: boolean } // waiting: 사용량 제한으로 기다리는 중
 	| { kind: 'error'; failure: LlmFailure }
 	| { kind: 'ready'; count: number };
@@ -83,7 +88,7 @@ function sameServerUrl(url: string): string {
 }
 
 export class LinkIndex {
-	private owner: { baseUrl: string; model: string } | null = null;
+	private owner: Owner | null = null;
 	private notes = new Map<string, NoteEntry>();
 	private running: Promise<void> | null = null;
 	private runAgain = false;
@@ -108,15 +113,30 @@ export class LinkIndex {
 		return `${pluginDir(this.plugin)}/${INDEX_FILE}`;
 	}
 
-	private matchesSettings(): boolean {
+	// 벡터를 만드는 방식(고급 설정). 바뀌면 저장해 둔 벡터와 새로 받을 벡터가 다른 방식으로 만든 것이라, 서버·모델이 바뀔 때처럼
+	// 다시 만들어야 합니다. 한 번에 보낼 조각 수(batchSize)는 요청을 나누는 방법일 뿐 벡터가 같아 넣지 않습니다.
+	private currentOptions(): string {
+		const { chunkChars, vectorsPerNote, dimensions, documentFormat } = this.plugin.settings.link;
+		const format = documentFormat.includes('{text}') ? documentFormat : DEFAULT_DOCUMENT_FORMAT;
+		return JSON.stringify([chunkChars, vectorsPerNote, dimensions, format]);
+	}
+
+	private sameServer(): boolean {
 		const { baseUrl, model } = this.plugin.settings.link;
 		return this.owner !== null && this.owner.baseUrl === sameServerUrl(baseUrl) && this.owner.model === model;
+	}
+
+	private matchesSettings(): boolean {
+		return this.sameServer() && this.owner?.options === this.currentOptions();
 	}
 
 	state(): IndexState {
 		const { baseUrl, model } = this.plugin.settings.link;
 		if (!baseUrl || !model) return { kind: 'not-configured' };
-		if (!this.matchesSettings()) return { kind: 'not-built', builtWith: this.owner?.model ?? '' };
+		if (!this.matchesSettings()) {
+			const optionsChanged = this.sameServer();
+			return { kind: 'not-built', builtWith: optionsChanged ? '' : (this.owner?.model ?? ''), optionsChanged };
+		}
 		if (this.running) return { kind: 'indexing', ...this.progress };
 		if (this.failure) return { kind: 'error', failure: this.failure };
 		return { kind: 'ready', count: this.notes.size };
@@ -190,7 +210,11 @@ export class LinkIndex {
 					sections: vectors.map((_, i) => (typeof sections?.[i] === 'string' ? sections[i] : '')),
 				});
 			}
-			this.owner = { baseUrl: sameServerUrl(data.baseUrl), model: data.model };
+			this.owner = {
+				baseUrl: sameServerUrl(data.baseUrl),
+				model: data.model,
+				options: typeof data.options === 'string' ? data.options : this.currentOptions(),
+			};
 			this.notes = notes;
 		} catch {
 			// 깨진 파일: 색인 없음으로 둡니다.
@@ -242,7 +266,7 @@ export class LinkIndex {
 	async rebuild(): Promise<void> {
 		const { baseUrl, model } = this.plugin.settings.link;
 		if (!baseUrl || !model) return;
-		this.owner = { baseUrl: sameServerUrl(baseUrl), model };
+		this.owner = { baseUrl: sameServerUrl(baseUrl), model, options: this.currentOptions() };
 		this.notes.clear();
 		this.failure = null;
 		await this.save();

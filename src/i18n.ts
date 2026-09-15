@@ -382,6 +382,8 @@ const ko = {
 		stateNotBuilt: '아직 색인이 없습니다. [색인 만들기]를 누르면 보낼 양을 확인한 뒤, 볼트 노트의 제목과 본문을 임베딩 서버로 보내 색인합니다.',
 		stateOtherModel:
 			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]로 지금 설정에 맞게 다시 만드세요.',
+		stateOptionsChanged:
+			'고급 설정(노트당 벡터 수·문서 형식·조각 최대 글자 수·벡터 크기)이 바뀌어 지금 색인을 쓸 수 없습니다. [다시 만들기]로 새 설정에 맞게 다시 만드세요.',
 		stateIndexing: '색인하는 중… {done}/{total}',
 		stateWaiting: '서버 사용량 제한에 걸려 잠시 기다린 뒤 이어서 보냅니다… {done}/{total}',
 		stateError: '색인 실패: {reason}',
@@ -428,7 +430,7 @@ const ko = {
 			'어떤 노트를 색인할지와 한 번에 보내는 양을 정합니다. 처음 색인은 [색인 만들기]를 눌러야 시작하고, 그 뒤로는 Obsidian을 켤 때와 노트를 고치고 15초쯤 지나면 바뀐 노트만 자동으로 보냅니다(속성만 바뀐 노트는 보내지 않음).',
 		statusName: '색인 상태',
 		statusDesc:
-			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 고급 설정의 노트당 벡터 수나 조각 최대 글자 수를 바꿨을 때 누르세요. 서버 주소나 모델을 바꾸면 자동 색인이 멈추고 [색인 만들기]가 나타납니다.',
+			'[다시 만들기]는 모든 노트를 처음부터 다시 보냅니다. 서버 주소·모델이나 고급 설정(한 번에 보낼 조각 수 제외)을 바꾸면 지금 색인을 쓸 수 없어 자동 색인이 멈추고 [색인 만들기]·[다시 만들기]가 나타납니다.',
 		indexFileName: '색인 파일 위치',
 		indexFileDesc:
 			'{path} — 볼트 폴더 기준 경로입니다. 색인을 지우려면 이 파일을 지우고, 여러 기기에서 동기화한다면 이 파일(과 .tmp)을 동기화에서 빼세요.',
@@ -920,6 +922,8 @@ const en: Dictionary = {
 			'No index yet. [Build index] shows how much will be sent, then sends the titles and bodies of the vault notes to the embedding server and indexes them.',
 		stateOtherModel:
 			'The current index was built with a different server or model ({model}) and cannot be used. Use [Build index] to rebuild it for the current settings.',
+		stateOptionsChanged:
+			'Advanced settings (vectors per note, document format, max chunk length, vector size) changed, so the current index cannot be used. Use [Rebuild] to rebuild it for the new settings.',
 		stateIndexing: 'Indexing… {done}/{total}',
 		stateWaiting: 'Hit the server rate limit; waiting a moment before continuing… {done}/{total}',
 		stateError: 'Indexing failed: {reason}',
@@ -966,7 +970,7 @@ const en: Dictionary = {
 			'Choose which notes to index and how much to send at once. The first index starts only when you click [Build index]; after that, only changed notes are sent automatically when Obsidian starts and about 15 seconds after you edit a note (notes whose properties alone changed are not sent).',
 		statusName: 'Index status',
 		statusDesc:
-			'[Rebuild] sends every note again from scratch. Use it after changing vectors per note or the max chunk length in advanced settings. Changing the server address or model stops automatic indexing and shows [Build index].',
+			'[Rebuild] sends every note again from scratch. Changing the server address, model, or advanced settings (except chunks per request) makes the current index unusable, stops automatic indexing, and shows [Build index] or [Rebuild].',
 		indexFileName: 'Index file location',
 		indexFileDesc:
 			'{path} — relative to the vault folder. Delete this file to clear the index, and exclude it (and .tmp) from sync if you sync across devices.',

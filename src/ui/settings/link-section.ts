@@ -158,7 +158,9 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		if (state.kind === drawnKind) return;
 		drawnKind = state.kind;
 		buttonSlot.empty();
-		if (state.kind === 'not-built') addIndexButton(buttonSlot, plugin, strings.buildButton);
+		if (state.kind === 'not-built') {
+			addIndexButton(buttonSlot, plugin, state.optionsChanged ? strings.rebuildButton : strings.buildButton);
+		}
 		if (state.kind === 'ready' || state.kind === 'error') addIndexButton(buttonSlot, plugin, strings.rebuildButton);
 	};
 	// 설정 화면을 다시 그리면 옛 상태등은 화면에서 빠지므로, 그때 구독도 풉니다.
@@ -170,6 +172,14 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		draw();
 	});
 	draw();
+	// 고급 설정을 바꾸면 색인이 "다시 만들기 필요"로 바뀌므로, 저장과 함께 색인 상태도 바로 다시 그립니다.
+	const indexCtx: SettingsContext = {
+		...ctx,
+		saveSoon: () => {
+			ctx.saveSoon();
+			draw();
+		},
+	};
 
 	// 색인 파일을 지우거나 동기화에서 뺄 때 바로 찾아가도록 위치와 [폴더 열기]를 둡니다.
 	const indexPath = plugin.linkIndex.path;
@@ -197,7 +207,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		desc: string,
 		max?: number,
 	) =>
-		addNumberSetting(parentEl, ctx, {
+		addNumberSetting(parentEl, indexCtx, {
 			name,
 			desc,
 			get: () => link[key],
@@ -233,7 +243,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		.addTextArea((text) => {
 			text.setValue(link.documentFormat).onChange((value) => {
 				link.documentFormat = value.includes('{text}') ? value : defaults.documentFormat;
-				ctx.saveSoon();
+				indexCtx.saveSoon();
 			});
 			text.inputEl.rows = 2;
 			// 입력칸에서 벗어나면 실제로 저장된 형식을 보여 줍니다({text}를 지워 기본값으로 돌아간 경우 등).
@@ -243,7 +253,7 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 		});
 	addAtLeastOne(advanced, 'chunkChars', strings.chunkCharsName, strings.chunkCharsDesc);
 	addAtLeastOne(advanced, 'batchSize', strings.batchSizeName, strings.batchSizeDesc);
-	addNumberSetting(advanced, ctx, {
+	addNumberSetting(advanced, indexCtx, {
 		name: strings.dimensionsName,
 		desc: strings.dimensionsDesc,
 		get: () => link.dimensions,

@@ -552,11 +552,13 @@ async function main() {
 		await index.rebuild();
 		assert.ok(rawBodies.every((b) => (JSON.parse(b) as { dimensions?: number }).dimensions === 6));
 		assert.strictEqual(index.state().kind, 'ready');
+		// 크기를 바꾸면 고급 설정이 바뀐 것이라 섞어 저장하지 않고 다시 만들 때까지 멈춥니다.
 		plugin.settings.link.dimensions = 5;
 		vault.put('car1.md', 'car changed');
+		reset();
 		await index.sync();
-		const s = index.state();
-		assert.strictEqual(s.kind === 'error' && s.failure.kind, 'invalid-response');
+		assert.strictEqual(served, 0, 'sent with changed dimensions');
+		assert.deepStrictEqual(index.state(), { kind: 'not-built', builtWith: '', optionsChanged: true });
 	});
 
 	await test('T37 document format is applied to every chunk; missing {text} falls back', async () => {
@@ -569,8 +571,34 @@ async function main() {
 		reset();
 		plugin.settings.link.documentFormat = 'no body here';
 		vault.put('music1.md', 'music music drums');
+		await index.rebuild();
+		assert.ok(sentTexts.includes('music1\n\nmusic music drums'), JSON.stringify(sentTexts.slice(0, 3)));
+	});
+
+	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
+		const { vault, plugin, index } = await setup();
+		plugin.settings.link.batchSize = 2;
+		assert.strictEqual(index.state().kind, 'ready');
+		for (const [key, value] of [['chunkChars', 150], ['vectorsPerNote', 2], ['dimensions', 8], ['documentFormat', 'x {text}']] as const) {
+			const before = plugin.settings.link[key];
+			(plugin.settings.link as Record<string, unknown>)[key] = value;
+			assert.deepStrictEqual(index.state(), { kind: 'not-built', builtWith: '', optionsChanged: true }, key);
+			assert.strictEqual(index.search('car1.md', 3), null, key);
+			(plugin.settings.link as Record<string, unknown>)[key] = before;
+			assert.strictEqual(index.state().kind, 'ready', key);
+		}
+		reset();
+		plugin.settings.link.chunkChars = 150;
+		vault.put('car1.md', 'car changed again');
 		await index.sync();
-		assert.deepStrictEqual(sentTexts, ['music1\n\nmusic music drums']);
+		assert.strictEqual(served, 0, 'auto sync sent with changed options');
+		// 고급 설정 기록이 없는 예전 파일은 지금 설정으로 만든 것으로 봅니다.
+		const header = indexHeader(vault) as Record<string, unknown>;
+		delete header.options;
+		vault.store.set('plug/link-index.bin', binaryIndex(header));
+		const old = new LinkIndex(plugin as never);
+		await old.load();
+		assert.strictEqual(old.state().kind, 'ready');
 	});
 
 	await test('T38 with 2 vectors per note, suggestions name the matching section', async () => {
