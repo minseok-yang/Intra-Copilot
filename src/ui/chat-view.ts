@@ -209,6 +209,12 @@ export class ChatView extends ItemView {
 		this.startNewConversation();
 	}
 
+	// 링크 창의 [챗봇에 올리기]: 지금 대화의 입력칸 위에 노트 칩을 더합니다. 보내지는 않고, 질문을 보낼 때 함께 전송됩니다.
+	// 이미 칩에 있는 노트는 그대로 둡니다. 답변을 기다리는 중에도 다음 질문에 쓰도록 더할 수 있습니다.
+	addNoteTarget(path: string): void {
+		if (this.layoutBuilt) this.composer.addTarget({ kind: 'note', path });
+	}
+
 	onSettingsChanged(): void {
 		if (this.plugin.settings.general.language !== this.renderedLanguage) {
 			if (this.busy) {

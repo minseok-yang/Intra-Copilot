@@ -15,6 +15,7 @@ import {
 import type IntraCopilotPlugin from '../main';
 import { describeLinkError, t, type LinkStrings } from '../i18n';
 import type { IndexState } from '../link/link-index';
+import { CHAT_VIEW_TYPE, ChatView, revealChatView } from './chat-view';
 import { featureIcon } from './settings/features';
 
 // 링크 화면(오른쪽 사이드바)입니다. 지금 보고 있는 노트와 뜻이 비슷한 노트를 보여 주고, 링크를 넣게 합니다.
@@ -225,6 +226,12 @@ export class LinkView extends ItemView {
 			linkedNotes === 'show' ? all : linkedNotes === 'bottom' ? [...fresh, ...all.filter((r) => r.path in linked)] : fresh;
 		const results = arranged.slice(0, resultCount);
 		if (results.length === 0) empty(strings.noResults);
+		else {
+			new ButtonComponent(contentEl)
+				.setButtonText(strings.chatAllButton.replace('{count}', String(results.length)))
+				.setTooltip(strings.chatAllTooltip)
+				.onClick(() => void this.addToChat(results.map((result) => result.path)));
+		}
 
 		for (const result of results) {
 			const target = this.app.vault.getFileByPath(result.path);
@@ -270,6 +277,7 @@ export class LinkView extends ItemView {
 			button.addEventListener('click', onClick);
 		};
 		addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
+		addButton(featureIcon('chatbot'), strings.chatButton, strings.chatTooltip, () => void this.addToChat([target.path]));
 		if (section) {
 			addButton(
 				'heading',
@@ -278,6 +286,17 @@ export class LinkView extends ItemView {
 				() => void this.insertLink(source, target, section),
 			);
 		}
+	}
+
+	// [챗봇에 올리기]: 챗봇을 열고 지금 대화의 입력칸 위에 노트 칩을 더합니다. 누르는 것만으로는 아무것도 보내지 않고,
+	// 사용자가 질문을 보낼 때 칩의 노트가 함께 LLM 서버로 전송됩니다(보낼 양은 챗봇의 "노트 자료 최대 글자 수"까지).
+	// 여러 챗봇 창이 열려 있으면 챗봇 리본을 눌렀을 때 보이는 첫 창에 올립니다.
+	private async addToChat(paths: string[]): Promise<void> {
+		await revealChatView(this.plugin);
+		const view = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE)[0]?.view;
+		if (!(view instanceof ChatView)) return;
+		for (const path of paths) view.addNoteTarget(path);
+		new Notice(this.strings().chatAdded.replace('{count}', String(paths.length)));
 	}
 
 	// 링크 모양(위키링크/마크다운)은 Obsidian 설정(파일 및 링크)을 따릅니다. 편집 모드로 열려 있으면 커서 자리에,

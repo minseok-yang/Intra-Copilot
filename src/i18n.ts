@@ -347,6 +347,12 @@ const ko = {
 		noResults: '비슷한 노트가 없습니다.',
 		score: '유사도 {score}%',
 		linked: '링크됨',
+		chatButton: '챗봇에 올리기',
+		chatTooltip: '챗봇을 열고 이 노트를 입력칸 위에 칩으로 올립니다. 누르는 것만으로는 보내지 않고, 질문을 보낼 때 함께 전송됩니다.',
+		chatAllButton: '목록 {count}개를 챗봇에 올리기',
+		chatAllTooltip:
+			'챗봇을 열고 아래 비슷한 노트를 모두 입력칸 위에 칩으로 올립니다. 질문을 보낼 때 함께 전송되며, 보낼 양은 챗봇의 노트 자료 최대 글자 수까지입니다.',
+		chatAdded: '챗봇 입력칸 위에 노트 {count}개를 올렸습니다. 질문을 보내면 함께 전송됩니다.',
 		section: '비슷한 섹션: {section}',
 		insertSectionButton: '섹션 링크',
 		insertSectionTooltip: '지금 노트의 커서 자리에 비슷한 섹션({section})으로 바로 가는 링크를 넣습니다',
@@ -854,6 +860,13 @@ const en: Dictionary = {
 		noResults: 'No similar notes.',
 		score: 'Similarity {score}%',
 		linked: 'Linked',
+		chatButton: 'Add to chatbot',
+		chatTooltip:
+			'Open the chatbot and add this note as a chip above the input. Clicking sends nothing; the note is sent along with your next question.',
+		chatAllButton: 'Add these {count} to chatbot',
+		chatAllTooltip:
+			'Open the chatbot and add all similar notes below as chips above the input. They are sent with your next question, up to the chatbot’s max note material length.',
+		chatAdded: 'Added {count} notes above the chatbot input. They are sent with your next question.',
 		section: 'Similar section: {section}',
 		insertSectionButton: 'Section link',
 		insertSectionTooltip: 'Insert a link straight to the similar section ({section}) at the cursor in the current note',
