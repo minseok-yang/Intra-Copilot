@@ -6,7 +6,7 @@ import { pluginDir } from '../plugin-paths';
 import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
-import { decodeVector, encodeVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
+import { type Chunk, decodeVector, encodeVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
 
 // 링크 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 link-index.json에 저장하고, 비슷한 노트를 찾아 줍니다.
 //
@@ -38,6 +38,7 @@ interface StoredNote {
 	mtime: number;
 	hash: string;
 	vectors: string[]; // 비어 있으면 보낼 본문이 없는 노트
+	sections?: string[]; // 벡터마다 대표 조각의 제목(vectors와 같은 순서, 벡터가 하나면 '')
 }
 
 interface StoredIndex {
@@ -51,6 +52,7 @@ interface NoteEntry {
 	mtime: number;
 	hash: string;
 	vectors: Float32Array[];
+	sections: string[];
 }
 
 export type IndexState =
@@ -63,6 +65,7 @@ export type IndexState =
 export interface SimilarNote {
 	path: string;
 	score: number; // -1~1, 클수록 비슷함
+	section: string; // 상대 노트에서 가장 비슷한 섹션(제목). 모르면 ''
 }
 
 class Stopped extends Error {}
@@ -137,7 +140,8 @@ export class LinkIndex {
 				const vectors = note.vectors
 					.map((text) => (typeof text === 'string' ? decodeVector(text) : null))
 					.filter((vector): vector is Float32Array => vector !== null);
-				notes.set(notePath, { mtime: note.mtime, hash: note.hash, vectors });
+				const sections = vectors.map((_, i) => (typeof note.sections?.[i] === 'string' ? note.sections[i] : ''));
+				notes.set(notePath, { mtime: note.mtime, hash: note.hash, vectors, sections });
 			}
 			this.owner = { baseUrl: sameServerUrl(data.baseUrl), model: data.model };
 			this.notes = notes;
@@ -160,7 +164,7 @@ export class LinkIndex {
 		if (!this.owner) return;
 		const notes: Record<string, StoredNote> = {};
 		for (const [path, note] of this.notes) {
-			notes[path] = { mtime: note.mtime, hash: note.hash, vectors: note.vectors.map(encodeVector) };
+			notes[path] = { mtime: note.mtime, hash: note.hash, vectors: note.vectors.map(encodeVector), sections: note.sections };
 		}
 		const data: StoredIndex = { version: INDEX_VERSION, ...this.owner, notes };
 		const { adapter } = this.plugin.app.vault;
@@ -251,8 +255,8 @@ export class LinkIndex {
 		const results: SimilarNote[] = [];
 		for (const [otherPath, note] of this.notes) {
 			if (otherPath === path) continue;
-			const score = noteSimilarity(current, note.vectors);
-			if (score > -Infinity) results.push({ path: otherPath, score });
+			const best = noteSimilarity(current, note.vectors);
+			if (best.score > -Infinity) results.push({ path: otherPath, score: best.score, section: note.sections[best.b] ?? '' });
 		}
 		return results.sort((a, b) => b.score - a.score).slice(0, limit);
 	}
@@ -275,7 +279,7 @@ export class LinkIndex {
 	// hash는 제목과 본문에서 링크 문법과 공백 차이를 빼고 계산합니다. [링크 넣기]로 링크만 더하거나 줄바꿈만 고친 노트를
 	// 다시 보내지 않으려는 것입니다(뜻은 거의 그대로라 벡터를 새로 받을 이유가 작음). 보내는 글에는 링크가 그대로 들어갑니다.
 	// 문서 형식은 hash에 넣지 않습니다. 형식을 바꾸는 순간 볼트 전체가 자동으로 다시 전송되지 않게 하고, [다시 만들기]로 적용합니다.
-	private prepare(title: string, content: string): { hash: string; chunks: string[] } {
+	private prepare(title: string, content: string): { hash: string; chunks: Chunk[] } {
 		const { chunkChars, documentFormat } = this.plugin.settings.link;
 		const body = content.slice(getFrontMatterInfo(content).contentStart);
 		const meaning = `${title}\n${body}`.replace(LINK_SYNTAX, '').replace(/\s+/g, ' ').trim();
@@ -284,9 +288,10 @@ export class LinkIndex {
 		return {
 			hash: createHash('sha1').update(meaning).digest('hex'),
 			// 본문이 비어도 제목만으로 한 조각을 보냅니다(제목만 있는 노트도 추천에 나오게).
-			chunks: (pieces.length > 0 ? pieces : ['']).map((piece) =>
-				format.replace('{title}', title).replace('{text}', piece).trim(),
-			),
+			chunks: (pieces.length > 0 ? pieces : [{ text: '', heading: '' }]).map((piece) => ({
+				text: format.replace('{title}', title).replace('{text}', piece.text).trim(),
+				heading: piece.heading,
+			})),
 		};
 	}
 
@@ -322,7 +327,7 @@ export class LinkIndex {
 		// 서버가 같은 모델 이름으로 다른 모델을 돌리기 시작하면 벡터 크기가 달라져 서로 비교할 수 없습니다.
 		// 섞어 저장하면 추천에서 조용히 빠지므로, 알아채는 즉시 멈추고 알립니다.
 		let dims = this.notes.values().next().value?.vectors[0]?.length ?? 0;
-		type Pending = { path: string; mtime: number; hash: string; chunks: number; vectors: number[][] };
+		type Pending = { path: string; mtime: number; hash: string; headings: string[]; vectors: number[][] };
 		const queue: { note: Pending; text: string }[] = [];
 		let lastSave = Date.now();
 
@@ -356,8 +361,16 @@ export class LinkIndex {
 				dims = size;
 				batch.forEach((item, i) => item.note.vectors.push(result.vectors[i]!));
 				for (const note of new Set(batch.map((item) => item.note))) {
-					if (note.vectors.length < note.chunks) continue;
-					this.notes.set(note.path, { mtime: note.mtime, hash: note.hash, vectors: noteVectors(note.vectors, vectorsPerNote) });
+					if (note.vectors.length < note.headings.length) continue;
+					const picked = noteVectors(note.vectors, vectorsPerNote);
+					// 벡터가 하나면 노트 전체라 섹션을 적지 않습니다.
+					const sections = picked.map(({ chunk }) => (picked.length > 1 ? (note.headings[chunk] ?? '') : ''));
+					this.notes.set(note.path, {
+						mtime: note.mtime,
+						hash: note.hash,
+						vectors: picked.map(({ vector }) => vector),
+						sections,
+					});
 					this.progress.done++;
 				}
 				this.emit();
@@ -383,8 +396,14 @@ export class LinkIndex {
 					this.progress.done++;
 					continue;
 				}
-				const note: Pending = { path: file.path, mtime: file.stat.mtime, hash, chunks: chunks.length, vectors: [] };
-				for (const chunk of chunks) queue.push({ note, text: chunk });
+				const note: Pending = {
+					path: file.path,
+					mtime: file.stat.mtime,
+					hash,
+					headings: chunks.map((chunk) => chunk.heading),
+					vectors: [],
+				};
+				for (const chunk of chunks) queue.push({ note, text: chunk.text });
 				await send(false);
 			}
 			await send(true);

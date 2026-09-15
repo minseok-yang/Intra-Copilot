@@ -551,6 +551,24 @@ async function main() {
 		assert.deepStrictEqual(sentTexts, ['music1\n\nmusic music drums']);
 	});
 
+	await test('T38 with 2 vectors per note, suggestions name the matching section', async () => {
+		const { vault, plugin, index } = await setup(false);
+		plugin.settings.link.vectorsPerNote = 2;
+		const apple = Array.from({ length: 3 }, () => 'apple '.repeat(30)).join('\n\n');
+		const car = Array.from({ length: 3 }, () => 'car '.repeat(30)).join('\n\n');
+		vault.put('sections.md', `# Fruit notes\n\n${apple}\n\n## Car notes\n\n${car}`);
+		await index.rebuild();
+		const fromCar = index.search('car1.md', 10)!.find((r) => r.path === 'sections.md')!;
+		const fromApple = index.search('Fruit/apple1.md', 10)!.find((r) => r.path === 'sections.md')!;
+		assert.strictEqual(fromCar.section, 'Car notes');
+		assert.strictEqual(fromApple.section, 'Fruit notes');
+		const again = new LinkIndex(plugin as never);
+		await again.load();
+		assert.strictEqual(again.search('car1.md', 10)!.find((r) => r.path === 'sections.md')!.section, 'Car notes');
+		// 벡터가 하나인 노트는 섹션이 없음
+		assert.strictEqual(index.search('sections.md', 10)!.find((r) => r.path === 'car1.md')!.section, '');
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

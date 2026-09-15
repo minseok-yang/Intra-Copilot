@@ -5,25 +5,39 @@ import { Buffer } from 'buffer';
 // 벡터(임베딩)는 글의 뜻을 수백~수천 개 숫자로 나타낸 것입니다. 뜻이 비슷한 글일수록 숫자 목록이 같은 방향을
 // 가리키므로, 두 벡터의 방향이 얼마나 같은지(코사인 유사도)로 비슷한 노트를 찾습니다.
 
+export interface Chunk {
+	text: string;
+	heading: string; // 조각이 시작하는 곳의 마크다운 제목(# 없이). 제목 아래가 아니면 ''
+}
+
+const HEADING_LINE = /^#{1,6}[ \t]+(.+?)[ \t#]*$/gm;
+
 // 노트를 문단(빈 줄) 단위로 모아 maxChars 이하의 조각으로 나눕니다. 서버와 모델이 한 번에 받는 길이에 한계가
 // 있어서입니다. 한 문단이 maxChars보다 길면 글자 수로 자릅니다. 조각은 maxChunks개까지만 만듭니다.
-export function splitChunks(text: string, maxChars: number, maxChunks: number): string[] {
-	const chunks: string[] = [];
-	let current = '';
+// 조각마다 그 조각이 속한 제목을 함께 적어, 비슷한 "섹션"을 알려 주고 [[노트#제목]] 링크를 만들 수 있게 합니다.
+export function splitChunks(text: string, maxChars: number, maxChunks: number): Chunk[] {
+	const chunks: Chunk[] = [];
+	let current: Chunk | null = null;
+	let heading = '';
 	for (const block of text.split(/\n\s*\n/)) {
 		const paragraph = block.trim();
+		// 문단이 제목 줄로 시작하면 그 제목부터, 아니면 앞에서 이어진 제목 아래입니다.
+		const headings = [...paragraph.matchAll(HEADING_LINE)].map((match) => match[1]!.trim());
+		const blockHeading = paragraph.startsWith('#') && headings.length > 0 ? headings[0]! : heading;
+		if (headings.length > 0) heading = headings[headings.length - 1]!;
+
 		for (let start = 0, end = 0; start < paragraph.length; start = end) {
 			end = Math.min(start + maxChars, paragraph.length);
 			// 이모지 같은 글자는 두 칸(서로게이트 쌍)이라, 그 사이에서 자르면 깨진 글자가 되어 서버가 요청을 거절합니다.
 			const code = paragraph.charCodeAt(end - 1);
 			if (end < paragraph.length && end - start > 1 && code >= 0xd800 && code <= 0xdbff) end--;
 			const piece = paragraph.slice(start, end);
-			if (current && current.length + 2 + piece.length > maxChars) {
+			if (current && current.text.length + 2 + piece.length > maxChars) {
 				chunks.push(current);
-				current = piece;
-			} else {
-				current = current ? `${current}\n\n${piece}` : piece;
+				current = null;
 			}
+			if (current) current.text = `${current.text}\n\n${piece}`;
+			else current = { text: piece, heading: start === 0 ? blockHeading : heading };
 		}
 		if (chunks.length >= maxChunks) break;
 	}
@@ -53,55 +67,71 @@ function meanOf(points: Float32Array[]): Float32Array | null {
 	return normalize(sum);
 }
 
+export interface NoteVector {
+	vector: Float32Array;
+	chunk: number; // 이 벡터를 가장 잘 대표하는 조각의 번호(그 조각의 제목을 섹션으로 보여 줌)
+}
+
 // 조각 벡터들을 뜻이 가까운 것끼리 count개 묶음으로 나누고, 묶음마다 평균 벡터 하나를 돌려줍니다.
 // count가 1이면 노트 전체의 평균입니다. 주제가 여러 개인 노트는 평균 하나로 뭉치면 어느 주제와도 덜 비슷해지므로,
 // 2 이상이면 주제별 벡터를 따로 남깁니다(조각이 count개 이하면 조각 벡터를 그대로 씀).
 // 묶는 방법은 k-평균입니다. 시작점은 서로 가장 먼 조각부터 고르고(매번 같은 결과), 몇 번 되풀이해 묶음을 다듬습니다.
-export function noteVectors(chunkVectors: number[][], count: number): Float32Array[] {
+export function noteVectors(chunkVectors: number[][], count: number): NoteVector[] {
 	const points = chunkVectors
-		.map((vector) => normalize(Float32Array.from(vector)))
-		.filter((vector): vector is Float32Array => vector !== null);
+		.map((vector, chunk) => ({ vector: normalize(Float32Array.from(vector)), chunk }))
+		.filter((point): point is NoteVector => point.vector !== null);
 	if (points.length <= count) return points;
 
-	const centers = [points[0]!];
+	const centers = [points[0]!.vector];
 	while (centers.length < count) {
-		let farthest = points[0]!;
+		let farthest = points[0]!.vector;
 		let lowest = Infinity;
-		for (const point of points) {
-			const closest = Math.max(...centers.map((center) => similarity(point, center)));
+		for (const { vector } of points) {
+			const closest = Math.max(...centers.map((center) => similarity(vector, center)));
 			if (closest < lowest) {
 				lowest = closest;
-				farthest = point;
+				farthest = vector;
 			}
 		}
 		centers.push(farthest);
 	}
 
+	const nearestCenter = (vector: Float32Array) => {
+		let best = 0;
+		for (let i = 1; i < centers.length; i++) {
+			if (similarity(vector, centers[i]!) > similarity(vector, centers[best]!)) best = i;
+		}
+		return best;
+	};
 	for (let round = 0; round < 10; round++) {
 		const groups: Float32Array[][] = centers.map(() => []);
-		for (const point of points) {
-			let best = 0;
-			for (let i = 1; i < centers.length; i++) {
-				if (similarity(point, centers[i]!) > similarity(point, centers[best]!)) best = i;
-			}
-			groups[best]!.push(point);
-		}
+		for (const { vector } of points) groups[nearestCenter(vector)]!.push(vector);
 		groups.forEach((group, i) => {
 			const mean = group.length > 0 ? meanOf(group) : null;
 			if (mean) centers[i] = mean;
 		});
 	}
-	return centers;
+
+	return centers.map((center) => {
+		let best = points[0]!;
+		for (const point of points) {
+			if (similarity(point.vector, center) > similarity(best.vector, center)) best = point;
+		}
+		return { vector: center, chunk: best.chunk };
+	});
 }
 
-// 두 노트의 유사도: 서로의 벡터 중 가장 비슷한 한 쌍의 값입니다. 주제 하나만 겹쳐도 찾아낼 수 있습니다.
-export function noteSimilarity(a: Float32Array[], b: Float32Array[]): number {
-	let best = -Infinity;
-	for (const x of a) {
-		for (const y of b) {
-			if (x.length === y.length) best = Math.max(best, similarity(x, y));
-		}
-	}
+// 두 노트의 유사도: 서로의 벡터 중 가장 비슷한 한 쌍의 값과, 그 쌍이 몇 번째 벡터인지(a: 앞 노트, b: 뒤 노트)입니다.
+// 주제 하나만 겹쳐도 찾아낼 수 있습니다. 비교할 벡터가 없으면 score가 -Infinity입니다.
+export function noteSimilarity(a: Float32Array[], b: Float32Array[]): { score: number; a: number; b: number } {
+	const best = { score: -Infinity, a: -1, b: -1 };
+	a.forEach((x, i) => {
+		b.forEach((y, j) => {
+			if (x.length !== y.length) return;
+			const score = similarity(x, y);
+			if (score > best.score) Object.assign(best, { score, a: i, b: j });
+		});
+	});
 	return best;
 }
 

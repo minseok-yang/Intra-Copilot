@@ -222,12 +222,19 @@ export class LinkView extends ItemView {
 		const linked = this.app.metadataCache.resolvedLinks[source.path] ?? {};
 		for (const result of results) {
 			const target = this.app.vault.getFileByPath(result.path);
-			if (target) this.renderCard(contentEl, source, target, result.score, result.path in linked);
+			if (target) this.renderCard(contentEl, source, target, result.score, result.path in linked, result.section);
 		}
 	}
 
 	// 카드 모양은 리마인더 카드와 같게 맞춰 두 사이드바가 한 플러그인으로 보이게 합니다(같은 CSS 클래스).
-	private renderCard(containerEl: HTMLElement, source: TFile, target: TFile, score: number, isLinked: boolean): void {
+	private renderCard(
+		containerEl: HTMLElement,
+		source: TFile,
+		target: TFile,
+		score: number,
+		isLinked: boolean,
+		section: string,
+	): void {
 		const strings = this.strings();
 		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-link-card' });
 		// 카드를 편집기에 끌어다 놓으면 링크 글자가 들어갑니다(Obsidian 편집기가 글자 놓기를 받아 줌).
@@ -246,20 +253,34 @@ export class LinkView extends ItemView {
 		if (target.parent && !target.parent.isRoot()) meta.unshift(target.parent.path);
 		if (isLinked) meta.push(strings.linked);
 		card.createDiv({ cls: 'intra-copilot-reminder-meta', text: meta.join(' · ') });
+		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
 
 		const actions = card.createDiv({ cls: 'intra-copilot-reminder-actions' });
-		const insert = actions.createEl('button', { cls: 'intra-copilot-reminder-action' });
-		setIcon(insert.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), 'link');
-		insert.createSpan({ text: strings.insertButton });
-		setTooltip(insert, strings.insertTooltip);
-		insert.addEventListener('click', () => void this.insertLink(source, target));
+		const addButton = (icon: string, label: string, tooltip: string, onClick: () => void) => {
+			const button = actions.createEl('button', { cls: 'intra-copilot-reminder-action' });
+			setIcon(button.createSpan({ cls: 'intra-copilot-reminder-action-icon' }), icon);
+			button.createSpan({ text: label });
+			setTooltip(button, tooltip);
+			button.addEventListener('click', onClick);
+		};
+		addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
+		if (section) {
+			addButton(
+				'heading',
+				strings.insertSectionButton,
+				strings.insertSectionTooltip.replace('{section}', section),
+				() => void this.insertLink(source, target, section),
+			);
+		}
 	}
 
 	// 링크 모양(위키링크/마크다운)은 Obsidian 설정(파일 및 링크)을 따릅니다. 편집 모드로 열려 있으면 커서 자리에,
-	// 아니면(읽기 모드·닫힘) 노트 끝에 넣습니다.
-	private async insertLink(source: TFile, target: TFile): Promise<void> {
+	// 아니면(읽기 모드·닫힘) 노트 끝에 넣습니다. section을 주면 그 제목으로 바로 가는 [[노트#제목]] 링크입니다.
+	private async insertLink(source: TFile, target: TFile, section?: string): Promise<void> {
 		const strings = this.strings();
-		const link = this.app.fileManager.generateMarkdownLink(target, source.path);
+		// 제목 링크에 쓸 수 없는 글자(#^[]|)는 Obsidian처럼 빈칸으로 바꿉니다.
+		const subpath = section ? `#${section.replace(/[#^[\]|]/g, ' ').replace(/\s+/g, ' ').trim()}` : undefined;
+		const link = this.app.fileManager.generateMarkdownLink(target, source.path, subpath);
 		try {
 			const editorView = this.app.workspace
 				.getLeavesOfType('markdown')

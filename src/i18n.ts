@@ -347,6 +347,9 @@ const ko = {
 		noResults: '비슷한 노트가 없습니다.',
 		score: '유사도 {score}%',
 		linked: '링크됨',
+		section: '비슷한 섹션: {section}',
+		insertSectionButton: '섹션 링크',
+		insertSectionTooltip: '지금 노트의 커서 자리에 비슷한 섹션({section})으로 바로 가는 링크를 넣습니다',
 		insertButton: '링크 넣기',
 		insertTooltip:
 			'지금 노트의 커서 자리에 이 노트로 가는 링크를 넣습니다(편집 모드가 아니면 노트 끝에). 카드를 끌어다 노트에 놓아도 됩니다.',
@@ -845,6 +848,9 @@ const en: Dictionary = {
 		noResults: 'No similar notes.',
 		score: 'Similarity {score}%',
 		linked: 'Linked',
+		section: 'Similar section: {section}',
+		insertSectionButton: 'Section link',
+		insertSectionTooltip: 'Insert a link straight to the similar section ({section}) at the cursor in the current note',
 		insertButton: 'Insert link',
 		insertTooltip:
 			'Insert a link to this note at the cursor in the current note (at the end of the note if it is not in editing mode). You can also drag the card into the note.',
