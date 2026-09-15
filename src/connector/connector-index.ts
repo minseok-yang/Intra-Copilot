@@ -329,6 +329,8 @@ export class ConnectorIndex {
 	// 자동 갱신: 노트가 바뀌었거나 켤 때 부르면, 설정한 주기(autoSyncSeconds)에 맞춰 맞추기(sync)를 예약합니다.
 	// 1분 미만이면 부를 때마다 다시 기다려 쓰는 동안에는 보내지 않고, 1분 이상이면 첫 변경부터 세어 그 시각에 한꺼번에 보냅니다
 	// (계속 고쳐도 주기마다 한 번은 맞춤). 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
+	// 색인이 오류로 멈춰 있으면 예약한 시각이 와도 보내지 않습니다. 인증 실패처럼 같은 오류가 날 요청을 노트를 고칠 때마다
+	// 되풀이하지 않게 하려는 것이며, [다시 시도]를 누르거나 [연결 확인]이 성공하면 이어서 맞춥니다.
 	requestSync(): void {
 		const seconds = this.plugin.settings.connector.autoSyncSeconds;
 		if (seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null) return;
@@ -337,7 +339,7 @@ export class ConnectorIndex {
 		if (seconds <= 0 || this.stopped) return;
 		this.syncTimer = window.setTimeout(() => {
 			this.syncTimer = null;
-			void this.sync();
+			if (!this.failure) void this.sync();
 		}, seconds * 1000);
 	}
 

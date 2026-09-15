@@ -585,6 +585,23 @@ async function main() {
 		assert.deepStrictEqual(sentTexts.sort(), ['$&$$\n\ncar', 'math\n\napple $$E=mc^2$$ and $& here']);
 	});
 
+	await test('T44 after an indexing error, automatic update does not resend until retry', async () => {
+		const { vault, plugin, index } = await setup(false);
+		reset({ failAfter: 0, status: 401 });
+		await index.rebuild();
+		assert.strictEqual(index.state().kind, 'error');
+		const failed = served;
+		plugin.settings.connector.autoSyncSeconds = 1;
+		vault.put('car1.md', 'car edited');
+		index.requestSync();
+		await sleep(1300);
+		assert.strictEqual(served, failed, 'resent automatically while in error');
+		reset();
+		await index.sync(); // [다시 시도]
+		assert.strictEqual(index.state().kind, 'ready');
+		index.stop();
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;
