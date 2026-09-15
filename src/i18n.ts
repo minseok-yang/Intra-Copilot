@@ -394,7 +394,8 @@ const ko = {
 		indexLabelError: '색인 오류',
 		indexLabelPending: '갱신 필요 {count}',
 		indexLabelReady: '색인 최신',
-		pendingTooltip: '노트 {count}개가 새로 생겼거나 바뀌어 색인이 최신이 아닙니다. 자동 갱신을 기다리거나 [업데이트]를 누르세요.',
+		pendingTooltip:
+			'노트 {count}개가 색인에 반영되지 않았습니다(새로 만들었거나 바뀐 노트, 제외 폴더로 옮겨 색인에서 뺄 노트). 자동 갱신을 기다리거나 [업데이트]를 누르세요.',
 		updateButton: '업데이트',
 		updateTooltip:
 			'색인에 반영되지 않은 노트 {count}개를 지금 맞춥니다. 내용이 바뀐 노트만 임베딩 서버로 보내고, 링크·속성만 바뀐 노트는 보내지 않습니다.',
@@ -954,7 +955,8 @@ const en: Dictionary = {
 		indexLabelError: 'Index error',
 		indexLabelPending: '{count} to update',
 		indexLabelReady: 'Up to date',
-		pendingTooltip: '{count} notes are new or changed, so the index is not up to date. Wait for the automatic update or click [Update].',
+		pendingTooltip:
+			'{count} notes are not reflected in the index yet (new or changed notes, or notes moved into an excluded folder that must be removed). Wait for the automatic update or click [Update].',
 		updateButton: 'Update',
 		updateTooltip:
 			'Bring {count} notes into the index now. Only notes whose content changed are sent to the embedding server; notes with only link or property changes are not sent.',
