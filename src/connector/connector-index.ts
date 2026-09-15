@@ -108,6 +108,9 @@ export class ConnectorIndex {
 	private lastServer: ServerStatus | null = null;
 	private checking: Promise<EmbeddingResult> | null = null;
 	private syncTimer: number | null = null;
+	// 예약을 처음 건 시각(1분 이상 주기는 여기서부터 셈)과 맞출 시각. 주기를 줄였을 때 예약을 앞당기는 데 씁니다.
+	private syncSince = 0;
+	private syncDueAt = 0;
 
 	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
 	constructor(
@@ -328,19 +331,29 @@ export class ConnectorIndex {
 
 	// 자동 갱신: 노트가 바뀌었거나 켤 때 부르면, 설정한 주기(autoSyncSeconds)에 맞춰 맞추기(sync)를 예약합니다.
 	// 1분 미만이면 부를 때마다 다시 기다려 쓰는 동안에는 보내지 않고, 1분 이상이면 첫 변경부터 세어 그 시각에 한꺼번에 보냅니다
-	// (계속 고쳐도 주기마다 한 번은 맞춤). 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
+	// (계속 고쳐도 주기마다 한 번은 맞춤). 설정에서 주기를 줄이면 이미 잡힌 예약도 첫 변경부터 센 새 주기로 앞당깁니다.
+	// 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
 	// 색인이 오류로 멈춰 있으면 예약한 시각이 와도 보내지 않습니다. 인증 실패처럼 같은 오류가 날 요청을 노트를 고칠 때마다
 	// 되풀이하지 않게 하려는 것이며, [다시 시도]를 누르거나 [연결 확인]이 성공하면 이어서 맞춥니다.
 	requestSync(): void {
 		const seconds = this.plugin.settings.connector.autoSyncSeconds;
-		if (seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null) return;
+		const keepSince = seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null;
+		const since = keepSince ? this.syncSince : Date.now();
+		const dueAt = since + seconds * 1000;
+		// 이미 잡힌 예약이 새 주기로 센 시각보다 이르거나 같으면 그대로 둡니다.
+		if (keepSince && this.syncDueAt <= dueAt) return;
 		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
 		this.syncTimer = null;
 		if (seconds <= 0 || this.stopped) return;
-		this.syncTimer = window.setTimeout(() => {
-			this.syncTimer = null;
-			if (!this.failure) void this.sync();
-		}, seconds * 1000);
+		this.syncSince = since;
+		this.syncDueAt = dueAt;
+		this.syncTimer = window.setTimeout(
+			() => {
+				this.syncTimer = null;
+				if (!this.failure) void this.sync();
+			},
+			Math.max(0, dueAt - Date.now()),
+		);
 	}
 
 	// 이름 변경·삭제는 폴더를 옮기거나 지우면 여러 번 오므로, 잠잠해진 뒤 한 번만 저장합니다. 옮기거나 지운 기록은 서버로 보낼 것이

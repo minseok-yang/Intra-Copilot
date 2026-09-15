@@ -602,6 +602,25 @@ async function main() {
 		index.stop();
 	});
 
+	await test('T45 shortening the update interval moves an already scheduled update earlier', async () => {
+		const { plugin, index } = await setup();
+		const timer = () => index as unknown as { syncTimer: unknown; syncDueAt: number };
+		plugin.settings.connector.autoSyncSeconds = 3600;
+		index.requestSync();
+		const hourDue = timer().syncDueAt;
+		plugin.settings.connector.autoSyncSeconds = 600;
+		index.requestSync();
+		assert.ok(timer().syncDueAt <= hourDue - 3000 * 1000, 'still waiting for the 1-hour schedule');
+		const tenDue = timer().syncDueAt;
+		plugin.settings.connector.autoSyncSeconds = 1800;
+		index.requestSync(); // 늘리면 이미 잡힌 예약을 미루지 않음
+		assert.strictEqual(timer().syncDueAt, tenDue);
+		plugin.settings.connector.autoSyncSeconds = 0;
+		index.requestSync();
+		assert.strictEqual(timer().syncTimer, null, 'turning it off keeps a pending update');
+		index.stop();
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;
