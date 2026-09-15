@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from '../src/settings';
 (globalThis as unknown as { window: typeof globalThis }).window = globalThis;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// ─── 가짜 임베딩 서버 ───────────────────────────────────────────────────────────────────────────────────
+// ─── 가짜 임베딩 서버 ─────────────────────────────────────
 const TOPICS = ['apple', 'car', 'music', 'space'];
 type Mode = {
 	failAfter?: number; // 이만큼 성공한 뒤부터 status로 실패
@@ -17,6 +17,7 @@ type Mode = {
 	delayMs?: number;
 	dimsAfter?: number; // 이만큼 요청한 뒤부터 벡터 크기를 바꿈
 	reverse?: boolean;
+	limitTimes?: number; // 처음 이만큼은 429(사용량 제한)
 };
 let mode: Mode = {};
 let served = 0;
@@ -44,6 +45,11 @@ const server = http.createServer((req, res) => {
 			rawBodies.push(body);
 			const parsed = JSON.parse(body) as { input: string[]; model: string };
 			const n = served++;
+			if (mode.limitTimes !== undefined && n < mode.limitTimes) {
+				res.statusCode = 429;
+				res.end(JSON.stringify({ error: { message: "rate limited" } }));
+				return;
+			}
 			if (mode.failAfter !== undefined && n >= mode.failAfter) {
 				res.statusCode = mode.status ?? 500;
 				res.end(JSON.stringify({ error: { message: `fail ${res.statusCode}` } }));
@@ -66,7 +72,7 @@ const server = http.createServer((req, res) => {
 	});
 });
 
-// ─── 가짜 볼트·플러그인 ───────────────────────────────────────────────────────────────────────────────────
+// ─── 가짜 볼트·플러그인 ───────────────────────────────────
 class FakeVault {
 	files = new Map<string, { content: string; mtime: number }>();
 	store = new Map<string, string>();
@@ -169,7 +175,7 @@ async function main() {
 	const setup = async (build = true) => {
 		const { vault, plugin } = makePlugin(port);
 		seed(vault);
-		const index = new LinkIndex(plugin as never);
+		const index = new LinkIndex(plugin as never, 5);
 		if (build) await index.rebuild();
 		return { vault, plugin, index };
 	};
@@ -473,6 +479,28 @@ async function main() {
 		const { index } = await setup();
 		assert.strictEqual(index.search('private/secret.md', 10), null);
 		assert.strictEqual(index.search('nope.md', 10), null);
+	});
+
+	await test("T32 rate limit waits and continues", async () => {
+		const { index } = await setup(false);
+		reset({ limitTimes: 2 });
+		let sawWaiting = false;
+		index.subscribe(() => {
+			const s = index.state();
+			if (s.kind === "indexing" && s.waiting) sawWaiting = true;
+		});
+		await index.rebuild();
+		assert.deepStrictEqual(index.state(), { kind: "ready", count: 5 });
+		assert.ok(sawWaiting, "waiting state not shown");
+	});
+
+	await test("T33 rate limit beyond retries stops with rate-limit error", async () => {
+		const { index } = await setup(false);
+		reset({ limitTimes: 100 });
+		await index.rebuild();
+		const s = index.state();
+		assert.strictEqual(s.kind === "error" && s.failure.kind, "rate-limit");
+		assert.strictEqual(served, 4, `served=${served}`);
 	});
 
 	server.close();

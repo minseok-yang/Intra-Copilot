@@ -65,7 +65,9 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 			return { text: state.builtWith ? strings.stateOtherModel.replace('{model}', state.builtWith) : strings.stateNotBuilt };
 		case 'indexing':
 			return {
-				text: strings.stateIndexing.replace('{done}', String(state.done)).replace('{total}', String(state.total)),
+				text: (state.waiting ? strings.stateWaiting : strings.stateIndexing)
+					.replace('{done}', String(state.done))
+					.replace('{total}', String(state.total)),
 			};
 		case 'error': {
 			const { summary, detail } = describeLinkError(language, state.failure);

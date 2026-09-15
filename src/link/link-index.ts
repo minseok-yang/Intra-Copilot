@@ -26,6 +26,10 @@ const MAX_CHUNKS_PER_NOTE = 20;
 // 색인하는 동안 받은 벡터를 파일에 적는 간격. 파일은 노트가 많으면 수십 MB라 요청마다 쓰면 디스크가 바빠지고,
 // 너무 드물면 도중에 끄면 받은 벡터를 잃어 다시 보내야 합니다.
 const SAVE_INTERVAL_MS = 30_000;
+// 사용량 제한(429)에 걸리면 기다렸다 다시 보냅니다. 무료 API는 분당 요청 수가 적어 첫 색인 도중 자주 걸리는데,
+// 그때마다 멈추면 사용자가 [다시 시도]를 여러 번 눌러야 합니다. 기다리는 시간은 횟수마다 늘립니다(20초·40초·60초).
+const RATE_LIMIT_RETRIES = 3;
+const RATE_LIMIT_WAIT_MS = 20_000;
 
 interface StoredNote {
 	mtime: number;
@@ -49,7 +53,7 @@ interface NoteEntry {
 export type IndexState =
 	| { kind: 'not-configured' } // 서버 주소나 모델이 비어 있음
 	| { kind: 'not-built'; builtWith: string } // 색인이 없거나(builtWith '') 다른 서버·모델로 만든 색인
-	| { kind: 'indexing'; done: number; total: number }
+	| { kind: 'indexing'; done: number; total: number; waiting: boolean } // waiting: 사용량 제한으로 기다리는 중
 	| { kind: 'error'; failure: LlmFailure }
 	| { kind: 'ready'; count: number };
 
@@ -70,14 +74,18 @@ export class LinkIndex {
 	private notes = new Map<string, NoteEntry>();
 	private running: Promise<void> | null = null;
 	private runAgain = false;
-	private progress = { done: 0, total: 0 };
+	private progress = { done: 0, total: 0, waiting: false };
 	private failure: LlmFailure | null = null;
 	private stopped = false;
 	private listeners = new Set<() => void>();
 	// 파일 쓰기를 한 줄로 세웁니다. 두 저장이 겹치면 같은 파일을 동시에 써서 내용이 깨질 수 있습니다.
 	private saving: Promise<void> = Promise.resolve();
 
-	constructor(private readonly plugin: IntraCopilotPlugin) {}
+	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
+	constructor(
+		private readonly plugin: IntraCopilotPlugin,
+		private readonly rateLimitWaitMs = RATE_LIMIT_WAIT_MS,
+	) {}
 
 	private get path(): string {
 		return `${pluginDir(this.plugin)}/${INDEX_FILE}`;
@@ -265,7 +273,7 @@ export class LinkIndex {
 			if (!eligible.has(path)) this.notes.delete(path);
 		}
 		const todo = files.filter((file) => this.notes.get(file.path)?.mtime !== file.stat.mtime);
-		this.progress = { done: 0, total: todo.length };
+		this.progress = { done: 0, total: todo.length, waiting: false };
 		this.failure = null;
 		this.emit();
 
@@ -281,7 +289,16 @@ export class LinkIndex {
 			while (queue.length >= batchSize || (all && queue.length > 0)) {
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 				const batch = queue.splice(0, batchSize);
-				const result = await createEmbeddings(this.plugin.settings.link, batch.map((item) => item.text));
+				const inputs = batch.map((item) => item.text);
+				let result = await createEmbeddings(this.plugin.settings.link, inputs);
+				for (let attempt = 1; !result.ok && result.kind === 'rate-limit' && attempt <= RATE_LIMIT_RETRIES; attempt++) {
+					this.progress.waiting = true;
+					this.emit();
+					await new Promise((resolve) => window.setTimeout(resolve, this.rateLimitWaitMs * attempt));
+					this.progress.waiting = false;
+					if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
+					result = await createEmbeddings(this.plugin.settings.link, inputs);
+				}
 				// 기다리는 사이 [다시 만들기]를 눌렀거나 서버·모델을 바꿨으면 옛 서버의 결과라 버립니다.
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 				if (!result.ok) {

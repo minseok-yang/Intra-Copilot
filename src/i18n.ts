@@ -357,6 +357,7 @@ const ko = {
 		stateOtherModel:
 			'지금 색인은 다른 서버·모델({model})로 만들어 쓸 수 없습니다. [색인 만들기]를 두 번 눌러 지금 설정으로 다시 만드세요.',
 		stateIndexing: '색인하는 중… {done}/{total}',
+		stateWaiting: '서버 사용량 제한에 걸려 잠시 기다린 뒤 이어서 보냅니다… {done}/{total}',
 		stateError: '색인 실패: {reason}',
 		stateReady: '노트 {count}개 색인됨',
 		buildButton: '색인 만들기',
@@ -842,6 +843,7 @@ const en: Dictionary = {
 		stateOtherModel:
 			'The current index was built with a different server or model ({model}) and cannot be used. Click [Build index] twice to rebuild it with the current settings.',
 		stateIndexing: 'Indexing… {done}/{total}',
+		stateWaiting: 'Hit the server rate limit; waiting a moment before continuing… {done}/{total}',
 		stateError: 'Indexing failed: {reason}',
 		stateReady: '{count} notes indexed',
 		buildButton: 'Build index',
