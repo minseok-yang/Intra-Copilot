@@ -139,6 +139,8 @@ export class LinkView extends ItemView {
 	private renderedKind = '';
 	// 이름을 눌러 펼친 카드(노트 경로). 목록을 다시 그려도 펼친 채로 두고, 다른 노트로 옮기면 접습니다.
 	private expanded = new Set<string>();
+	// 챗봇에 올리려고 체크한 노트(경로). 펼침과 같이 다시 그려도 남고, 다른 노트로 옮기면 비웁니다.
+	private selected = new Set<string>();
 	private listedPath = '';
 	// 펼친 노트를 그릴 때 생기는 자원(임베드 등)을 모아 두었다가 목록을 다시 그릴 때 한꺼번에 풉니다.
 	private previews = new Component();
@@ -225,6 +227,7 @@ export class LinkView extends ItemView {
 		if (source.path !== this.listedPath) {
 			this.listedPath = source.path;
 			this.expanded.clear();
+			this.selected.clear();
 		}
 		const { resultCount, linkedNotes } = this.plugin.settings.link;
 		// 이미 링크된 노트를 빼거나 뒤로 보낸 뒤 개수를 자르므로, 먼저 전체를 비슷한 순서로 받습니다.
@@ -238,12 +241,22 @@ export class LinkView extends ItemView {
 		const arranged =
 			linkedNotes === 'show' ? all : linkedNotes === 'bottom' ? [...fresh, ...all.filter((r) => r.path in linked)] : fresh;
 		const results = arranged.slice(0, resultCount);
+		// 목록에 보이는 노트 중 체크한 것만 올립니다(목록이 바뀌어 안 보이게 된 노트는 빼고 셉니다).
+		const selectedPaths = () => results.filter((result) => this.selected.has(result.path)).map((result) => result.path);
+		let chatButton: ButtonComponent | null = null;
+		const updateChatButton = () => {
+			const count = selectedPaths().length;
+			chatButton?.setButtonText(strings.chatSelectedButton.replace('{count}', String(count))).setDisabled(count === 0);
+		};
 		if (results.length === 0) empty(strings.noResults);
 		else {
-			new ButtonComponent(contentEl)
-				.setButtonText(strings.chatAllButton.replace('{count}', String(results.length)))
-				.setTooltip(strings.chatAllTooltip)
-				.onClick(() => void this.addToChat(results.map((result) => result.path)));
+			chatButton = new ButtonComponent(contentEl).setTooltip(strings.chatSelectedTooltip).onClick(() => {
+				const paths = selectedPaths();
+				this.selected.clear();
+				this.render();
+				void this.addToChat(paths);
+			});
+			updateChatButton();
 		}
 
 		let dividerDrawn = false;
@@ -256,7 +269,7 @@ export class LinkView extends ItemView {
 				contentEl.createDiv({ cls: 'intra-copilot-link-divider', text: strings.linkedNotesName });
 				dividerDrawn = true;
 			}
-			this.renderCard(contentEl, source, target, result.score, isLinked, result.section);
+			this.renderCard(contentEl, source, target, result.score, isLinked, result.section, updateChatButton);
 		}
 	}
 
@@ -268,6 +281,7 @@ export class LinkView extends ItemView {
 		score: number,
 		isLinked: boolean,
 		section: string,
+		onSelectChange: () => void,
 	): void {
 		const strings = this.strings();
 		const card = containerEl.createDiv({ cls: 'intra-copilot-reminder-card intra-copilot-link-card' });
@@ -280,6 +294,14 @@ export class LinkView extends ItemView {
 		});
 
 		const titleRow = card.createDiv({ cls: 'intra-copilot-link-title' });
+		const check = titleRow.createEl('input', { type: 'checkbox' });
+		check.checked = this.selected.has(target.path);
+		setTooltip(check, strings.selectTooltip);
+		check.addEventListener('change', () => {
+			if (check.checked) this.selected.add(target.path);
+			else this.selected.delete(target.path);
+			onSelectChange();
+		});
 		const name = titleRow.createEl('a', { cls: 'intra-copilot-reminder-name', text: target.basename });
 		setTooltip(name, strings.previewTooltip);
 		if (isLinked) {
@@ -331,7 +353,6 @@ export class LinkView extends ItemView {
 		};
 		// 이미 링크된 노트에 [링크 넣기]를 누르면 같은 링크가 또 들어가므로 뺍니다. 섹션 링크는 다른 링크라 둡니다.
 		if (!isLinked) addButton('link', strings.insertButton, strings.insertTooltip, () => void this.insertLink(source, target));
-		addButton(featureIcon('chatbot'), strings.chatButton, strings.chatTooltip, () => void this.addToChat([target.path]));
 		if (section) {
 			addButton(
 				'heading',
@@ -342,7 +363,7 @@ export class LinkView extends ItemView {
 		}
 	}
 
-	// [챗봇에 올리기]: 챗봇을 열고 지금 대화의 입력칸 위에 노트 칩을 더합니다. 누르는 것만으로는 아무것도 보내지 않고,
+	// [선택한 노트 N개를 챗봇에 올리기]: 챗봇을 열고 지금 대화의 입력칸 위에 노트 칩을 더합니다. 누르는 것만으로는 아무것도 보내지 않고,
 	// 사용자가 질문을 보낼 때 칩의 노트가 함께 LLM 서버로 전송됩니다(보낼 양은 챗봇의 "노트 자료 최대 글자 수"까지).
 	// 여러 챗봇 창이 열려 있으면 챗봇 리본을 눌렀을 때 보이는 첫 창에 올립니다.
 	private async addToChat(paths: string[]): Promise<void> {
