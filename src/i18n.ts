@@ -409,6 +409,9 @@ const ko = {
 			'노트를 이 글자 수 이하의 조각으로 나눠 보냅니다(노트 하나에 최대 20조각, 넘는 뒷부분은 쓰지 않음). 서버가 입력이 너무 길다고 거절하면 줄이세요. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1000)으로 돌아갑니다.',
 		resultCountName: '보여 줄 노트 수',
 		resultCountDesc: '링크 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
+		dimensionsName: '벡터 크기',
+		dimensionsDesc:
+			'서버에 요청할 벡터의 숫자 개수입니다. 0이면 모델 기본 크기를 씁니다. 크기를 줄이면 색인 파일이 작아지고 검색이 빨라지며, 지원하는 모델(예: Gemini, OpenAI text-embedding-3)은 품질 손실이 작습니다(예: 3072 → 768). 지원하지 않는 서버는 요청을 거절하니 그때는 0으로 두세요. 바꾼 값은 [다시 만들기] 뒤 적용되며, 먼저 [연결 확인]으로 크기를 확인하세요. 비워두면 기본값(0)으로 돌아갑니다.',
 		vectorsPerNoteName: '노트당 벡터 수',
 		vectorsPerNoteDesc:
 			'노트 하나를 몇 개의 벡터로 저장할지 정합니다(1~5). 1이면 노트 전체의 평균 하나이고, 2 이상이면 뜻이 가까운 조각끼리 묶어 주제별로 저장해 주제가 여러 개인 긴 노트도 잘 찾습니다. 서버로 보내는 양은 같지만 색인 파일이 커지고 검색이 조금 느려집니다. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1)으로 돌아갑니다.',
@@ -902,6 +905,9 @@ const en: Dictionary = {
 			'Notes are split into chunks of at most this many characters (up to 20 chunks per note; the rest is not used). Lower it if the server says the input is too long. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1000).',
 		resultCountName: 'Notes to show',
 		resultCountDesc: 'How many similar notes the link view shows. Leave empty to restore the default (10).',
+		dimensionsName: 'Vector size',
+		dimensionsDesc:
+			'How many numbers each vector should have. 0 uses the model default. Smaller vectors make the index file smaller and search faster, and models that support it (e.g. Gemini, OpenAI text-embedding-3) lose little quality (e.g. 3072 → 768). Servers that do not support it reject the request, so keep 0 there. A new value applies after [Rebuild]; check the size with [Check connection] first. Leave empty to restore the default (0).',
 		vectorsPerNoteName: 'Vectors per note',
 		vectorsPerNoteDesc:
 			'How many vectors each note is stored as (1–5). 1 is the average of the whole note; 2 or more groups chunks with similar meaning and stores one vector per topic, so long notes with several topics are found better. The amount sent to the server stays the same, but the index file grows and search gets slightly slower. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1).',

@@ -176,4 +176,12 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 	addAtLeastOne(advanced, 'vectorsPerNote', strings.vectorsPerNoteName, strings.vectorsPerNoteDesc, MAX_VECTORS_PER_NOTE);
 	addAtLeastOne(advanced, 'chunkChars', strings.chunkCharsName, strings.chunkCharsDesc);
 	addAtLeastOne(advanced, 'batchSize', strings.batchSizeName, strings.batchSizeDesc);
+	addNumberSetting(advanced, ctx, {
+		name: strings.dimensionsName,
+		desc: strings.dimensionsDesc,
+		get: () => link.dimensions,
+		set: (value) => (link.dimensions = value),
+		parse: (raw) => parseLimit(raw, defaults.dimensions),
+		min: 0,
+	});
 }

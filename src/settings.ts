@@ -60,6 +60,8 @@ export interface LinkSettings {
 	resultCount: number; // 비슷한 노트를 몇 개 보여 줄지
 	// 노트 하나에 저장할 벡터 수(1~MAX_VECTORS_PER_NOTE). 1이면 노트 전체 평균, 2 이상이면 주제별로 나눠 저장합니다.
 	vectorsPerNote: number;
+	// 서버에 요청할 벡터 크기(OpenAI 호환 dimensions). 0이면 보내지 않아 모델 기본 크기를 씁니다.
+	dimensions: number;
 }
 
 // 노트당 벡터 수의 최대값. 검색 때 두 노트의 벡터를 모든 쌍으로 비교하므로(수의 제곱), 크게 두면 느려집니다.
@@ -110,6 +112,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		chunkChars: 1000,
 		resultCount: 10,
 		vectorsPerNote: 1,
+		dimensions: 0,
 	},
 	reminder: {
 		excludedFolders: [],

@@ -169,6 +169,7 @@ export default class IntraCopilotPlugin extends Plugin {
 			link[key] = Math.max(1, nonNegativeInt(link[key], linkDefaults[key]));
 		}
 		link.vectorsPerNote = Math.min(MAX_VECTORS_PER_NOTE, link.vectorsPerNote);
+		link.dimensions = nonNegativeInt(link.dimensions, linkDefaults.dimensions);
 
 		const reminderDefaults = DEFAULT_SETTINGS.reminder;
 		for (const key of ['excludedFolders', 'deferTags'] as const) {

@@ -646,7 +646,8 @@ interface EmbeddingResponse {
 }
 
 export async function createEmbeddings(
-	server: { baseUrl: string; apiKey: string; model: string },
+	// dimensions: 0보다 크면 그 크기의 벡터를 요청합니다(지원하는 모델만, 예: Gemini·OpenAI text-embedding-3).
+	server: { baseUrl: string; apiKey: string; model: string; dimensions?: number },
 	inputs: string[],
 ): Promise<EmbeddingResult> {
 	const invalidUrl = validateBaseUrl(server.baseUrl);
@@ -658,7 +659,11 @@ export async function createEmbeddings(
 			{
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...authHeader(server.apiKey) },
-				body: JSON.stringify({ model: server.model, input: inputs }),
+				body: JSON.stringify({
+					model: server.model,
+					input: inputs,
+					...(server.dimensions ? { dimensions: server.dimensions } : {}),
+				}),
 			},
 			EMBEDDING_TIMEOUT_SECONDS,
 		);

@@ -43,7 +43,7 @@ const server = http.createServer((req, res) => {
 			}
 			if (mode.delayMs) await sleep(mode.delayMs);
 			rawBodies.push(body);
-			const parsed = JSON.parse(body) as { input: string[]; model: string };
+			const parsed = JSON.parse(body) as { input: string[]; model: string; dimensions?: number };
 			const n = served++;
 			if (mode.limitTimes !== undefined && n < mode.limitTimes) {
 				res.statusCode = 429;
@@ -62,7 +62,7 @@ const server = http.createServer((req, res) => {
 				return;
 			}
 			sentTexts.push(...parsed.input);
-			const dims = mode.dimsAfter !== undefined && n >= mode.dimsAfter ? 16 : 8;
+			const dims = parsed.dimensions ?? (mode.dimsAfter !== undefined && n >= mode.dimsAfter ? 16 : 8);
 			let data = parsed.input.map((t, i) => ({ index: i, embedding: embed(t, dims) }));
 			if (mode.dropOne) data = data.slice(1);
 			if (mode.reverse) data = data.reverse();
@@ -520,6 +520,21 @@ async function main() {
 		vault.put('apple2.md', '---\ntags: x\n---\napple pie with apple and banana');
 		await index.sync();
 		assert.strictEqual(served, 1, "real text change not re-sent");
+	});
+
+	await test('T36 dimensions setting is sent only when set, and size change is caught', async () => {
+		const { vault, plugin, index } = await setup();
+		assert.ok(rawBodies.every((b) => !b.includes('dimensions')), 'dimensions sent while 0');
+		reset();
+		plugin.settings.link.dimensions = 6;
+		await index.rebuild();
+		assert.ok(rawBodies.every((b) => (JSON.parse(b) as { dimensions?: number }).dimensions === 6));
+		assert.strictEqual(index.state().kind, 'ready');
+		plugin.settings.link.dimensions = 5;
+		vault.put('car1.md', 'car changed');
+		await index.sync();
+		const s = index.state();
+		assert.strictEqual(s.kind === 'error' && s.failure.kind, 'invalid-response');
 	});
 
 	server.close();
