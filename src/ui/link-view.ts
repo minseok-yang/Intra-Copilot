@@ -212,14 +212,20 @@ export class LinkView extends ItemView {
 			empty(strings.noNote);
 			return;
 		}
-		const results = index.search(source.path, this.plugin.settings.link.resultCount);
-		if (!results) {
+		const { resultCount, linkedNotes } = this.plugin.settings.link;
+		// 이미 링크된 노트를 빼거나 뒤로 보낸 뒤 개수를 자르므로, 먼저 전체를 비슷한 순서로 받습니다.
+		const all = index.search(source.path, Infinity);
+		if (!all) {
 			empty(index.isExcluded(source.path) ? strings.excludedNote : strings.notIndexedNote);
 			return;
 		}
+		const linked = this.app.metadataCache.resolvedLinks[source.path] ?? {};
+		const fresh = all.filter((result) => !(result.path in linked));
+		const arranged =
+			linkedNotes === 'show' ? all : linkedNotes === 'bottom' ? [...fresh, ...all.filter((r) => r.path in linked)] : fresh;
+		const results = arranged.slice(0, resultCount);
 		if (results.length === 0) empty(strings.noResults);
 
-		const linked = this.app.metadataCache.resolvedLinks[source.path] ?? {};
 		for (const result of results) {
 			const target = this.app.vault.getFileByPath(result.path);
 			if (target) this.renderCard(contentEl, source, target, result.score, result.path in linked, result.section);

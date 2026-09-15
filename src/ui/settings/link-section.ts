@@ -1,7 +1,7 @@
 import { Setting } from 'obsidian';
 import { createEmbeddings, listLlmModels } from '../../llm/client';
 import { describeLinkError } from '../../i18n';
-import { DEFAULT_SETTINGS, MAX_VECTORS_PER_NOTE } from '../../settings';
+import { DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
 import { addIndexButton, describeIndexState } from '../link-view';
 import { createStatusLight, setStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
@@ -170,6 +170,22 @@ export function renderLinkIndexSection(containerEl: HTMLElement, ctx: SettingsCo
 			max,
 		});
 	addAtLeastOne(containerEl, 'resultCount', strings.resultCountName, strings.resultCountDesc);
+	new Setting(containerEl)
+		.setName(strings.linkedNotesName)
+		.setDesc(strings.linkedNotesDesc)
+		.addDropdown((dropdown) =>
+			dropdown
+				.addOptions({
+					show: strings.linkedNotesShow,
+					bottom: strings.linkedNotesBottom,
+					hide: strings.linkedNotesHide,
+				} satisfies Record<LinkedNotesMode, string>)
+				.setValue(link.linkedNotes)
+				.onChange((value) => {
+					link.linkedNotes = value as LinkedNotesMode;
+					ctx.saveSoon();
+				}),
+		);
 
 	// 서버·모델에 맞춰 조절하는 값은 챗봇처럼 고급 설정에 접어 둡니다.
 	const advanced = addAdvancedSection(containerEl, ctx.strings.llm.advancedName);

@@ -1,5 +1,11 @@
 import { Plugin, setTooltip } from 'obsidian';
-import { clampChatTimeout, DEFAULT_SETTINGS, IntraCopilotSettings, MAX_VECTORS_PER_NOTE } from './settings';
+import {
+	clampChatTimeout,
+	DEFAULT_SETTINGS,
+	IntraCopilotSettings,
+	LINKED_NOTES_MODES,
+	MAX_VECTORS_PER_NOTE,
+} from './settings';
 import { IntraCopilotSettingTab } from './ui/settings-tab';
 import { CHAT_VIEW_TYPE, ChatView, refreshChatViews, revealChatView } from './ui/chat-view';
 import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
@@ -170,6 +176,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		}
 		link.vectorsPerNote = Math.min(MAX_VECTORS_PER_NOTE, link.vectorsPerNote);
 		link.dimensions = nonNegativeInt(link.dimensions, linkDefaults.dimensions);
+		if (!LINKED_NOTES_MODES.includes(link.linkedNotes)) link.linkedNotes = linkDefaults.linkedNotes;
 		if (typeof link.documentFormat !== 'string' || !link.documentFormat.includes('{text}')) {
 			link.documentFormat = linkDefaults.documentFormat;
 		}

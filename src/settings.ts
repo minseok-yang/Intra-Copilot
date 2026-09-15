@@ -64,7 +64,12 @@ export interface LinkSettings {
 	dimensions: number;
 	// 조각마다 서버로 보내는 글의 모양. {title}은 노트 제목, {text}는 조각 본문입니다. 모델마다 권장 접두어가 다릅니다.
 	documentFormat: string;
+	// 지금 노트에 이미 링크가 있는 노트를 목록에서 어떻게 보여 줄지: 순서대로 함께·맨 아래로·숨기기
+	linkedNotes: LinkedNotesMode;
 }
+
+export type LinkedNotesMode = 'show' | 'bottom' | 'hide';
+export const LINKED_NOTES_MODES: readonly LinkedNotesMode[] = ['show', 'bottom', 'hide'];
 
 // 문서 형식에 {text}가 없으면 본문이 빠진 채 전송되므로 이 기본값으로 되돌립니다.
 export const DEFAULT_DOCUMENT_FORMAT = '{title}\n\n{text}';
@@ -119,6 +124,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		vectorsPerNote: 1,
 		dimensions: 0,
 		documentFormat: DEFAULT_DOCUMENT_FORMAT,
+		linkedNotes: 'show',
 	},
 	reminder: {
 		excludedFolders: [],

@@ -412,6 +412,12 @@ const ko = {
 			'노트를 이 글자 수 이하의 조각으로 나눠 보냅니다(노트 하나에 최대 20조각, 넘는 뒷부분은 쓰지 않음). 서버가 입력이 너무 길다고 거절하면 줄이세요. 바꾼 값은 [다시 만들기] 뒤 모든 노트에 적용됩니다. 비워두면 기본값(1000)으로 돌아갑니다.',
 		resultCountName: '보여 줄 노트 수',
 		resultCountDesc: '링크 창에 보여 줄 비슷한 노트 개수입니다. 비워두면 기본값(10)으로 돌아갑니다.',
+		linkedNotesName: '이미 링크된 노트',
+		linkedNotesDesc:
+			'지금 노트에 이미 링크가 있는 노트를 목록에서 어떻게 보여 줄지 정합니다. 새로 연결할 노트만 보고 싶으면 "맨 아래로"나 "숨기기"를 고르세요.',
+		linkedNotesShow: '비슷한 순서대로 함께 보여 주기',
+		linkedNotesBottom: '맨 아래로 보내기',
+		linkedNotesHide: '숨기기',
 		documentFormatName: '문서 형식',
 		documentFormatDesc:
 			'조각마다 서버로 보내는 글의 모양입니다. {title}은 노트 제목, {text}는 조각 본문이며 {text}는 꼭 있어야 합니다. 모델이 권장하는 접두어를 쓰면 추천이 더 정확해집니다. 예: embeddinggemma는 title: {title} | text: {text}, nomic-embed는 search_document: {title} {text}, e5 계열은 passage: {title} {text}. 바꾼 값은 [다시 만들기] 뒤 적용됩니다.',
@@ -914,6 +920,12 @@ const en: Dictionary = {
 			'Notes are split into chunks of at most this many characters (up to 20 chunks per note; the rest is not used). Lower it if the server says the input is too long. A new value applies to all notes after [Rebuild]. Leave empty to restore the default (1000).',
 		resultCountName: 'Notes to show',
 		resultCountDesc: 'How many similar notes the link view shows. Leave empty to restore the default (10).',
+		linkedNotesName: 'Already linked notes',
+		linkedNotesDesc:
+			'How to show notes the current note already links to. Choose "Move to the bottom" or "Hide" to see only notes you have not connected yet.',
+		linkedNotesShow: 'Show in similarity order',
+		linkedNotesBottom: 'Move to the bottom',
+		linkedNotesHide: 'Hide',
 		documentFormatName: 'Document format',
 		documentFormatDesc:
 			'The shape of the text sent for each chunk. {title} is the note title and {text} is the chunk body; {text} is required. Using the prefix your model recommends makes suggestions more accurate, e.g. embeddinggemma: title: {title} | text: {text}, nomic-embed: search_document: {title} {text}, e5 models: passage: {title} {text}. A new value applies after [Rebuild].',
