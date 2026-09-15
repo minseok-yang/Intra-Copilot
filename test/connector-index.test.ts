@@ -650,6 +650,96 @@ async function main() {
 		assert.ok(notes.includes('car9.md') && !notes.includes('car1.md'), JSON.stringify(notes));
 	});
 
+	await test('T48 an excluded folder added while indexing: its notes are not sent', async () => {
+		const { vault, plugin, index } = await setup(false);
+		vault.put('Later/late.md', 'zebra late note');
+		reset({ delayMs: 150 });
+		const running = index.rebuild();
+		await sleep(60); // 첫 요청이 서버에 가 있는 동안 제외 폴더를 넣음
+		plugin.settings.connector.excludedFolders = ['Private', 'Later'];
+		await running;
+		assert.ok(!sentTexts.some((t) => t.includes('zebra')), 'note in the newly excluded folder was sent');
+		assert.deepStrictEqual(index.state(), { kind: 'ready', count: 5 });
+	});
+
+	await test('T49 a note moved into an excluded folder or deleted while its chunks wait: the rest is not sent', async () => {
+		for (const action of ['move', 'delete'] as const) {
+			const { vault, index } = await setup(false);
+			reset({ delayMs: 150 });
+			const running = index.rebuild();
+			await sleep(220); // 둘째 요청(mixed 앞 4조각)이 서버에 가 있는 동안, mixed 뒤 4조각은 줄 서 있음
+			if (action === 'move') index.rename('mixed.md', 'Private/mixed.md');
+			else index.remove('mixed.md');
+			await running;
+			const mixedSent = sentTexts.filter((t) => t.startsWith('mixed')).length;
+			assert.strictEqual(mixedSent, 4, `${action}: mixed chunks sent ${mixedSent}`);
+			const state = index.state();
+			assert.ok(state.kind === 'ready', `${action}: ${JSON.stringify(state)}`);
+		}
+	});
+
+	await test('T50 document format fills {title}/{text} in one pass: a title with "{text}", {title} used twice', async () => {
+		const { vault, plugin, index } = await setup(false);
+		vault.files.clear();
+		vault.put('{text} guide.md', 'apple body');
+		reset();
+		await index.rebuild();
+		assert.deepStrictEqual(sentTexts, ['{text} guide\n\napple body']);
+		vault.files.clear();
+		vault.put('car1.md', 'car');
+		plugin.settings.connector.documentFormat = '{title} | {title}: {text}';
+		reset();
+		await index.rebuild();
+		assert.deepStrictEqual(sentTexts, ['car1 | car1: car']);
+	});
+
+	await test('T51 a sync with nothing changed does not rewrite the index file', async () => {
+		const { vault, plugin, index } = await setup();
+		vault.writes = 0;
+		await index.sync();
+		assert.strictEqual(vault.writes, 0, `writes=${vault.writes}`);
+		plugin.settings.connector.excludedFolders = ['Private', 'Fruit']; // 기록을 빼야 하면 씀
+		await index.sync();
+		assert.strictEqual(vault.writes, 1, `writes=${vault.writes}`);
+	});
+
+	await test('T52 when the index file cannot be written, [Start indexing] shows an error and sends nothing', async () => {
+		const { vault, index } = await setup(false);
+		vault.adapter.writeBinary = async () => {
+			throw new Error('EACCES');
+		};
+		reset();
+		await index.rebuild();
+		const state = index.state();
+		assert.ok(state.kind === 'error' && state.failure.detail === 'EACCES', JSON.stringify(state));
+		assert.strictEqual(served, 0);
+	});
+
+	await test('T53 vector size check uses a note that has vectors, even if the first stored note has none', async () => {
+		const { vault, index } = await setup();
+		const notes = (index as unknown as { notes: Map<string, { vectors: Float32Array[] }> }).notes;
+		[...notes.values()][0]!.vectors = [];
+		reset({ dimsAfter: 0 });
+		vault.put('car1.md', 'car changed dims');
+		await index.sync();
+		const state = index.state();
+		assert.ok(state.kind === 'error' && state.failure.kind === 'invalid-response', JSON.stringify(state));
+	});
+
+	await test('T54 switching from 10 minutes to 15 seconds does not postpone an earlier update', async () => {
+		const { plugin, index } = await setup();
+		const timer = () => index as unknown as { syncDueAt: number };
+		plugin.settings.connector.autoSyncSeconds = 600;
+		index.requestSync();
+		timer().syncDueAt = Date.now() + 2000; // 10분 예약이 2초 남았다고 둠
+		plugin.settings.connector.autoSyncSeconds = 15;
+		index.requestSync();
+		assert.ok(timer().syncDueAt - Date.now() <= 2100, 'postponed to 15 seconds');
+		index.requestSync(); // 고쳐도 더 이른 예약은 그대로
+		assert.ok(timer().syncDueAt - Date.now() <= 2100, 'postponed by an edit');
+		index.stop();
+	});
+
 	await test('T39 advanced option change needs a rebuild; batch size does not; old file without options loads', async () => {
 		const { vault, plugin, index } = await setup();
 		plugin.settings.connector.batchSize = 2;

@@ -203,7 +203,7 @@ export function renderConnectorIndexSection(containerEl: HTMLElement, ctx: Setti
 	const indexFolder = indexPath.slice(0, indexPath.lastIndexOf('/'));
 	new Setting(containerEl)
 		.setName(strings.indexFileName)
-		.setDesc(strings.indexFileDesc.replace('{path}', indexPath))
+		.setDesc(strings.indexFileDesc.replace('{path}', () => indexPath))
 		.addButton((button) =>
 			button
 				.setButtonText(ctx.strings.skills.openFolderButton)

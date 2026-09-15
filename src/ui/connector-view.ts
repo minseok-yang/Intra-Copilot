@@ -73,7 +73,7 @@ export function describeIndexState(plugin: IntraCopilotPlugin, state: IndexState
 			return { text: strings.stateNotConfigured };
 		case 'not-built':
 			if (state.optionsChanged) return { text: strings.stateOptionsChanged };
-			return { text: state.builtWith ? strings.stateOtherModel.replace('{model}', state.builtWith) : strings.stateNotBuilt };
+			return { text: state.builtWith ? strings.stateOtherModel.replace('{model}', () => state.builtWith) : strings.stateNotBuilt };
 		case 'indexing':
 			return {
 				text: (state.waiting ? strings.stateWaiting : strings.stateIndexing)
@@ -131,7 +131,8 @@ class IndexConfirmModal extends Modal {
 		const { contentEl } = this;
 		this.titleEl.setText(strings.confirmTitle);
 		const summary = contentEl.createEl('p', { text: strings.confirmCounting });
-		contentEl.createEl('p', { text: strings.confirmTarget.replace('{url}', baseUrl).replace('{model}', model) });
+		// 사용자가 넣은 글(주소·모델·섹션 제목·노트 이름)은 함수로 넘겨 넣습니다. 글자로 넘기면 $&·$$ 같은 기호가 바뀌어 보입니다.
+		contentEl.createEl('p', { text: strings.confirmTarget.replace(/\{(url|model)\}/g, (_, key: string) => (key === 'url' ? baseUrl : model)) });
 		contentEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.confirmWarning });
 
 		let start: ButtonComponent | null = null;
@@ -307,11 +308,13 @@ export class ConnectorView extends ItemView {
 		}
 		const { resultCount, linkedNotes } = this.plugin.settings.connector;
 		// 이미 링크된 노트를 빼거나 뒤로 보낸 뒤 개수를 자르므로, 먼저 전체를 비슷한 순서로 받습니다.
-		const all = index.search(source.path, Infinity);
-		if (!all) {
+		const found = index.search(source.path, Infinity);
+		if (!found) {
 			empty(index.isExcluded(source.path) ? strings.excludedNote : strings.notIndexedNote);
 			return;
 		}
+		// 색인에 기록만 남고 파일이 없는 노트(Obsidian을 끈 동안 지운 노트 등, 다음 맞추기에서 빠짐)는 개수를 자르기 전에 뺍니다.
+		const all = found.filter((result) => this.app.vault.getFileByPath(result.path));
 		const linked = this.app.metadataCache.resolvedLinks[source.path] ?? {};
 		const fresh = all.filter((result) => !(result.path in linked));
 		const arranged =
@@ -438,7 +441,7 @@ export class ConnectorView extends ItemView {
 			pathEl.createSpan({ text: target.parent.path });
 			setTooltip(pathEl, target.parent.path);
 		}
-		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', section) });
+		if (section) card.createDiv({ cls: 'intra-copilot-reminder-meta', text: strings.section.replace('{section}', () => section) });
 
 		// 이름을 누르면 노트로 옮겨 가지 않고 카드 안에 내용을 펼칩니다. 옮겨 가면 커넥터 창이 그 노트 기준으로 바뀌어
 		// 보던 목록으로 돌아올 수 없기 때문입니다. Ctrl/Cmd를 누른 채 누르면 예전처럼 새 탭에서 엽니다.
@@ -484,7 +487,7 @@ export class ConnectorView extends ItemView {
 		// 이미 링크된 노트에 [링크 넣기]를 누르면 같은 링크가 또 들어가므로 뺍니다. 섹션 링크는 다른 링크라 둡니다.
 		if (!isLinked) addLinkButton('link', strings.insertButton, strings.insertTooltip);
 		if (section) {
-			addLinkButton('heading', strings.insertSectionButton, strings.insertSectionTooltip.replace('{section}', section), section);
+			addLinkButton('heading', strings.insertSectionButton, strings.insertSectionTooltip.replace('{section}', () => section), section);
 		}
 	}
 
@@ -520,7 +523,7 @@ export class ConnectorView extends ItemView {
 			} else {
 				await this.app.vault.process(source, (text) => `${text.trimEnd()}\n\n${link}\n`);
 			}
-			new Notice(strings.inserted.replace('{name}', target.basename));
+			new Notice(strings.inserted.replace('{name}', () => target.basename));
 		} catch {
 			new Notice(strings.insertFailed);
 		}

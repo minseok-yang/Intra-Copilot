@@ -357,7 +357,7 @@ const ko = {
 		ribbonTooltip: '커넥터 열기',
 		noNote: '노트를 열면 뜻이 비슷한 노트를 보여 줍니다.',
 		notIndexedNote:
-			'이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 자동 갱신 주기에 따라 색인되며, 머리줄 [업데이트]로 바로 맞출 수 있습니다.',
+			'이 노트는 아직 색인되지 않았습니다. 새로 만들었거나 고친 노트는 자동 갱신 주기에 따라 색인되며, 머리줄에 [업데이트]가 보이면 눌러 바로 맞출 수 있습니다. 색인이 오류로 멈췄다면 [다시 시도]를 누르세요.',
 		excludedNote: '이 노트는 제외 폴더·템플릿 폴더에 있어 색인하지 않습니다.',
 		noResults: '비슷한 노트가 없습니다.',
 		allLinked: '비슷한 노트가 모두 이미 링크되어 있어 숨겼습니다. 보려면 커넥터 → 인덱스 → 이미 링크된 노트를 바꾸세요.',
@@ -396,7 +396,7 @@ const ko = {
 		indexLabelPending: '갱신 필요 {count}',
 		indexLabelReady: '색인 최신',
 		pendingTooltip:
-			'노트 {count}개가 색인에 반영되지 않았습니다(새로 만들었거나 바뀐 노트, 제외 폴더로 옮겨 색인에서 뺄 노트). 자동 갱신을 기다리거나 [업데이트]를 누르세요.',
+			'노트 {count}개가 색인에 반영되지 않았습니다(새로 만들었거나 바뀐 노트, 제외 폴더로 옮겼거나 Obsidian을 끈 동안 지워 색인에서 뺄 노트). 자동 갱신을 기다리거나 [업데이트]를 누르세요.',
 		updateButton: '업데이트',
 		updateTooltip:
 			'색인에 반영되지 않은 노트 {count}개를 지금 맞춥니다. 내용이 바뀐 노트만 임베딩 서버로 보내고, 링크·속성만 바뀐 노트는 보내지 않습니다.',
@@ -416,7 +416,7 @@ const ko = {
 		confirmCancel: '취소',
 		retryButton: '다시 시도',
 		checkTooltip:
-			'임베딩 서버에 짧은 고정 문장 하나를 보내 연결을 확인합니다(노트 내용은 보내지 않음). 평소에는 서버에 따로 묻지 않고, 색인하며 보낸 요청의 결과로 상태등이 바뀝니다.',
+			'임베딩 서버에 짧은 고정 문장 하나를 보내 연결을 확인합니다(확인 요청에는 노트 내용이 없음). 색인이 오류로 멈춰 있었다면, 확인이 성공한 뒤 이어서 바뀐 노트를 보내 색인합니다. 평소에는 서버에 따로 묻지 않고, 색인하며 보낸 요청의 결과로 상태등이 바뀝니다.',
 		serverIdleTooltip:
 			'Obsidian을 켰거나 서버 주소·API 키·모델을 바꾼 뒤, 지금 설정의 임베딩 서버로 보낸 요청이 아직 없습니다. 노트가 색인되거나 [연결 확인]을 누르면 상태가 바뀝니다.',
 		serverIntro:
@@ -436,7 +436,8 @@ const ko = {
 		modelsLoaded: '모델 {count}개를 불러왔습니다. 입력칸을 눌러 고르세요.',
 		noModels: '서버가 알려 준 모델이 없습니다. 모델 이름을 직접 입력하세요.',
 		testName: '연결 확인',
-		testDesc: '정해진 테스트 문장 하나를 보내 벡터가 돌아오는지 확인합니다. 노트 내용은 보내지 않습니다.',
+		testDesc:
+			'정해진 테스트 문장 하나를 보내 벡터가 돌아오는지 확인합니다. 확인 요청에는 노트 내용이 없지만, 색인이 오류로 멈춰 있었다면 확인이 성공한 뒤 이어서 바뀐 노트를 보내 색인합니다.',
 		testButton: '연결 확인',
 		testing: '확인 중...',
 		testOk: '연결됨 · 벡터 {dims}차원',
@@ -920,7 +921,7 @@ const en: Dictionary = {
 		ribbonTooltip: 'Open Connector',
 		noNote: 'Open a note to see notes with similar meaning.',
 		notIndexedNote:
-			'This note is not indexed yet. New or edited notes are indexed on the automatic update schedule, or right away with [Update] in the header.',
+			'This note is not indexed yet. New or edited notes are indexed on the automatic update schedule; when [Update] appears in the header, click it to index them right away. If indexing stopped with an error, click [Retry].',
 		excludedNote: 'This note is in an excluded or template folder, so it is not indexed.',
 		noResults: 'No similar notes.',
 		allLinked: 'All similar notes are already linked, so they are hidden. To see them, change Connector → Index → Already linked notes.',
@@ -958,7 +959,7 @@ const en: Dictionary = {
 		indexLabelPending: '{count} to update',
 		indexLabelReady: 'Up to date',
 		pendingTooltip:
-			'{count} notes are not reflected in the index yet (new or changed notes, or notes moved into an excluded folder that must be removed). Wait for the automatic update or click [Update].',
+			'{count} notes are not reflected in the index yet (new or changed notes, or notes to remove because they were moved into an excluded folder or deleted while Obsidian was closed). Wait for the automatic update or click [Update].',
 		updateButton: 'Update',
 		updateTooltip:
 			'Bring {count} notes into the index now. Only notes whose content changed are sent to the embedding server; notes with only link or property changes are not sent.',
@@ -978,7 +979,7 @@ const en: Dictionary = {
 		confirmCancel: 'Cancel',
 		retryButton: 'Retry',
 		checkTooltip:
-			'Send one short fixed sentence to the embedding server to check the connection (no note content). Otherwise the server is not polled; the light follows the results of indexing requests.',
+			'Send one short fixed sentence to the embedding server to check the connection (the check itself contains no note content). If indexing had stopped with an error, a successful check then resumes it and sends the changed notes. Otherwise the server is not polled; the light follows the results of indexing requests.',
 		serverIdleTooltip:
 			'No request has been sent to the embedding server in the current settings since Obsidian started or the server address, API key, or model changed. The light updates when notes are indexed or you click [Check].',
 		serverIntro:
@@ -998,7 +999,8 @@ const en: Dictionary = {
 		modelsLoaded: 'Loaded {count} models. Click the input to pick one.',
 		noModels: 'The server listed no models. Type the model name yourself.',
 		testName: 'Check connection',
-		testDesc: 'Sends one fixed test sentence and checks that a vector comes back. No note content is sent.',
+		testDesc:
+			'Sends one fixed test sentence and checks that a vector comes back. The check contains no note content, but if indexing had stopped with an error, a successful check then resumes it and sends the changed notes.',
 		testButton: 'Check connection',
 		testing: 'Checking...',
 		testOk: 'Connected · {dims}-dimensional vectors',

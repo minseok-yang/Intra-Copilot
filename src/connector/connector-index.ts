@@ -12,7 +12,9 @@ import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors'
 //
 // 언제 서버로 보내나
 // - 처음 색인은 사용자가 [색인 만들기] 확인 창에서 [색인 시작]을 눌러야만 시작합니다(볼트 전체 본문이 임베딩 서버로 가기 때문).
-// - 그 뒤로는 자동 갱신 주기(requestSync)에 따라, 또는 [업데이트]·[다시 시도]를 누를 때 새로 만들었거나 바뀐 노트만 보냅니다.
+// - 그 뒤로는 자동 갱신 주기(requestSync)에 따라, 또는 [업데이트]·[다시 시도]를 누르거나 오류로 멈춘 뒤 [연결 확인]이 성공할 때
+//   새로 만들었거나 바뀐 노트만 보냅니다.
+// - 보내기 직전에 제외 대상인지 다시 확인합니다. 색인하는 사이 제외 폴더를 넣거나 노트를 옮기거나 지워도 남은 조각은 보내지 않습니다.
 // - 색인 파일에 만든 서버 주소·모델·고급 설정을 적어 두고, 설정과 다르면 자동으로 보내지 않습니다. 모델이 다르면 벡터끼리
 //   비교할 수 없어 다시 만들어야 하는데, 주소나 모델을 바꾸는 순간 볼트 전체가 새 서버로 조용히 나가지 않게 하려는 것입니다.
 //
@@ -97,6 +99,11 @@ function movedPath(path: string, oldPath: string, newPath: string): string | nul
 	return path.startsWith(`${oldPath}/`) ? newPath + path.slice(oldPath.length) : null;
 }
 
+// 서버 실패가 아닌 문제(색인 파일 쓰기 실패 등)도 화면에 이유가 보이게 합니다.
+function unknownFailure(error: unknown): LlmFailure {
+	return { ok: false, kind: 'unknown', detail: error instanceof Error ? error.message : String(error) };
+}
+
 export class ConnectorIndex {
 	private owner: Owner | null = null;
 	private notes = new Map<string, NoteEntry>();
@@ -120,6 +127,8 @@ export class ConnectorIndex {
 	// 예약을 처음 건 시각(1분 이상 주기는 여기서부터 셈)과 맞출 시각. 주기를 줄였을 때 예약을 앞당기는 데 씁니다.
 	private syncSince = 0;
 	private syncDueAt = 0;
+	// 지금 예약이 1분 이상 주기로 잡은 것인지. 1분 미만 주기로 바꿔도 이런 예약이 더 이르면 미루지 않습니다.
+	private syncLong = false;
 
 	// rateLimitWaitMs는 테스트에서 기다림을 줄이려고만 바꿉니다.
 	constructor(
@@ -303,7 +312,14 @@ export class ConnectorIndex {
 		this.owner = { baseUrl: sameServerUrl(baseUrl), model, options: this.currentOptions() };
 		this.notes.clear();
 		this.failure = null;
-		await this.save();
+		// 색인 파일을 쓸 수 없으면 받은 벡터를 남길 수 없으므로 보내지 않고 이유를 보여 줍니다.
+		try {
+			await this.save();
+		} catch (error) {
+			this.failure = unknownFailure(error);
+			this.emit();
+			return;
+		}
 		await this.sync();
 	}
 
@@ -320,8 +336,7 @@ export class ConnectorIndex {
 				try {
 					await this.run();
 				} catch (error) {
-					// 서버 실패가 아닌 문제(색인 파일 쓰기 실패 등)도 화면에 이유가 보이게 합니다.
-					this.failure = { ok: false, kind: 'unknown', detail: error instanceof Error ? error.message : String(error) };
+					this.failure = unknownFailure(error);
 				}
 			} while (this.runAgain && !this.failure && !this.stopped);
 		})().finally(() => {
@@ -343,22 +358,25 @@ export class ConnectorIndex {
 
 	// 자동 갱신: 노트가 바뀌었거나 켤 때 부르면, 설정한 주기(autoSyncSeconds)에 맞춰 맞추기(sync)를 예약합니다.
 	// 1분 미만이면 부를 때마다 다시 기다려 쓰는 동안에는 보내지 않고, 1분 이상이면 첫 변경부터 세어 그 시각에 한꺼번에 보냅니다
-	// (계속 고쳐도 주기마다 한 번은 맞춤). 설정에서 주기를 줄이면 이미 잡힌 예약도 첫 변경부터 센 새 주기로 앞당깁니다.
-	// 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과 [업데이트]로 사용자가 직접 맞춥니다.
+	// (계속 고쳐도 주기마다 한 번은 맞춤). 설정에서 주기를 줄이면 이미 잡힌 예약도 새 주기로 센 시각으로 앞당기고, 이미 더 이른
+	// 예약은 미루지 않습니다(1분 이상 주기로 잡은 예약은 15초로 바꿔도 그대로). 0이면 예약하지 않으며, 커넥터 창의 노란 상태등과
+	// [업데이트]로 사용자가 직접 맞춥니다.
 	// 색인이 오류로 멈춰 있으면 예약한 시각이 와도 보내지 않습니다. 인증 실패처럼 같은 오류가 날 요청을 노트를 고칠 때마다
 	// 되풀이하지 않게 하려는 것이며, [다시 시도]를 누르거나 [연결 확인]이 성공하면 이어서 맞춥니다.
 	requestSync(): void {
 		const seconds = this.plugin.settings.connector.autoSyncSeconds;
-		const keepSince = seconds >= QUIET_LIMIT_SECONDS && this.syncTimer !== null;
-		const since = keepSince ? this.syncSince : Date.now();
+		const long = seconds >= QUIET_LIMIT_SECONDS;
+		const scheduled = this.syncTimer !== null;
+		const since = long && scheduled ? this.syncSince : Date.now();
 		const dueAt = since + seconds * 1000;
-		// 이미 잡힌 예약이 새 주기로 센 시각보다 이르거나 같으면 그대로 둡니다.
-		if (keepSince && this.syncDueAt <= dueAt) return;
+		// 이미 잡힌 예약이 새로 센 시각보다 이르거나 같으면 그대로 둡니다. 1분 미만 주기로 잡은 예약은 고칠 때마다 다시 기다리므로 예외입니다.
+		if (scheduled && seconds > 0 && (long || this.syncLong) && this.syncDueAt <= dueAt) return;
 		if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
 		this.syncTimer = null;
 		if (seconds <= 0 || this.stopped) return;
 		this.syncSince = since;
 		this.syncDueAt = dueAt;
+		this.syncLong = long;
 		this.syncTimer = window.setTimeout(
 			() => {
 				this.syncTimer = null;
@@ -469,12 +487,10 @@ export class ConnectorIndex {
 		return {
 			hash: createHash('sha1').update(meaning).digest('hex'),
 			// 본문이 비어도 제목만으로 한 조각을 보냅니다(제목만 있는 노트도 추천에 나오게).
+			// {title}·{text}는 한 번에 바꿉니다. 차례로 바꾸면 먼저 넣은 제목 속의 "{text}"가 다시 바뀝니다(형식에 여러 번 써도 모두 바뀜).
 			// 바꿔 넣을 글은 함수로 넘깁니다. 글자로 넘기면 JS가 $$·$& 같은 기호를 규칙으로 읽어 수식($$…$$) 등이 바뀐 채 전송됩니다.
 			chunks: (pieces.length > 0 ? pieces : [{ text: '', heading: '' }]).map((piece) => ({
-				text: format
-					.replace('{title}', () => title)
-					.replace('{text}', () => piece.text)
-					.trim(),
+				text: format.replace(/\{(title|text)\}/g, (_, key: string) => (key === 'title' ? title : piece.text)).trim(),
 				heading: piece.heading,
 			})),
 		};
@@ -501,24 +517,45 @@ export class ConnectorIndex {
 		const files = this.eligibleFiles();
 
 		const eligible = new Set(files.map((file) => file.path));
-		for (const path of this.notes.keys()) {
-			if (!eligible.has(path)) this.notes.delete(path);
-		}
 		const todo = files.filter((file) => this.notes.get(file.path)?.mtime !== file.stat.mtime);
+		// 바뀐 것이 없으면 끝날 때 색인 파일을 다시 쓰지 않습니다(노트가 많으면 수십 MB라 켤 때·이름 변경·설정 저장마다 쓰면 디스크가 바쁨).
+		let changed = todo.length > 0;
+		for (const path of this.notes.keys()) {
+			if (!eligible.has(path)) changed = this.notes.delete(path) || changed;
+		}
 		this.progress = { done: 0, total: todo.length, waiting: false };
 		this.failure = null;
 		this.emit();
 
 		// 서버가 같은 모델 이름으로 다른 모델을 돌리기 시작하면 벡터 크기가 달라져 서로 비교할 수 없습니다.
 		// 섞어 저장하면 추천에서 조용히 빠지므로, 알아채는 즉시 멈추고 알립니다.
-		let dims = this.notes.values().next().value?.vectors[0]?.length ?? 0;
+		// 기준은 벡터가 있는 첫 노트입니다(조각 벡터가 모두 0이라 벡터 없이 저장된 노트는 건너뜀).
+		let dims = [...this.notes.values()].find((note) => note.vectors.length > 0)?.vectors[0]?.length ?? 0;
 		type Pending = { path: string; mtime: number; hash: string; headings: string[]; vectors: number[][] };
 		const queue: { note: Pending; text: string }[] = [];
 		let lastSave = Date.now();
 
-		// 조각을 batchSize개씩 보내고, 조각 벡터가 다 모인 노트부터 색인(메모리)에 넣습니다. 파일 저장은 SAVE_INTERVAL_MS마다와 끝날 때 합니다.
+		// 보내기 직전에 줄 선 노트를 다시 확인해, 그사이 지웠거나(inFlight에서 빠짐) 제외 대상이 된 노트(제외 폴더로 옮김,
+		// 제외 폴더를 새로 넣음)의 남은 조각을 빼고 그 노트는 끝난 것으로 셉니다. 이미 서버에 가 있는 요청은 되돌릴 수 없습니다.
+		const dropUnsendable = () => {
+			const skip = this.skipFolders();
+			const dropped = new Set([...new Set(queue.map((item) => item.note))].filter((note) => !this.inFlight.has(note) || this.isExcluded(note.path, skip)));
+			if (dropped.size === 0) return;
+			for (const note of dropped) {
+				this.inFlight.delete(note);
+				this.progress.done++;
+			}
+			queue.splice(0, queue.length, ...queue.filter((item) => !dropped.has(item.note)));
+		};
+
+		// 조각을 batchSize개씩 보내고, 조각 벡터가 다 모인 노트부터 색인(메모리)에 넣습니다. 파일 저장은 SAVE_INTERVAL_MS마다와
+		// 끝날 때(바뀐 것이 있을 때) 합니다.
 		const send = async (all: boolean) => {
-			while (queue.length >= batchSize || (all && queue.length > 0)) {
+			const ready = () => {
+				dropUnsendable();
+				return queue.length >= batchSize || (all && queue.length > 0);
+			};
+			while (ready()) {
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();
 				const batch = queue.splice(0, batchSize);
 				const inputs = batch.map((item) => item.text);
@@ -602,7 +639,7 @@ export class ConnectorIndex {
 		} finally {
 			this.inFlight.clear();
 			// 실패하거나 멈춰도 그때까지 받은 벡터는 남깁니다(다음에 이어서 색인).
-			if (this.owner === owner) await this.save();
+			if (this.owner === owner && changed) await this.save();
 		}
 	}
 }

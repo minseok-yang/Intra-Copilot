@@ -23,6 +23,16 @@ assert.deepStrictEqual(
 	fenced.map(() => 'Real'),
 	JSON.stringify(fenced),
 );
+// 닫는 줄은 같은 기호로 같거나 더 길게: ~~~ 안의 ```, ```` 안의 ```는 코드 내용이라 그 뒤 # 주석도 제목이 아님
+for (const block of ['~~~md\n```js\n# inside\n```\n~~~', '````\n```\n# inside\n````']) {
+	const nested = splitChunks(`# Top\n\n${block}\n\nafter`, 12, 20);
+	assert.deepStrictEqual(nested.map((c) => c.heading), nested.map(() => 'Top'), JSON.stringify(nested));
+}
+// 끝의 #은 앞에 빈칸이 있을 때만 닫는 표시
+assert.deepStrictEqual(
+	['# C#\nx', '## F# notes ##\nx', '# Title #tag\nx'].map((t) => splitChunks(t, 100, 5)[0]!.heading),
+	['C#', 'F# notes', 'Title #tag'],
+);
 
 // 1개 = 평균, 길이 1
 const one = noteVectors([[3, 0], [0, 3]], 1);
