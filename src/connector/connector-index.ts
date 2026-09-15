@@ -406,7 +406,8 @@ export class ConnectorIndex {
 		if (removed) this.settleSoon();
 	}
 
-	// 지금 노트와 비슷한 노트(자신 제외)를 비슷한 순서로. 지금 노트가 아직 색인되지 않았으면 null입니다.
+	// 지금 노트와 비슷한 노트(자신 제외)를 비슷한 순서로. 지금 노트가 아직 색인되지 않았거나, 제외 대상이거나,
+	// 색인이 지금 설정(서버·모델·고급 설정)과 맞지 않으면 null입니다.
 	search(path: string, limit: number): SimilarNote[] | null {
 		const current = this.notes.get(path)?.vectors;
 		const skip = this.skipFolders();
@@ -515,7 +516,7 @@ export class ConnectorIndex {
 		const queue: { note: Pending; text: string }[] = [];
 		let lastSave = Date.now();
 
-		// 조각을 batchSize개씩 보내고, 조각 벡터가 다 모인 노트부터 저장합니다.
+		// 조각을 batchSize개씩 보내고, 조각 벡터가 다 모인 노트부터 색인(메모리)에 넣습니다. 파일 저장은 SAVE_INTERVAL_MS마다와 끝날 때 합니다.
 		const send = async (all: boolean) => {
 			while (queue.length >= batchSize || (all && queue.length > 0)) {
 				if (this.stopped || this.owner !== owner || !this.matchesSettings()) throw new Stopped();

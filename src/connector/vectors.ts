@@ -88,7 +88,8 @@ export interface NoteVector {
 // 조각 벡터들을 뜻이 가까운 것끼리 count개 묶음으로 나누고, 묶음마다 평균 벡터 하나를 돌려줍니다.
 // count가 1이면 노트 전체의 평균입니다. 주제가 여러 개인 노트는 평균 하나로 뭉치면 어느 주제와도 덜 비슷해지므로,
 // 2 이상이면 주제별 벡터를 따로 남깁니다(조각이 count개 이하면 조각 벡터를 그대로 씀).
-// 묶는 방법은 k-평균입니다. 시작점은 서로 가장 먼 조각부터 고르고(매번 같은 결과), 몇 번 되풀이해 묶음을 다듬습니다.
+// 묶는 방법은 k-평균입니다. 시작점은 첫 조각에서 출발해, 이미 고른 시작점들과 가장 덜 비슷한 조각을 차례로 더하고
+// (매번 같은 결과), 10번 되풀이해 묶음을 다듬습니다.
 export function noteVectors(chunkVectors: number[][], count: number): NoteVector[] {
 	const points = chunkVectors
 		.map((vector, chunk) => ({ vector: normalize(Float32Array.from(vector)), chunk }))
