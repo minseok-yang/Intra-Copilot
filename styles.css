@@ -1683,6 +1683,13 @@ button.intra-copilot-doc-card:hover {
 	display: none;
 }
 
+/* 방금 누른 제목 — 폴더 고르기와 같은 방식으로 표시합니다. */
+.intra-copilot-generator-outline .tree-item-self.is-active,
+.intra-copilot-generator-outline .tree-item-self.is-active:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
 /* 자료 크게 보기 창 */
 .intra-copilot-generator-zoom-modal {
 	width: min(900px, 90vw);
@@ -1760,12 +1767,17 @@ button.intra-copilot-doc-card:hover {
 	border-radius: var(--radius-s);
 }
 
-/* 고른 폴더. 파일 탐색기에서 열려 있는 파일을 표시하는 변수를 그대로 쓰고, 테마에 그 변수가 없으면
-   눌린 것처럼 보이게 기본색으로 물러섭니다. */
-.intra-copilot-folder-tree .nav-folder-title.is-active {
-	background: var(--nav-item-background-active, var(--background-modifier-active-hover));
-	color: var(--nav-item-color-active, var(--text-normal));
-	font-weight: var(--nav-item-weight-active, var(--font-semibold));
+/* 고른 폴더. 파일 탐색기의 "열려 있는 파일" 표시는 테마에 따라 아주 옅어서, 여기서는 무엇을 골랐는지가
+   한눈에 보이도록 강조색 배경으로 확실히 칠합니다(창을 닫으면 이 폴더가 설정에 들어가므로). */
+.intra-copilot-folder-tree .nav-folder-title.is-active,
+.intra-copilot-folder-tree .nav-folder-title.is-active:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-semibold);
+}
+
+.intra-copilot-folder-tree .nav-folder-title.is-active .nav-folder-collapse-indicator {
+	color: var(--text-on-accent);
 }
 
 .intra-copilot-folder-tree .nav-folder.is-collapsed > .nav-folder-children {

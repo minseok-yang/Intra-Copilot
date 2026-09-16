@@ -305,6 +305,11 @@ export class GeneratorView extends ItemView {
 			const self = item.createDiv({ cls: 'tree-item-self is-clickable' });
 			self.createDiv({ cls: 'tree-item-inner', text: heading.heading });
 			self.addEventListener('click', () => {
+				// 방금 누른 제목을 표시해 둡니다(파일 탐색기·개요에서 열려 있는 항목을 표시하는 것과 같게).
+				for (const other of Array.from(tree.querySelectorAll<HTMLElement>('.tree-item-self.is-active'))) {
+					other.removeClass('is-active');
+				}
+				self.addClass('is-active');
 				void this.app.workspace.openLinkText(`${template.file.path}#${heading.heading}`, '', false);
 			});
 			stack.push({ level: heading.level, item, self, children: item.createDiv({ cls: 'tree-item-children' }) });

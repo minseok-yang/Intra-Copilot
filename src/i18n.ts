@@ -527,7 +527,7 @@ const ko = {
 		templateLabel: '양식',
 		templatePlaceholder: '양식을 고르세요',
 		templateDesc: '새 노트를 어떤 모양으로 쓸지 정해 둔 노트입니다. 폴더는 설정 → 제너레이터 → 양식에서 바꿉니다.',
-		openTemplateButton: '노트 열기',
+		openTemplateButton: '열어보기',
 		openTemplateTooltip: '고른 양식 노트를 열어 봅니다(고치면 다음 만들기부터 반영됩니다).',
 		outlineHeading: '양식 개요',
 		outlineEmpty: '이 양식에는 제목(#)이 없습니다.',
@@ -1185,7 +1185,7 @@ const en: Dictionary = {
 		templatePlaceholder: 'Choose a template',
 		templateDesc:
 			'A note that defines the shape of the new note. Change the folder under Settings → Generator → Templates.',
-		openTemplateButton: 'Open note',
+		openTemplateButton: 'Open',
 		openTemplateTooltip: 'Open the chosen template note (edits apply from the next note you create).',
 		outlineHeading: 'Template outline',
 		outlineEmpty: 'This template has no headings (#).',
