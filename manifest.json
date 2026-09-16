@@ -5,5 +5,6 @@
 	"minAppVersion": "1.7.2",
 	"description": "AI로 노트를 작성·편집하고, 연결하고, 요약하고, 다시 챙기는 사내 환경용 Obsidian 지식관리 플러그인입니다.",
 	"author": "Minseok Yang",
+	"authorUrl": "https://github.com/minseok-yang/Intra-Copilot",
 	"isDesktopOnly": true
 }

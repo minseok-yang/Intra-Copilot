@@ -119,7 +119,7 @@
 ## 라이선스와 문의
 
 - [MIT 라이선스](LICENSE) © 2026 Minseok Yang
-- 문의·보안 신고: intoin121@gmail.com — **노트 내용이나 사내 정보는 메일에 담지 마세요.**
+- 문의·보안 신고: [GitHub Issues](https://github.com/minseok-yang/Intra-Copilot/issues) — **누구나 볼 수 있는 곳이니 노트 내용이나 사내 정보는 담지 마세요.** 보안 문제는 고쳐지기 전까지 재현 방법을 그대로 적지 말아 주세요.
 - 사용하기 전에 설정의 **[라이선스 및 정책]**에서 데이터 처리, AI 답변 안내, 보증 범위를 확인하세요.
 - Obsidian은 Dynalist Inc.의 상표이며, 이 플러그인은 Obsidian의 공식 제품이 아닙니다.
 
