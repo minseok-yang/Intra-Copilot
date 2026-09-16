@@ -16,7 +16,7 @@ import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-se
 
 // 설정 화면의 틀입니다.
 //
-//   처음 화면(general-section.ts): 소개 상자 + ⚙ 설정 [챗봇] [커넥터] [메이커] [리마인더]
+//   처음 화면(general-section.ts): 소개 상자 + ⚙ 설정 [챗봇] [커넥터] [제너레이터] [리마인더]
 //        │ 카드를 누르면
 //        ▼
 //   ← Intra Copilot                                  ← 처음 화면으로 돌아가기
@@ -157,7 +157,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					{ id: 'embedding', label: labels.embedding, render: renderConnectorServerSection },
 					{ id: 'index', label: labels.index, render: renderConnectorIndexSection },
 				];
-			case 'maker':
+			case 'generator':
 				return [upcoming('templates'), upcoming('prompts'), upcoming('mcp')];
 			case 'reminder':
 				return [

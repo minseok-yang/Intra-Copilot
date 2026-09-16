@@ -56,8 +56,8 @@ const ko = {
 			desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.',
 			tagline: '지금 노트와 뜻이 통하는 노트를 찾아 지식을 이어 줍니다.',
 		},
-		maker: {
-			name: '메이커',
+		generator: {
+			name: '제너레이터',
 			desc: '붙여 넣은 글을 정해진 양식에 맞춰 새 노트로 써 줍니다.',
 			tagline: '받은 자료를 내 양식의 노트로 만들어 줍니다.',
 		},
@@ -634,8 +634,8 @@ const en: Dictionary = {
 			desc: 'Suggest links between related knowledge notes.',
 			tagline: 'Finds notes that share this note’s meaning and connects your knowledge.',
 		},
-		maker: {
-			name: 'Maker',
+		generator: {
+			name: 'Generator',
 			desc: 'Writes a new note from pasted text, following your template.',
 			tagline: 'Turns what you receive into a note in your own format.',
 		},

@@ -9,19 +9,19 @@ import { t } from '../../i18n';
 // 섹션을 준비 중 양식(upcoming-section.ts) 대신 실제 설정 화면으로 바꾸면 됩니다.
 // (화면에 보이는 기능 이름은 i18n.ts의 features에 있고, 코드 id·설정 키·파일 이름도 같은 이름을 씁니다.)
 
-export type FeatureId = 'chatbot' | 'connector' | 'maker' | 'reminder';
+export type FeatureId = 'chatbot' | 'connector' | 'generator' | 'reminder';
 
 // 설정 화면: 처음 화면(general) + 기능 네 개의 설정
 export type SettingsTabId = 'general' | FeatureId;
 
-export const FEATURE_ORDER: readonly FeatureId[] = ['chatbot', 'connector', 'maker', 'reminder'];
+export const FEATURE_ORDER: readonly FeatureId[] = ['chatbot', 'connector', 'generator', 'reminder'];
 
 export type FeatureStatus = 'available' | 'upcoming';
 
 export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
 	chatbot: 'available',
 	connector: 'available',
-	maker: 'upcoming',
+	generator: 'upcoming',
 	reminder: 'available',
 };
 
@@ -36,7 +36,7 @@ const GLYPHS: Record<FeatureId, string> = {
 	// 사슬 고리
 	connector: '<path d="M9 16H8a4 4 0 0 1 0-8h1M15 8h1a4 4 0 0 1 0 8h-1M9 12h6"/>',
 	// 칸이 나뉜 양식
-	maker:
+	generator:
 		'<rect x="5" y="7" width="14" height="4" rx="1"/><rect x="5" y="13" width="6" height="4" rx="1"/><rect x="13" y="13" width="6" height="4" rx="1"/>',
 	// 시계
 	reminder: '<circle cx="12" cy="12" r="5"/><path d="M12 9.5V12l1.5 1.5"/>',
