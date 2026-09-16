@@ -212,9 +212,19 @@ try {
 // 파일 선택 창도 PowerShell이 띄웁니다. 그래야 경로가 PowerShell 안에서만 오가고, Obsidian이
 // Electron 파일 입력에서 실제 경로를 주는지에 기대지 않습니다. 고른 파일은 화면에 보이지 않게 열었다
 // 바로 닫으며(원문 미저장), PDF는 목록에서 빼 두고 골랐을 때도 안내만 합니다.
+//
+// 사용자가 쓰고 있는 Office를 건드리지 않기 위한 세 가지(PowerPoint는 프로그램을 새로 띄울 수 없어서
+// New-Object가 늘 켜져 있는 그 프로그램에 붙습니다. Word·Excel도 구성에 따라 그렇습니다):
+// - 창 숨기기($app.Visible = $false)는 우리가 새로 띄운 경우에만 합니다. 이미 켜져 있던 프로그램을
+//   숨기면 사용자가 보던 창이 사라져 버립니다.
+// - 문서는 저장하지 않고 닫습니다($doc.Close(0)). 읽기 전용으로 열지만, 붙은 프로그램 쪽에서
+//   저장 여부를 묻는 창이 떠 멈추는 일이 없게 확실히 못 박습니다.
+// - 프로그램 끄기($app.Quit())는 남은 문서가 하나도 없을 때만 합니다. 그냥 끄면 사용자가 열어 둔
+//   다른 문서까지 함께 닫힙니다.
 export async function pickAndReadFile(): Promise<ImportResult> {
 	if (!Platform.isWin) return unsupported();
 	const script = `
+${GET_APP}
 Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '제너레이터로 가져올 문서를 고르세요'
@@ -229,14 +239,16 @@ $app = $null
 $doc = $null
 try {
 	if ($ext -like '.doc*') {
+		$started = -not (Get-OfficeApp 'Word.Application')
 		$app = New-Object -ComObject Word.Application
-		$app.Visible = $false
+		if ($started) { $app.Visible = $false }
 		$app.DisplayAlerts = 0
 		$doc = $app.Documents.Open($path, $false, $true)
 		${EXTRACT.word}
 	} elseif ($ext -like '.xls*') {
+		$started = -not (Get-OfficeApp 'Excel.Application')
 		$app = New-Object -ComObject Excel.Application
-		$app.Visible = $false
+		if ($started) { $app.Visible = $false }
 		$app.DisplayAlerts = $false
 		$doc = $app.Workbooks.Open($path, 0, $true)
 		${EXTRACT.excel}
@@ -253,8 +265,14 @@ try {
 } catch {
 	@{ok=$false; error=$_.Exception.Message} | ConvertTo-Json -Compress
 } finally {
-	if ($doc) { try { $doc.Close() } catch {} }
-	if ($app) { try { $app.Quit() } catch {} }
+	if ($doc) { try { $doc.Close(0) } catch { try { $doc.Close() } catch {} } }
+	if ($app) {
+		$left = 0
+		try { $left += $app.Documents.Count } catch {}
+		try { $left += $app.Workbooks.Count } catch {}
+		try { $left += $app.Presentations.Count } catch {}
+		if ($left -eq 0) { try { $app.Quit() } catch {} }
+	}
 }`;
 
 	return finish(await runPowerShell(script, PICK_TIMEOUT_MS));
