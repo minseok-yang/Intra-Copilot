@@ -151,7 +151,11 @@ export class GeneratorView extends ItemView {
 				},
 			}).open();
 		};
-		const clear = meta.createEl('button', { cls: 'intra-copilot-generator-link', text: strings.clearButton });
+		// 지운 텍스트는 되돌릴 수 없어서(어디에도 저장하지 않으므로) 붉은 글자로 둡니다.
+		const clear = meta.createEl('button', {
+			cls: 'intra-copilot-generator-link intra-copilot-generator-clear',
+			text: strings.clearButton,
+		});
 		clear.title = strings.clearTooltip;
 		clear.onclick = () => {
 			this.draft = '';

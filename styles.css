@@ -1586,6 +1586,11 @@ button.intra-copilot-doc-card:hover {
 	cursor: pointer;
 }
 
+/* [모두 지우기] — 지운 텍스트는 되돌릴 수 없으므로 다른 글자 버튼과 색으로 구분합니다. */
+.intra-copilot-generator-clear {
+	color: var(--text-error);
+}
+
 .intra-copilot-generator-status {
 	margin: 0;
 	color: var(--text-muted);
