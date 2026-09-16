@@ -536,6 +536,9 @@ const ko = {
 		createButton: '만들기',
 		createTooltip: '입력칸의 텍스트와 고른 양식을 LLM 서버로 보내 새 노트를 만들고 저장합니다.',
 		creating: '만드는 중...',
+		createAgainConfirm: '⚠ 한 번 더 누르면 또 만듭니다',
+		createAgainTooltip:
+			'방금 이 텍스트와 양식으로 노트를 만들었습니다. 같은 노트를 또 만들려면 한 번 더 누르세요(입력칸이나 양식을 바꾸면 바로 만들 수 있습니다).',
 		stopButton: '중지',
 		needText: '먼저 텍스트를 붙여넣거나 가져오세요.',
 		needTemplate: '먼저 양식을 고르세요.',
@@ -1190,6 +1193,9 @@ const en: Dictionary = {
 		createButton: 'Create',
 		createTooltip: 'Send the text and the chosen template to the LLM server, then save the new note.',
 		creating: 'Creating...',
+		createAgainConfirm: '⚠ Select again to create another',
+		createAgainTooltip:
+			'You just created a note from this text and template. Select again to create another one (changing the text or the template lets you create right away).',
 		stopButton: 'Stop',
 		needText: 'Paste or import some source text first.',
 		needTemplate: 'Choose a template first.',

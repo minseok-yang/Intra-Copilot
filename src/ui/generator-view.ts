@@ -21,6 +21,7 @@ import {
 	readOpenDocument,
 } from '../generator/office-import';
 import { OpenDocumentModal, SourceZoomModal } from './generator-modals';
+import { confirmTwice } from './delete-confirm';
 
 // 제너레이터 화면(오른쪽 사이드바)입니다. 받은 텍스트를 내 양식의 새 노트로 만듭니다.
 //
@@ -57,6 +58,8 @@ export class GeneratorView extends ItemView {
 	// 입력칸 아래에 보여 줄 마지막 안내(만든 노트 경로, 실패 이유 등)
 	private status = '';
 	private statusIsError = false;
+	// 마지막으로 만든 것의 열쇠(양식 + 입력칸 텍스트). 같은 것을 또 만들려 하면 한 번 더 확인합니다.
+	private lastCreated = '';
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -212,13 +215,31 @@ export class GeneratorView extends ItemView {
 
 		// ④ 만들기 — 만드는 중에는 [중지]로 기다리기를 멈출 수 있습니다(챗봇과 같은 방식).
 		const actions = contentEl.createDiv({ cls: 'intra-copilot-generator-buttons' });
-		const create = new ButtonComponent(actions)
-			.setButtonText(this.running ? strings.creating : strings.createButton)
-			.setTooltip(strings.createTooltip)
-			.setCta();
-		// 양식을 고르지 않았으면 누를 수 없습니다(무엇에 맞춰 쓸지 정해지지 않았으므로).
+		const create = new ButtonComponent(actions).setCta();
+		create.setButtonText(this.running ? strings.creating : strings.createButton);
+		// 양식을 고르지 않았거나 만드는 중이면 누를 수 없습니다(무엇에 맞춰 쓸지 정해지지 않았으므로).
 		create.setDisabled(this.running !== null || !selected);
-		create.onClick(() => void this.create(selected));
+
+		// 실수로 두 번 이상 만들지 않게 두 가지를 둡니다.
+		// (1) 만드는 중에는 버튼을 잠그고, create() 맨 앞에서도 한 번 더 막습니다(아주 빠르게 두 번
+		//     눌러도 서버로 요청이 두 번 나가지 않게).
+		// (2) 방금 만든 것과 텍스트·양식이 똑같으면 한 번 더 눌러야 만듭니다. 같은 노트가 "제목 2"로
+		//     또 생기는 것이 가장 흔한 실수이기 때문입니다.
+		if (this.lastCreated !== '' && this.lastCreated === this.signature() && !this.running) {
+			create.setTooltip(strings.createAgainTooltip);
+			const onCreate = confirmTwice(
+				create.buttonEl,
+				{
+					arm: () => create.setButtonText(strings.createAgainConfirm),
+					reset: () => create.setButtonText(strings.createButton),
+				},
+				() => this.create(selected),
+			);
+			create.onClick(() => void onCreate());
+		} else {
+			create.setTooltip(strings.createTooltip);
+			create.onClick(() => void this.create(selected));
+		}
 		if (this.running) {
 			new ButtonComponent(actions)
 				.setButtonText(strings.stopButton)
@@ -338,9 +359,16 @@ export class GeneratorView extends ItemView {
 	}
 
 	// ─── 만들기 ───────────────────────────────────────────────────
+
+	// "같은 것을 또 만들려는지" 판단하는 열쇠입니다(고른 양식 + 입력칸 텍스트).
+	private signature(): string {
+		return `${this.templateName}\n${this.draft.trim()}`;
+	}
+
 	private async create(template: GeneratorTemplate | undefined): Promise<void> {
 		const strings = this.strings();
 		const { llm } = this.plugin.settings;
+		if (this.running) return; // 이미 만드는 중이면 아무것도 하지 않습니다.
 		if (!this.draft.trim()) {
 			new Notice(strings.needText);
 			return;
@@ -354,6 +382,7 @@ export class GeneratorView extends ItemView {
 			return;
 		}
 
+		const signature = this.signature();
 		this.running = new AbortController();
 		this.status = strings.creating;
 		this.statusIsError = false;
@@ -375,6 +404,8 @@ export class GeneratorView extends ItemView {
 			new Notice(strings.droppedKeys.replace('{keys}', outcome.droppedKeys.join(', ')));
 		}
 		if (!outcome.titleFromModel) new Notice(strings.titleGuessed);
+		// 같은 텍스트·양식으로 또 누르면 한 번 더 확인하게 기억해 둡니다.
+		this.lastCreated = signature;
 		this.showStatus(strings.created.replace('{path}', outcome.file.path), false);
 		if (this.plugin.settings.generator.openAfterCreate) {
 			await this.app.workspace.getLeaf(false).openFile(outcome.file);

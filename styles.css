@@ -1787,3 +1787,10 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-smaller);
 	overflow-wrap: anywhere;
 }
+
+/* [만들기]를 한 번 눌러 "한 번 더 누르면 또 만듭니다" 상태일 때. 강조 버튼이라 붉은 글자만으로는
+   배경에 묻혀서 배경을 경고색으로 바꿉니다(리마인더 [삭제]와 같은 방식). */
+.intra-copilot-generator-buttons .mod-cta.intra-copilot-delete-armed {
+	background: var(--text-error);
+	color: var(--text-on-accent);
+}
