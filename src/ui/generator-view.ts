@@ -4,7 +4,8 @@ import {
 	DropdownComponent,
 	ItemView,
 	Notice,
-	Setting,
+	setIcon,
+	setTooltip,
 	TextAreaComponent,
 	WorkspaceLeaf,
 } from 'obsidian';
@@ -158,19 +159,40 @@ export class GeneratorView extends ItemView {
 			showCount();
 		};
 
-		// ③ 양식 고르기
+		// ③ 양식 고르기 — 처음에는 고르지 않은 상태입니다. 아무 양식이나 자동으로 고르면 엉뚱한 모양의
+		// 노트가 만들어지고도 왜 그런지 알기 어려워서, 사용자가 한 번은 직접 고르게 합니다.
 		const templates = listTemplates(this.plugin);
-		const selected = templates.find((template) => template.name === this.templateName) ?? templates[0];
-		this.templateName = selected?.name ?? '';
+		const selected = templates.find((template) => template.name === this.templateName);
+		if (!selected) this.templateName = '';
 		if (templates.length === 0) {
 			contentEl.createEl('p', { cls: 'intra-copilot-generator-empty', text: strings.templateEmpty });
 		} else {
-			const setting = new Setting(contentEl).setName(strings.templateLabel).setDesc(strings.templateDesc);
-			setting.addDropdown((dropdown: DropdownComponent) => {
-				for (const template of templates) dropdown.addOption(template.name, template.name);
-				dropdown.setValue(this.templateName).onChange((value) => (this.templateName = value));
-				dropdown.setDisabled(this.running !== null);
+			const block = contentEl.createDiv({ cls: 'intra-copilot-generator-template' });
+			block.createDiv({ cls: 'intra-copilot-generator-label', text: strings.templateLabel });
+
+			const row = block.createDiv({ cls: 'intra-copilot-generator-template-row' });
+			const dropdown = new DropdownComponent(row);
+			dropdown.addOption('', strings.templatePlaceholder);
+			for (const template of templates) dropdown.addOption(template.name, template.name);
+			dropdown.setValue(this.templateName);
+			dropdown.setDisabled(this.running !== null);
+			dropdown.selectEl.addClass('intra-copilot-generator-template-select');
+			// 고른 양식의 개요와 [양식 노트 열기]를 바로 보여 주려면 화면을 다시 그립니다
+			// (입력칸의 텍스트는 this.draft에 있어 그대로 남습니다).
+			dropdown.onChange((value) => {
+				this.templateName = value;
+				this.render();
 			});
+
+			if (selected) {
+				const open = row.createEl('button', { cls: 'intra-copilot-generator-template-open' });
+				setIcon(open, 'square-pen');
+				setTooltip(open, strings.openTemplateTooltip);
+				open.onclick = () => void this.app.workspace.getLeaf(false).openFile(selected.file);
+			}
+
+			block.createEl('p', { cls: 'intra-copilot-generator-hint', text: strings.templateDesc });
+			if (selected) this.renderOutline(block, selected);
 		}
 
 		// ④ 만들기 — 만드는 중에는 [중지]로 기다리기를 멈출 수 있습니다(챗봇과 같은 방식).
@@ -179,7 +201,8 @@ export class GeneratorView extends ItemView {
 			.setButtonText(this.running ? strings.creating : strings.createButton)
 			.setTooltip(strings.createTooltip)
 			.setCta();
-		create.setDisabled(this.running !== null || templates.length === 0);
+		// 양식을 고르지 않았으면 누를 수 없습니다(무엇에 맞춰 쓸지 정해지지 않았으므로).
+		create.setDisabled(this.running !== null || !selected);
 		create.onClick(() => void this.create(selected));
 		if (this.running) {
 			new ButtonComponent(actions)
@@ -192,6 +215,33 @@ export class GeneratorView extends ItemView {
 				cls: `intra-copilot-generator-status${this.statusIsError ? ' is-error' : ''}`,
 				text: this.status,
 			});
+		}
+	}
+
+	// 고른 양식의 얼개를 Obsidian 개요 보기처럼 제목(#) 목록으로 보여 줍니다. 노트를 열지 않고도
+	// "이 양식이 무엇을 채우게 하는지" 알 수 있게 하려는 것입니다. 제목을 누르면 그 대목으로 노트를 엽니다.
+	// (제목 목록은 Obsidian이 이미 모아 둔 것을 읽을 뿐이라 노트를 따로 읽지 않습니다.)
+	private renderOutline(containerEl: HTMLElement, template: GeneratorTemplate): void {
+		const strings = this.strings();
+		const box = containerEl.createDiv({ cls: 'intra-copilot-generator-outline' });
+		box.createDiv({ cls: 'intra-copilot-generator-outline-title', text: strings.outlineHeading });
+
+		const headings = this.app.metadataCache.getFileCache(template.file)?.headings ?? [];
+		if (headings.length === 0) {
+			box.createDiv({ cls: 'intra-copilot-generator-hint', text: strings.outlineEmpty });
+			return;
+		}
+		// 가장 높은 제목 단계를 0칸으로 두고, 그보다 낮은 제목만 들여씁니다(## 로 시작하는 양식도 왼쪽에 붙게).
+		const top = Math.min(...headings.map((heading) => heading.level));
+		for (const heading of headings) {
+			const item = box.createEl('button', {
+				cls: 'intra-copilot-generator-outline-item',
+				text: heading.heading,
+			});
+			item.style.setProperty('--outline-depth', String(heading.level - top));
+			item.onclick = () => {
+				void this.app.workspace.openLinkText(`${template.file.path}#${heading.heading}`, '', false);
+			};
 		}
 	}
 

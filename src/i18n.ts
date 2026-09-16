@@ -524,7 +524,11 @@ const ko = {
 		clearButton: '지우기',
 		clearTooltip: '입력칸을 비웁니다.',
 		templateLabel: '양식',
-		templateDesc: '새 노트를 어떤 모양으로 쓸지 정해 둔 노트입니다. 설정 → 제너레이터 → 양식에서 폴더를 정합니다.',
+		templatePlaceholder: '양식을 고르세요',
+		templateDesc: '새 노트를 어떤 모양으로 쓸지 정해 둔 노트입니다. 폴더는 설정 → 제너레이터 → 양식에서 바꿉니다.',
+		openTemplateTooltip: '이 양식 노트를 열어 봅니다(고치면 다음 만들기부터 반영됩니다).',
+		outlineHeading: '양식 개요',
+		outlineEmpty: '이 양식에는 제목(#)이 없습니다.',
 		templateEmpty:
 			'양식이 없습니다. 설정 → Intra Copilot → 제너레이터 → 양식에서 폴더를 확인하고, 그 폴더에 양식 노트(.md)를 만드세요.',
 		createButton: '만들기',
@@ -1171,8 +1175,12 @@ const en: Dictionary = {
 		clearButton: 'Clear',
 		clearTooltip: 'Empty the box.',
 		templateLabel: 'Template',
+		templatePlaceholder: 'Choose a template',
 		templateDesc:
-			'A note that defines the shape of the new note. Set the folder under Settings → Generator → Templates.',
+			'A note that defines the shape of the new note. Change the folder under Settings → Generator → Templates.',
+		openTemplateTooltip: 'Open this template note (edits apply from the next note you create).',
+		outlineHeading: 'Template outline',
+		outlineEmpty: 'This template has no headings (#).',
 		templateEmpty:
 			'No templates yet. Check the folder under Settings → Intra Copilot → Generator → Templates and add a template note (.md) there.',
 		createButton: 'Create',

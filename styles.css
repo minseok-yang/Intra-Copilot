@@ -1603,13 +1603,88 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-small);
 }
 
-/* 설정 화면용 항목(Setting)을 좁은 사이드바에 넣은 것이라 칸을 세로로 쌓습니다. */
-.intra-copilot-generator-view .setting-item {
+/* 양식 고르기: 라벨 → [드롭다운][양식 노트 열기] → 한 줄 설명 → 개요.
+   설정 화면용 Setting을 좁은 사이드바에 넣으면 이름·설명·칸이 서로 밀려 보기 나빠서 직접 짭니다. */
+.intra-copilot-generator-template {
+	display: flex;
 	flex-direction: column;
-	align-items: stretch;
 	gap: 4px;
-	border-top: none;
-	padding: 4px 0 0;
+}
+
+.intra-copilot-generator-label {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+}
+
+.intra-copilot-generator-template-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* 양식 이름이 길어도 사이드바를 넘지 않게 드롭다운이 남은 폭을 차지합니다. */
+.intra-copilot-generator-template-select {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-generator-template-open {
+	flex-shrink: 0;
+	padding: 4px;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	--icon-size: var(--icon-s);
+}
+
+.intra-copilot-generator-template-open:hover {
+	color: var(--text-normal);
+}
+
+.intra-copilot-generator-hint {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+/* 고른 양식의 제목(#) 목록 — Obsidian 개요 보기와 같은 얼개를 미리 보여 줍니다. */
+.intra-copilot-generator-outline {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	margin-top: 2px;
+	padding: 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+
+.intra-copilot-generator-outline-title {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+}
+
+.intra-copilot-generator-outline-item {
+	height: auto;
+	padding: 2px 4px;
+	padding-left: calc(4px + var(--outline-depth, 0) * 12px);
+	background: none;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	text-align: left;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.intra-copilot-generator-outline-item:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
 }
 
 /* 자료 크게 보기 창 */
