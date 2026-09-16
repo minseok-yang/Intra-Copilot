@@ -74,6 +74,9 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		// 사이드바 창의 톱니로 들어왔으면 처음 화면 대신 그 기능의 설정부터 보여 줍니다.
+		const pending = this.plugin.takePendingSettingsTab();
+		if (pending) this.activeTab = pending;
 
 		const ctx: SettingsContext = {
 			plugin: this.plugin,

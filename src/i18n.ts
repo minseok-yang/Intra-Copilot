@@ -45,6 +45,8 @@ const ko = {
 	features: {
 		available: '사용 가능',
 		upcoming: '준비 중',
+		// 사이드바 창 머리말의 톱니 버튼 툴팁
+		openSettings: '{name} 설정 열기',
 		chatbot: {
 			name: '챗봇',
 			desc: 'AI와 대화하며 노트를 작성·편집하고, 제안된 변경 사항을 검토한 뒤 반영합니다.',
@@ -694,6 +696,7 @@ const en: Dictionary = {
 	features: {
 		available: 'Available',
 		upcoming: 'Coming soon',
+		openSettings: 'Open {name} settings',
 		chatbot: {
 			name: 'Chatbot',
 			desc: 'Write and edit notes with AI, and review suggested changes before applying them.',

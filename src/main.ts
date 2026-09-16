@@ -18,7 +18,7 @@ import { DailyCount } from './reminder/daily-count';
 import { type Dictionary, t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
 import type { StatusState } from './ui/status-light';
-import { featureIcon, registerFeatureIcons } from './ui/settings/features';
+import { type FeatureId, featureIcon, registerFeatureIcons } from './ui/settings/features';
 
 // 저장 파일(data.json)을 손으로 고쳤거나 예전 버전에서 넘어온 값이 이상해도 안전한 값으로 맞춥니다.
 function nonNegativeInt(value: unknown, fallback: number): number {
@@ -41,10 +41,33 @@ export default class IntraCopilotPlugin extends Plugin {
 	private connectorRibbonEl!: HTMLElement;
 	private generatorRibbonEl!: HTMLElement;
 	private reminderRibbonEl!: HTMLElement;
+	// 사이드바 창의 톱니로 설정을 열었을 때, 설정 화면이 처음 그릴 때 보여 줄 기능(한 번 쓰고 비움).
+	private pendingSettingsTab: FeatureId | null = null;
 
 	// 지금 표시 언어의 화면 문구 묶음입니다. 화면마다 t(...)를 부르는 대신 이걸 씁니다.
 	strings(): Dictionary {
 		return t(this.settings.general.language);
+	}
+
+	// 사이드바 창(챗봇·커넥터·제너레이터·리마인더) 머리말의 톱니에서 부릅니다.
+	// 설정 창을 열고 이 플러그인 탭으로 옮긴 뒤, 그 기능의 설정 화면부터 보여 줍니다.
+	// app.setting은 Obsidian이 공개 타입으로 내놓지 않은 부분입니다(설정 창을 여는 공개 API가 없음).
+	// 그래서 쓰는 두 함수만 적어 두고, 없거나 바뀌었으면 아무 일도 하지 않습니다(창이 안 열릴 뿐).
+	openFeatureSettings(feature: FeatureId): void {
+		const { setting } = this.app as unknown as {
+			setting?: { open?: () => void; openTabById?: (id: string) => unknown };
+		};
+		if (!setting?.open || !setting.openTabById) return;
+		this.pendingSettingsTab = feature;
+		setting.open();
+		setting.openTabById(this.manifest.id);
+	}
+
+	// 설정 화면(ui/settings-tab.ts)이 그리기 직전에 한 번 읽어 갑니다.
+	takePendingSettingsTab(): FeatureId | null {
+		const pending = this.pendingSettingsTab;
+		this.pendingSettingsTab = null;
+		return pending;
 	}
 
 	async onload() {

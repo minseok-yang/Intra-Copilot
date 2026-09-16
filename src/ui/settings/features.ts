@@ -1,4 +1,4 @@
-import { addIcon, setIcon } from 'obsidian';
+import { addIcon, setIcon, setTooltip } from 'obsidian';
 import type IntraCopilotPlugin from '../../main';
 import { t } from '../../i18n';
 
@@ -50,11 +50,20 @@ export function featureIcon(id: FeatureId): string {
 // 오른쪽 사이드바 창(챗봇·커넥터·제너레이터·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
 // 내용과 버튼만 있으면 처음 연 사람이 무슨 창인지 알기 어려워서 둡니다.
 export function renderViewHeading(containerEl: HTMLElement, plugin: IntraCopilotPlugin, id: FeatureId): void {
-	const feature = t(plugin.settings.general.language).features[id];
+	const strings = t(plugin.settings.general.language).features;
+	const feature = strings[id];
 	const heading = containerEl.createDiv({ cls: 'intra-copilot-view-heading' });
 	const title = heading.createDiv({ cls: 'intra-copilot-view-heading-title' });
 	setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(id));
 	title.createSpan({ text: `${plugin.manifest.name}: ${feature.name}` });
+
+	// 제목 줄 오른쪽 끝의 톱니: 이 기능의 설정으로 바로 갑니다(설정 창을 열고 그 기능 화면까지).
+	// 네 창이 모두 이 함수로 머리말을 그리므로 여기 한 곳에 두면 네 창에 함께 생깁니다.
+	const gear = title.createEl('button', { cls: 'intra-copilot-view-heading-settings' });
+	setIcon(gear, 'settings');
+	setTooltip(gear, strings.openSettings.replace('{name}', feature.name));
+	gear.onclick = () => plugin.openFeatureSettings(id);
+
 	heading.createDiv({ cls: 'intra-copilot-view-heading-tagline', text: feature.tagline });
 }
 

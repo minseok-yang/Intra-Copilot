@@ -1658,3 +1658,18 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-small);
 	overflow-wrap: anywhere;
 }
+
+/* 창 머리말 제목 줄 오른쪽 끝의 톱니 — 그 기능의 설정으로 바로 가기 */
+.intra-copilot-view-heading-settings {
+	margin-left: auto;
+	padding: 2px;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	--icon-size: var(--icon-s);
+}
+
+.intra-copilot-view-heading-settings:hover {
+	color: var(--text-normal);
+}
