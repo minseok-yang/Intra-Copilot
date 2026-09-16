@@ -45,7 +45,6 @@ const ko = {
 	// Intra Copilot이 묶은 기능 네 가지(ui/settings/features.ts). 여기서 이름을 고치면 설정 화면 전체
 	// (처음 화면의 카드, 기능 설정의 머리말)와 창 제목에 함께 반영됩니다.
 	features: {
-		available: '사용 가능',
 		// 사이드바 창 머리말의 톱니 버튼 툴팁
 		openSettings: '{name} 설정 열기',
 		chatbot: {
@@ -53,21 +52,26 @@ const ko = {
 			desc: 'AI와 대화하며 노트를 작성·편집하고, 제안된 변경 사항을 검토한 뒤 반영합니다.',
 			// 오른쪽 사이드바 창 맨 위 한 줄 소개(ui/settings/features.ts의 renderViewHeading)
 			tagline: '내 노트를 곁에 두고 AI와 함께 쓰고, 고치고, 묻습니다.',
+			// 소개 아래 자물쇠 줄: 무엇이 언제 나가는지. 네 기능이 같은 자리에 같은 모양으로 적습니다.
+			note: '질문을 보낼 때 입력칸 위 칩에 올라온 노트와 그 대화의 이전 메시지가 설정한 LLM 서버로 전송됩니다. 칩에 없는 노트는 보내지 않고, 노트 수정은 [적용]을 눌러야 반영됩니다.',
 		},
 		connector: {
 			name: '커넥터',
 			desc: '연관된 지식 노트를 찾아 서로 링크하도록 추천합니다.',
 			tagline: '지금 노트와 뜻이 통하는 노트를 찾아 지식을 이어 줍니다.',
+			note: '[색인 시작]을 누른 뒤부터 노트의 제목과 본문이 설정한 임베딩 서버로 전송됩니다. 비슷한 노트를 고르는 계산은 이 PC 안에서 하며, 추천을 보거나 링크를 넣을 때는 아무것도 보내지 않습니다.',
 		},
 		generator: {
 			name: '제너레이터',
 			desc: '문서·메일의 텍스트를 정해진 양식에 맞춰 새 노트로 써 줍니다.',
 			tagline: '받은 텍스트를 내 양식의 노트로 만들어 줍니다.',
+			note: '[만들기]를 누를 때 입력칸의 텍스트와 고른 양식이 챗봇과 같은 LLM 서버로 전송됩니다. 가져온 텍스트는 파일이나 설정에 저장하지 않으며, Obsidian을 끄면 사라집니다.',
 		},
 		reminder: {
 			name: '리마인더',
 			desc: '오래 다시 보지 않은 지식 노트를 하루 몇 개씩 다시 꺼내 보여 줍니다.',
 			tagline: '잊혀 가던 지식 노트를 오늘 다시 꺼내 줍니다.',
+			note: '이 볼트 안의 노트만 살펴보며, 노트 내용이나 목록을 어디로도 보내지 않습니다. 읽은 날·다시 볼 날은 노트 속성에 적습니다.',
 		},
 	},
 	// 기능 탭 안의 섹션(하위 탭) 이름
@@ -608,7 +612,6 @@ const ko = {
 		title: '리마인더',
 		ribbonTooltip: '리마인더 열기',
 		todayCount: '오늘 다시 볼 노트 {count}개',
-		scopeNote: '이 볼트 안의 노트만 살펴보며, 노트 내용이나 목록을 어디로도 보내지 않습니다.',
 		doneToday: '오늘 챙길 노트를 모두 챙겼습니다. 더 읽고 싶으면 아래 [더 보기]를 누르세요.',
 		nothingDue: '지금 다시 볼 노트가 없습니다.',
 		moreButton: '더 보기 ({count}개)',
@@ -728,27 +731,30 @@ const en: Dictionary = {
 			'Change the language used in this plugin (settings and chatbot). The user guide and license documents are available in Korean only.',
 	},
 	features: {
-		available: 'Available',
 		openSettings: 'Open {name} settings',
 		chatbot: {
 			name: 'Chatbot',
 			desc: 'Write and edit notes with AI, and review suggested changes before applying them.',
 			tagline: 'Write, refine, and ask about your notes side by side with AI.',
+			note: 'When you send a question, the notes on the chips above the box and the earlier messages of that conversation are sent to the LLM server you configured. Notes that are not on a chip are never sent, and note edits apply only when you select [Apply].',
 		},
 		connector: {
 			name: 'Connector',
 			desc: 'Suggest links between related knowledge notes.',
 			tagline: 'Finds notes that share this note’s meaning and connects your knowledge.',
+			note: 'From the moment you select [Start indexing], note titles and bodies are sent to the embedding server you configured. Picking similar notes is computed on this PC, and nothing is sent while you browse suggestions or insert a link.',
 		},
 		generator: {
 			name: 'Generator',
 			desc: 'Writes a new note from the text of a document or mail, following your template.',
 			tagline: 'Turns text you receive into a note in your own format.',
+			note: 'When you select [Create], the text in the box and the chosen template are sent to the same LLM server the chatbot uses. Imported source text is never saved to a file or to settings, and is gone when Obsidian closes.',
 		},
 		reminder: {
 			name: 'Reminder',
 			desc: 'Bring back a few knowledge notes you have not revisited in a while, every day.',
 			tagline: 'Brings back the knowledge notes you were starting to forget.',
+			note: 'Only notes in this vault are checked, and neither their content nor the list is sent anywhere. The dates you read and revisit are written to the note properties.',
 		},
 	},
 	sections: {
@@ -1265,7 +1271,6 @@ const en: Dictionary = {
 		title: 'Reminder',
 		ribbonTooltip: 'Open reminder',
 		todayCount: '{count} notes to revisit today',
-		scopeNote: 'Only notes in this vault are checked, and neither their content nor the list is sent anywhere.',
 		doneToday: "You have gone through today's notes. To read more, select [Show more] below.",
 		nothingDue: 'No notes to revisit right now.',
 		moreButton: 'Show more ({count})',

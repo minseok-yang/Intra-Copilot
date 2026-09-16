@@ -279,7 +279,6 @@ export class ReminderView extends ItemView {
 			cls: 'intra-copilot-reminder-title',
 			text: strings.todayCount.replace('{count}', String(shown.length)),
 		});
-		contentEl.createEl('p', { cls: 'intra-copilot-reminder-scope', text: strings.scopeNote });
 
 		if (shown.length === 0) {
 			contentEl.createEl('p', {

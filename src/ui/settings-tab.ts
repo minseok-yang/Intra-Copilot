@@ -110,12 +110,11 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		});
 		back.onclick = () => this.openTab('general');
 
-		// 기능 머리말: 이름·상태. 지금 어느 기능의 설정을 보고 있는지 분명히 합니다(설명은 카드에서 이미 봤으므로 생략).
+		// 기능 머리말: 이름. 지금 어느 기능의 설정을 보고 있는지 분명히 합니다(설명은 카드에서 이미 봤으므로 생략).
 		const header = containerEl.createDiv({ cls: 'intra-copilot-feature-header' });
 		const title = header.createDiv({ cls: 'intra-copilot-feature-header-title' });
 		setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(feature));
 		title.createSpan({ cls: 'intra-copilot-feature-header-name', text: strings.features[feature].name });
-		title.createSpan({ cls: 'intra-copilot-feature-badge is-available', text: strings.features.available });
 
 		const sections = this.sectionsFor(feature, ctx);
 		const active =

@@ -53,6 +53,10 @@ export function renderViewHeading(containerEl: HTMLElement, plugin: IntraCopilot
 	gear.onclick = () => plugin.openFeatureSettings(id);
 
 	heading.createDiv({ cls: 'intra-copilot-view-heading-tagline', text: feature.tagline });
+
+	// 자물쇠 줄: 무엇이 언제 서버로 나가는지. 기능마다 답이 달라서 i18n의 기능별 note에 둡니다.
+	// 머리말 아래 굵은 선(styles.css의 .intra-copilot-view-heading)까지가 소개, 그 아래부터가 기능입니다.
+	heading.createEl('p', { cls: 'intra-copilot-privacy-note', text: feature.note });
 }
 
 // addIcon은 100칸 기준이라, 24칸 그림을 100/24배로 키워 넣습니다.

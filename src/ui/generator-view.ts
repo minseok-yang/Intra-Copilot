@@ -108,9 +108,6 @@ export class GeneratorView extends ItemView {
 		contentEl.empty();
 		renderViewHeading(contentEl, this.plugin, 'generator');
 
-		// 무엇이 언제 서버로 나가는지를 버튼 위에 먼저 적어 둡니다(챗봇·커넥터 화면과 같은 원칙).
-		contentEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
-
 		// ① 텍스트 가져오기
 		const importRow = contentEl.createDiv({ cls: 'intra-copilot-generator-buttons' });
 		const openButton = new ButtonComponent(importRow)

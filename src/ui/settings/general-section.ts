@@ -50,10 +50,9 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 
 	const grid = containerEl.createDiv({ cls: 'intra-copilot-feature-grid' });
 	for (const id of FEATURE_ORDER) {
-		const card = grid.createEl('button', { cls: 'intra-copilot-feature-card is-available' });
+		const card = grid.createEl('button', { cls: 'intra-copilot-feature-card' });
 		setIcon(card.createSpan({ cls: 'intra-copilot-feature-card-icon' }), featureIcon(id));
 		card.createSpan({ cls: 'intra-copilot-feature-card-name', text: strings.features[id].name });
-		card.createSpan({ cls: 'intra-copilot-feature-badge is-available', text: strings.features.available });
 		// 누르기 전에 무엇을 하는 기능인지 알 수 있게 한 줄 설명을 카드에 바로 보여줍니다.
 		card.createSpan({ cls: 'intra-copilot-feature-card-desc', text: strings.features[id].desc });
 		card.addEventListener('click', () => ctx.openTab(id));

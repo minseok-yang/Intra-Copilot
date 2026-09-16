@@ -1086,20 +1086,6 @@
 }
 
 /* 상태 배지(사용 가능 / 준비 중) — 기능 설정 머리말·처음 화면 카드·문서 목차가 함께 씁니다. */
-.intra-copilot-feature-badge {
-	flex: none;
-	padding: 1px 7px;
-	border-radius: 10px;
-	font-size: var(--font-ui-smaller);
-	font-weight: normal;
-	white-space: nowrap;
-}
-
-.intra-copilot-feature-badge.is-available {
-	background: rgba(var(--color-green-rgb), 0.15);
-	color: var(--color-green);
-}
-
 /* 머리말·제목 옆의 아이콘 */
 .intra-copilot-heading-icon,
 .intra-copilot-feature-header-icon {
@@ -1273,11 +1259,19 @@ button.intra-copilot-doc-card:hover {
 }
 
 /* 오른쪽 사이드바 창(챗봇·커넥터·리마인더) 맨 위 "Intra Copilot: 기능" 제목 + 한 줄 소개 */
+/* 제목·한 줄 소개·자물쇠 줄까지가 머리말입니다. 그 아래부터 기능이 시작되므로 굵은 선으로 나눕니다. */
 .intra-copilot-view-heading {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	flex-shrink: 0;
+	margin-bottom: 12px;
+	padding-bottom: 10px;
+	border-bottom: 2px solid var(--background-modifier-border);
+}
+
+.intra-copilot-view-heading .intra-copilot-privacy-note {
+	margin: 6px 0 0;
 }
 
 .intra-copilot-view-heading-title {
@@ -1307,12 +1301,6 @@ button.intra-copilot-doc-card:hover {
 	font-weight: var(--font-semibold);
 	padding-bottom: 6px;
 	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.intra-copilot-reminder-scope {
-	margin: 0;
-	color: var(--text-faint);
-	font-size: var(--font-ui-smaller);
 }
 
 .intra-copilot-reminder-card {
