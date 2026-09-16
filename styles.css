@@ -1647,18 +1647,11 @@ button.intra-copilot-doc-card:hover {
 	font-size: var(--font-ui-small);
 }
 
+/* [노트 열기] — 아이콘만 두면 "고치기"로 오해하므로 글자로 적고, 드롭다운 옆에 작게 둡니다. */
 .intra-copilot-generator-template-open {
 	flex-shrink: 0;
-	padding: 4px;
-	background: none;
-	box-shadow: none;
-	color: var(--text-muted);
-	cursor: pointer;
-	--icon-size: var(--icon-s);
-}
-
-.intra-copilot-generator-template-open:hover {
-	color: var(--text-normal);
+	padding: 4px 8px;
+	font-size: var(--font-ui-smaller);
 }
 
 .intra-copilot-generator-hint {

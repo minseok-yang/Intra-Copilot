@@ -4,7 +4,6 @@ import {
 	DropdownComponent,
 	ItemView,
 	Notice,
-	setIcon,
 	setTooltip,
 	TextAreaComponent,
 	WorkspaceLeaf,
@@ -197,8 +196,11 @@ export class GeneratorView extends ItemView {
 			});
 
 			if (selected) {
-				const open = row.createEl('button', { cls: 'intra-copilot-generator-template-open' });
-				setIcon(open, 'square-pen');
+				// 아이콘만 두면 무엇을 하는 버튼인지(고치는 것인지 여는 것인지) 헷갈려서 글자로 적습니다.
+				const open = row.createEl('button', {
+					cls: 'intra-copilot-generator-template-open',
+					text: strings.openTemplateButton,
+				});
 				setTooltip(open, strings.openTemplateTooltip);
 				open.onclick = () => void this.app.workspace.getLeaf(false).openFile(selected.file);
 			}
