@@ -7,7 +7,7 @@ import {
 	MIN_CHAT_TIMEOUT_SECONDS,
 } from '../../settings';
 import type { Dictionary } from '../../i18n';
-import { createStatusLight, setStatusLight, StatusState } from '../status-light';
+import { createStatusLight, type StatusLight, StatusState } from '../status-light';
 import {
 	checkSelectedModel,
 	fetchModelList,
@@ -200,19 +200,13 @@ export class LlmSettingsSection {
 		const modelDropdown = new DropdownComponent(modelSetting.controlEl);
 		const cachedList = this.lastModelList;
 		if (cachedList) {
-			setStatusLight(
-				modelStatus.dot,
-				modelStatus.text,
-				cachedList.state,
-				cachedList.message,
-				cachedList.detail,
-			);
+			modelStatus.set(cachedList.state, cachedList.message, cachedList.detail);
 		}
 		this.fillDropdown(modelDropdown, cachedList?.models ?? [], cachedList?.state ?? 'idle');
 
 		const checkModels = async () => {
 			modelCheckButton.setButtonText(strings.loadingModels).setDisabled(true);
-			await this.refreshModelList(modelDropdown, modelStatus.dot, modelStatus.text);
+			await this.refreshModelList(modelDropdown, modelStatus);
 			modelCheckButton.setButtonText(strings.modelCheckButton).setDisabled(false);
 		};
 		modelCheckButton.onClick(() => void checkModels());
@@ -239,7 +233,7 @@ export class LlmSettingsSection {
 			const { state, message, detail, checkedAt } = status.get();
 			const time = checkedAt ? `${strings.lastVerifiedPrefix}${checkedAt.toLocaleString()}` : '';
 			const tooltip = [detail, time].filter(Boolean).join('\n');
-			setStatusLight(testStatus.dot, testStatus.text, state, message || strings.statusIdle, tooltip);
+			testStatus.set(state, message || strings.statusIdle, tooltip);
 			connectionStatusText.setText(this.formatLastVerified(strings));
 		};
 		// 설정 화면을 다시 그리면 옛 상태등은 화면에서 빠지므로, 그때 구독도 풉니다.
@@ -254,7 +248,7 @@ export class LlmSettingsSection {
 
 		resetStatuses = () => {
 			this.lastModelList = null;
-			setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
+			modelStatus.set('idle', strings.statusIdle);
 			// 챗봇 상단 상태등과 위 연결 상태등이 함께 회색(미확인)으로 돌아갑니다.
 			this.plugin.connectionStatus.markChanged(strings.statusConnectionChanged);
 		};
@@ -319,11 +313,10 @@ export class LlmSettingsSection {
 	// 드롭다운을 채웁니다. 연결 테스트(실제 대화 요청)는 하지 않습니다.
 	private async refreshModelList(
 		modelDropdown: DropdownComponent,
-		statusDot: HTMLElement,
-		statusText: HTMLElement,
+		status: StatusLight,
 	): Promise<void> {
 		const strings = this.ctx.strings.llm;
-		setStatusLight(statusDot, statusText, 'idle', strings.statusChecking);
+		status.set('idle', strings.statusChecking);
 
 		const server = this.plugin.serverSnapshot();
 		const outcome = await fetchModelList(this.plugin);
@@ -331,7 +324,7 @@ export class LlmSettingsSection {
 		// (표시등은 주소를 고칠 때 이미 "아직 확인하지 않음"으로 되돌아가 있습니다).
 		if (server !== this.plugin.serverSnapshot()) return;
 		this.lastModelList = outcome;
-		setStatusLight(statusDot, statusText, outcome.state, outcome.message, outcome.detail);
+		status.set(outcome.state, outcome.message, outcome.detail);
 		// 주소가 비어 있을 때(idle)는 이전처럼 저장된 모델을 그대로 보여줍니다.
 		if (outcome.state !== 'idle') {
 			this.fillDropdown(modelDropdown, outcome.models, outcome.state);

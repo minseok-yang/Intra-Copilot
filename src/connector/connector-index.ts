@@ -2,7 +2,6 @@ import { createHash } from 'crypto';
 import { debounce, getFrontMatterInfo, type TFile } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
 import { createEmbeddings, type EmbeddingResult, type LlmFailure } from '../llm/client';
-import { pluginDir } from '../plugin-paths';
 import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
@@ -148,7 +147,7 @@ export class ConnectorIndex {
 
 	// 설정 화면의 [폴더 열기]가 위치를 보여 주려고 씁니다.
 	get path(): string {
-		return `${pluginDir(this.plugin)}/${INDEX_FILE}`;
+		return `${this.plugin.pluginDir()}/${INDEX_FILE}`;
 	}
 
 	// 벡터를 만드는 방식(고급 설정). 바뀌면 저장해 둔 벡터와 새로 받을 벡터가 다른 방식으로 만든 것이라, 서버·모델이 바뀔 때처럼
@@ -237,7 +236,7 @@ export class ConnectorIndex {
 		try {
 			// 옛 이름으로 저장된 색인(임시 파일 포함)을 새 이름으로 옮깁니다. 새 이름이 이미 있으면 그쪽이 맞는 색인입니다.
 			for (const suffix of ['', '.tmp']) {
-				const legacy = `${pluginDir(this.plugin)}/${LEGACY_INDEX_FILE}${suffix}`;
+				const legacy = `${this.plugin.pluginDir()}/${LEGACY_INDEX_FILE}${suffix}`;
 				if ((await adapter.exists(legacy)) && !(await adapter.exists(`${this.path}${suffix}`))) {
 					await adapter.rename(legacy, `${this.path}${suffix}`);
 				}

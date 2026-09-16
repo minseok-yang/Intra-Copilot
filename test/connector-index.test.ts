@@ -134,6 +134,7 @@ function makePlugin(port: number) {
 	const plugin = {
 		app: { vault },
 		manifest: { dir: 'plug', id: 'intra-copilot' },
+		pluginDir: () => 'plug',
 		settings: {
 			general: { language: 'ko' as const },
 			connector: {

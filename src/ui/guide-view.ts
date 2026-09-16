@@ -39,10 +39,9 @@ function resolveBook(plugin: IntraCopilotPlugin, docId: GuideDocId): { title: st
 	}
 }
 
-// 내용이 있어 펼쳐 볼 수 있는 쪽들(목차 순서). [이전]/[다음]이 이 순서를 따릅니다.
-// 내용이 없는 쪽은 "준비 중"으로 목차에만 보입니다.
+// 모든 쪽(목차 순서). [이전]/[다음]이 이 순서를 따릅니다.
 function readablePages(book: DocBook): DocPage[] {
-	return book.groups.flatMap((group) => group.pages.filter((page) => page.markdown));
+	return book.groups.flatMap((group) => group.pages);
 }
 
 const PAGE_LINK_PREFIX = 'guide:';
@@ -146,22 +145,10 @@ export class GuideView extends ItemView {
 			const cards = groupEl.createDiv({ cls: 'intra-copilot-doc-cards' });
 
 			for (const page of group.pages) {
-				if (page.markdown) {
-					const card = cards.createEl('button', { cls: 'intra-copilot-doc-card' });
-					card.createDiv({ cls: 'intra-copilot-doc-card-title', text: page.title });
-					card.createDiv({ cls: 'intra-copilot-doc-card-summary', text: page.summary });
-					card.addEventListener('click', () => void this.showPage(page.id));
-				} else {
-					// 아직 내용이 없는 쪽(준비 중인 기능)은 누를 수 없게, 흐리게 보여줍니다.
-					const card = cards.createDiv({ cls: 'intra-copilot-doc-card is-upcoming' });
-					const titleEl = card.createDiv({ cls: 'intra-copilot-doc-card-title' });
-					titleEl.createSpan({ text: page.title });
-					titleEl.createSpan({
-						cls: 'intra-copilot-feature-badge is-upcoming',
-						text: this.docStrings.upcoming,
-					});
-					card.createDiv({ cls: 'intra-copilot-doc-card-summary', text: page.summary });
-				}
+				const card = cards.createEl('button', { cls: 'intra-copilot-doc-card' });
+				card.createDiv({ cls: 'intra-copilot-doc-card-title', text: page.title });
+				card.createDiv({ cls: 'intra-copilot-doc-card-summary', text: page.summary });
+				card.addEventListener('click', () => void this.showPage(page.id));
 			}
 		}
 	}
@@ -175,11 +162,7 @@ export class GuideView extends ItemView {
 		const top = container.createDiv({ cls: 'intra-copilot-doc-nav' });
 		this.addNavButton(top, `← ${strings.toc}`, () => this.showPage(null));
 
-		await this.renderMarkdown(
-			container.createDiv({ cls: 'intra-copilot-doc-body' }),
-			page.markdown ?? '',
-			book,
-		);
+		await this.renderMarkdown(container.createDiv({ cls: 'intra-copilot-doc-body' }), page.markdown, book);
 
 		const bottom = container.createDiv({ cls: 'intra-copilot-doc-nav is-bottom' });
 		const previous = pages[index - 1];

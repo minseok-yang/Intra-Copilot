@@ -14,7 +14,6 @@ import { refreshReminderViews, registerReminder, revealReminderView } from './ui
 import { refreshConnectorViews, registerConnector, revealConnectorView } from './ui/connector-view';
 import { refreshGeneratorViews, registerGenerator, revealGeneratorView } from './ui/generator-view';
 import { ConnectorIndex } from './connector/connector-index';
-import { DailyCount } from './reminder/daily-count';
 import { type Dictionary, t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
 import type { StatusState } from './ui/status-light';
@@ -31,8 +30,6 @@ function isStringArray(value: unknown): value is string[] {
 
 export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
-	// 리마인더의 하루 단위 값(오늘 챙긴 수, [더 보기]로 늘린 수, 알림 띄운 날 — data.json의 reminderDaily)
-	readonly reminderCount = new DailyCount(this);
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
 	readonly connectionStatus = new ConnectionStatusStore();
 	// 커넥터의 노트 색인(플러그인 폴더의 connector-index.bin)
@@ -47,6 +44,14 @@ export default class IntraCopilotPlugin extends Plugin {
 	// 지금 표시 언어의 화면 문구 묶음입니다. 화면마다 t(...)를 부르는 대신 이걸 씁니다.
 	strings(): Dictionary {
 		return t(this.settings.general.language);
+	}
+
+	// 플러그인 폴더의 볼트 기준 경로입니다(예: .obsidian/plugins/intra-copilot).
+	// 대화 기록(conversations/)·스킬(SKILL/)·백업(backups/)·커넥터 색인이 이 폴더 안에 저장됩니다.
+	// 노트가 아니라서 일반 파일 탐색기/검색에는 나타나지 않습니다.
+	// 주의: 플러그인 폴더를 통째로 지우고 다시 넣으면 그 안의 대화 기록·스킬도 함께 사라집니다.
+	pluginDir(): string {
+		return this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
 	}
 
 	// 사이드바 창(챗봇·커넥터·제너레이터·리마인더) 머리말의 톱니에서 부릅니다.

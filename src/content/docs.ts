@@ -4,7 +4,6 @@
 // 문서는 "쪽"으로 나눕니다(ui/guide-view.ts가 목차 → 쪽으로 보여줌). 한 문서에 모든 내용을 이어 붙이면
 // 읽기도 전에 질리기 때문입니다. 쪽 하나에는 한 가지 주제만, 짧게 씁니다.
 // - 다른 쪽을 가리킬 때는 [글자](guide:쪽id)로 씁니다(같은 문서 안에서만).
-// - markdown이 없는 쪽은 목차에 "준비 중"으로만 보입니다(아직 만들지 않은 기능).
 // - 외부 주소 링크는 쓰지 않습니다(사내망에서는 열리지 않고, 열려서도 안 됩니다).
 // - 이 문자열은 공개 저장소에 그대로 올라갑니다. 회사명·사내 연락처 같은 사내 정보는 넣지 마세요.
 
@@ -12,7 +11,7 @@ export interface DocPage {
 	id: string;
 	title: string;
 	summary: string; // 목차 카드에 보이는 한 줄
-	markdown?: string;
+	markdown: string;
 }
 
 export interface DocGroup {

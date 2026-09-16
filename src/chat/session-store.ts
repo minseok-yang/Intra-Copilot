@@ -1,7 +1,6 @@
 import IntraCopilotPlugin from '../main';
 import { ChatMessage } from '../llm/client';
-import { AttachedInfo, ChatTarget, isAttachedInfo, isChatTarget } from './vault-context';
-import { pluginDir } from '../plugin-paths';
+import type { AttachedInfo, ChatTarget } from './vault-context';
 
 // 파일에 저장되는 메시지입니다. 서버로 보내는 모양(ChatMessage)에 화면 표시용 정보를 더했습니다.
 // 서버로 보낼 때는 composeRequestConversation()/buildRequestMessages()가 필요한 것만 골라냅니다.
@@ -27,13 +26,6 @@ export interface AppliedEdit {
 	index: number; // 그 답변 속 몇 번째 수정 제안인지
 	at: string; // 적용한 시각(ISO 날짜 문자열)
 	backup?: string; // 적용 전 원본을 보관한 파일 이름(되돌리기에 실패했을 때 안내에 씁니다)
-}
-
-function isAppliedEdit(value: unknown): value is AppliedEdit {
-	if (!value || typeof value !== 'object') return false;
-	const { index, at, backup } = value as Record<string, unknown>;
-	if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) return false;
-	return typeof at === 'string' && (backup === undefined || typeof backup === 'string');
 }
 
 export interface ChatSession {
@@ -67,7 +59,7 @@ export interface ChatSessionSummary {
 const INDEX_FILE = 'index.json';
 
 function sessionsDir(plugin: IntraCopilotPlugin): string {
-	return `${pluginDir(plugin)}/conversations`;
+	return `${plugin.pluginDir()}/conversations`;
 }
 
 function sessionPath(plugin: IntraCopilotPlugin, id: string): string {
@@ -101,8 +93,8 @@ export function deriveSessionTitle(messages: StoredMessage[], emptyTitle: string
 	return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
 }
 
-// 파일 속 메시지 하나를 읽습니다. 알고 있는 칸만 모양을 확인해서 옮겨 담고, 모양이 틀린 칸은 버립니다
-// (손으로 고친 파일에서 targets가 이상한 값이면, 화면이나 서버 요청이 깨지지 않게 그 칸만 뺍니다).
+// 파일 속 메시지 하나를 읽습니다. role·content가 없으면 메시지로 보지 않고 버립니다(그 메시지만 빠짐).
+// 나머지 칸은 이 플러그인이 직접 쓴 값이라 모양을 다시 확인하지 않고 그대로 옮겨 담습니다.
 function readMessage(value: unknown): StoredMessage | null {
 	if (!value || typeof value !== 'object') return null;
 	const fields = value as Record<string, unknown>;
@@ -113,18 +105,16 @@ function readMessage(value: unknown): StoredMessage | null {
 	const message: StoredMessage = { role, content };
 	if (typeof fields.reasoning === 'string' && fields.reasoning) message.reasoning = fields.reasoning;
 	if (fields.truncated === true) message.truncated = true;
-	if (Array.isArray(fields.targets)) {
-		const targets = fields.targets.filter(isChatTarget);
-		if (targets.length > 0) message.targets = targets;
+	if (Array.isArray(fields.targets) && fields.targets.length > 0) {
+		message.targets = fields.targets as ChatTarget[];
 	}
-	if (isAttachedInfo(fields.attached)) message.attached = fields.attached;
+	if (fields.attached) message.attached = fields.attached as AttachedInfo;
 	const skill = fields.skill as Record<string, unknown> | undefined;
 	if (skill && typeof skill.id === 'string' && typeof skill.name === 'string') {
 		message.skill = { id: skill.id, name: skill.name };
 	}
-	if (Array.isArray(fields.edits)) {
-		const edits = fields.edits.filter(isAppliedEdit);
-		if (edits.length > 0) message.edits = edits;
+	if (Array.isArray(fields.edits) && fields.edits.length > 0) {
+		message.edits = fields.edits as AppliedEdit[];
 	}
 	if (typeof fields.editableNote === 'string' && fields.editableNote) {
 		message.editableNote = fields.editableNote;

@@ -2,7 +2,7 @@ import { ButtonComponent, Setting, setIcon } from 'obsidian';
 import type { UiLanguage } from '../../settings';
 import { openGuideWindow } from '../guide-view';
 import type { SettingsContext } from './context';
-import { FEATURE_ORDER, FEATURE_STATUS, featureIcon } from './features';
+import { FEATURE_ORDER, featureIcon } from './features';
 
 // esbuild.config.mjs가 빌드할 때 일시(한국 시간)를 넣어 줍니다.
 declare const BUILD_TIME: string;
@@ -42,7 +42,7 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 		item.appendText(` ${value}`);
 	}
 
-	// ② 기능별 설정 바로가기. 준비 중인 기능도 눌러서 앞으로 들어갈 설정 자리를 볼 수 있습니다.
+	// ② 기능별 설정 바로가기.
 	const heading = new Setting(containerEl).setName(general.settingsHeading).setHeading();
 	const gear = createSpan({ cls: 'intra-copilot-heading-icon' });
 	setIcon(gear, 'settings');
@@ -50,11 +50,10 @@ export function renderGeneralSection(containerEl: HTMLElement, ctx: SettingsCont
 
 	const grid = containerEl.createDiv({ cls: 'intra-copilot-feature-grid' });
 	for (const id of FEATURE_ORDER) {
-		const status = FEATURE_STATUS[id];
-		const card = grid.createEl('button', { cls: `intra-copilot-feature-card is-${status}` });
+		const card = grid.createEl('button', { cls: 'intra-copilot-feature-card is-available' });
 		setIcon(card.createSpan({ cls: 'intra-copilot-feature-card-icon' }), featureIcon(id));
 		card.createSpan({ cls: 'intra-copilot-feature-card-name', text: strings.features[id].name });
-		card.createSpan({ cls: `intra-copilot-feature-badge is-${status}`, text: strings.features[status] });
+		card.createSpan({ cls: 'intra-copilot-feature-badge is-available', text: strings.features.available });
 		// 누르기 전에 무엇을 하는 기능인지 알 수 있게 한 줄 설명을 카드에 바로 보여줍니다.
 		card.createSpan({ cls: 'intra-copilot-feature-card-desc', text: strings.features[id].desc });
 		card.addEventListener('click', () => ctx.openTab(id));

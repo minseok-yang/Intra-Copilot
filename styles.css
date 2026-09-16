@@ -1100,11 +1100,6 @@
 	color: var(--color-green);
 }
 
-.intra-copilot-feature-badge.is-upcoming {
-	background: var(--background-modifier-hover);
-	color: var(--text-muted);
-}
-
 /* 머리말·제목 옆의 아이콘 */
 .intra-copilot-heading-icon,
 .intra-copilot-feature-header-icon {
@@ -1176,36 +1171,13 @@
 	text-align: center;
 }
 
-.intra-copilot-feature-card.is-upcoming .intra-copilot-feature-card-icon,
-.intra-copilot-feature-card.is-upcoming .intra-copilot-feature-card-name {
-	color: var(--text-muted);
-}
-
 .intra-copilot-setup-hint button {
 	margin-top: 8px;
-}
-
-/* 준비 중인 기능의 설정 자리 */
-.intra-copilot-upcoming-notice {
-	display: flex;
-	align-items: flex-start;
-	gap: 8px;
-	margin-bottom: 10px;
-	padding: 8px 10px;
-	border-radius: var(--radius-s);
-	background: var(--background-secondary);
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-	line-height: 1.45;
 }
 
 .intra-copilot-section-intro {
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
-}
-
-.intra-copilot-upcoming-items {
-	opacity: 0.65;
 }
 
 /* ─── 사용자 가이드·라이선스 창: 목차 → 쪽 ─────────────────────────── */
@@ -1252,10 +1224,6 @@ button.intra-copilot-doc-card {
 
 button.intra-copilot-doc-card:hover {
 	border-color: var(--interactive-accent);
-}
-
-.intra-copilot-doc-card.is-upcoming {
-	opacity: 0.6;
 }
 
 .intra-copilot-doc-card-title {

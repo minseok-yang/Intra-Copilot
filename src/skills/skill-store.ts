@@ -1,6 +1,5 @@
 import { parseYaml, stringifyYaml } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
-import { pluginDir } from '../plugin-paths';
 
 // 스킬: 자주 쓰는 작업 지시를 이름을 붙여 저장해 둔 것입니다. 챗봇 입력칸에서 /로 불러 씁니다.
 //
@@ -46,7 +45,7 @@ const EXAMPLE_SKILL: Skill = {
 };
 
 export function skillsDir(plugin: IntraCopilotPlugin): string {
-	return `${pluginDir(plugin)}/${SKILL_DIR_NAME}`;
+	return `${plugin.pluginDir()}/${SKILL_DIR_NAME}`;
 }
 
 function skillPath(plugin: IntraCopilotPlugin, id: string): string {

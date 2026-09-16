@@ -2,12 +2,9 @@ import { addIcon, setIcon, setTooltip } from 'obsidian';
 import type IntraCopilotPlugin from '../../main';
 import { t } from '../../i18n';
 
-// Intra Copilot이 묶고 있는 기능 네 가지와, 각 기능을 지금 쓸 수 있는지입니다.
-// 설정 처음 화면의 기능별 설정 카드가 이 목록을 따릅니다.
+// Intra Copilot이 묶고 있는 기능 네 가지입니다. 설정 처음 화면의 기능별 설정 카드가 이 목록을 따릅니다.
 //
-// 기능을 완성하면: FEATURE_STATUS에서 그 기능을 'available'로 바꾸고, settings-tab.ts의 sectionsFor()에
-// 그 기능의 설정 섹션을 넣으면 됩니다. 네 기능이 모두 완성되어 지금은 'upcoming'인 기능이 없지만,
-// 새 기능을 계획할 때 다시 쓸 수 있게 상태 값과 배지는 남겨 둡니다.
+// 기능을 늘리면: FEATURE_ORDER에 id를 넣고, settings-tab.ts의 sectionsFor()에 그 기능의 설정 섹션을 넣습니다.
 // (화면에 보이는 기능 이름은 i18n.ts의 features에 있고, 코드 id·설정 키·파일 이름도 같은 이름을 씁니다.)
 
 export type FeatureId = 'chatbot' | 'connector' | 'generator' | 'reminder';
@@ -16,15 +13,6 @@ export type FeatureId = 'chatbot' | 'connector' | 'generator' | 'reminder';
 export type SettingsTabId = 'general' | FeatureId;
 
 export const FEATURE_ORDER: readonly FeatureId[] = ['chatbot', 'connector', 'generator', 'reminder'];
-
-export type FeatureStatus = 'available' | 'upcoming';
-
-export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
-	chatbot: 'available',
-	connector: 'available',
-	generator: 'available',
-	reminder: 'available',
-};
 
 // ─── 기능 아이콘 ────────────────────────────────────────────────────
 // 리본·챗봇 창 탭·설정 카드·기능 설정 머리말이 같은 아이콘을 씁니다. 네 개가 한 세트로 보이도록 모두 위아래 가로줄

@@ -2,7 +2,7 @@ import { App, PluginSettingTab, debounce, setIcon } from 'obsidian';
 import IntraCopilotPlugin from '../main';
 import { t } from '../i18n';
 import type { SettingsContext } from './settings/context';
-import { FEATURE_STATUS, FeatureId, featureIcon, SettingsTabId } from './settings/features';
+import { FeatureId, featureIcon, SettingsTabId } from './settings/features';
 import { renderGeneralSection } from './settings/general-section';
 import { LlmSettingsSection, renderSystemPromptSection } from './settings/llm-section';
 import { renderSkillsSection } from './settings/skills-section';
@@ -31,7 +31,7 @@ import {
 //
 // 기능으로 가는 길은 처음 화면의 카드 하나뿐입니다(예전에는 맨 위 탭도 있어 같은 역할이 둘이었습니다).
 // 섹션이 실제로 무엇을 그리는지는 ui/settings/ 폴더에 나눠 두었고, 여기서는 화면 전환·저장·다시 그리기만
-// 맡습니다. 새 기능을 만들면 sectionsFor()에 그 기능의 섹션을 넣고, features.ts에 기능과 상태를 더합니다.
+// 맡습니다. 새 기능을 만들면 sectionsFor()에 그 기능의 섹션을 넣고, features.ts에 기능을 더합니다.
 
 interface SectionDefinition {
 	id: string;
@@ -103,7 +103,6 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 
 	private renderFeature(containerEl: HTMLElement, ctx: SettingsContext, feature: FeatureId): void {
 		const { strings } = ctx;
-		const status = FEATURE_STATUS[feature];
 
 		const back = containerEl.createEl('button', {
 			cls: 'intra-copilot-back-button',
@@ -116,7 +115,7 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		const title = header.createDiv({ cls: 'intra-copilot-feature-header-title' });
 		setIcon(title.createSpan({ cls: 'intra-copilot-feature-header-icon' }), featureIcon(feature));
 		title.createSpan({ cls: 'intra-copilot-feature-header-name', text: strings.features[feature].name });
-		title.createSpan({ cls: `intra-copilot-feature-badge is-${status}`, text: strings.features[status] });
+		title.createSpan({ cls: 'intra-copilot-feature-badge is-available', text: strings.features.available });
 
 		const sections = this.sectionsFor(feature, ctx);
 		const active =

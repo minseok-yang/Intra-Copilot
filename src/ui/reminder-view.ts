@@ -16,7 +16,14 @@ import type IntraCopilotPlugin from '../main';
 import type { ReminderSettings } from '../settings';
 import { t, type ReminderStrings } from '../i18n';
 import { DueNote, DueReason, findDueNotes, NoteFacts } from '../reminder/due-notes';
-import { today } from '../reminder/daily-count';
+import {
+	countHandled,
+	remainingToday,
+	showMore,
+	takeDailyNotice,
+	today,
+	uncountHandled,
+} from '../reminder/daily-count';
 import {
 	formatDate,
 	parseDate,
@@ -97,7 +104,7 @@ export function registerReminder(plugin: IntraCopilotPlugin): void {
 function notifyDueNotes(plugin: IntraCopilotPlugin): void {
 	if (!plugin.settings.reminder.dailyNotice) return;
 	const count = todayList(plugin).shown.length;
-	if (count === 0 || !plugin.reminderCount.takeDailyNotice()) return;
+	if (count === 0 || !takeDailyNotice(plugin)) return;
 	const text = t(plugin.settings.general.language).reminder.dailyNotice.replace('{count}', String(count));
 	new Notice(
 		createFragment((fragment) => {
@@ -174,7 +181,7 @@ function todayList(plugin: IntraCopilotPlugin): TodayList {
 	const due = findDueNotes(collectNotes(plugin.app, reminder), rules, Date.now()).filter(
 		(note) => !hidden.has(note.path),
 	);
-	return { due, shown: due.slice(0, plugin.reminderCount.remainingToday(reminder.dailyLimit)) };
+	return { due, shown: due.slice(0, remainingToday(plugin, reminder.dailyLimit)) };
 }
 
 // 화면에 보이는 것을 정하는 값(오늘 보여 줄 노트와 그 이유, 다시 볼 노트 전체 수)이 달라졌는지 비교하는 열쇠
@@ -291,7 +298,7 @@ export class ReminderView extends ItemView {
 			new ButtonComponent(contentEl)
 				.setButtonText(strings.moreButton.replace('{count}', String(more)))
 				.onClick(() => {
-					this.plugin.reminderCount.showMore(more);
+					showMore(this.plugin, more);
 					refreshReminderViews(this.plugin);
 				});
 		}
@@ -372,7 +379,7 @@ export class ReminderView extends ItemView {
 		awaitingProperties.add(file);
 		try {
 			const previous = await stampNote(this.app, file, this.plugin.settings.reminder, options);
-			this.plugin.reminderCount.countHandled();
+			countHandled(this.plugin);
 			return previous;
 		} catch {
 			awaitingProperties.delete(file);
@@ -398,7 +405,7 @@ export class ReminderView extends ItemView {
 	private async undoStamp(file: TFile, previous: PropertySnapshot): Promise<void> {
 		try {
 			await restoreProperties(this.app, file, previous);
-			this.plugin.reminderCount.uncountHandled();
+			uncountHandled(this.plugin);
 		} catch {
 			new Notice(this.strings().undoPropertiesFailed);
 		}
@@ -435,7 +442,7 @@ export class ReminderView extends ItemView {
 				if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
 				// fileManager로 옮기면 이 노트를 가리키던 링크도 Obsidian이 함께 고칩니다.
 				await this.app.fileManager.renameFile(file, dest);
-				this.plugin.reminderCount.countHandled();
+				countHandled(this.plugin);
 				showUndoNotice(
 					this.plugin,
 					strings.archivedNotice.replace('{name}', file.basename).replace('{folder}', folder),
@@ -458,7 +465,7 @@ export class ReminderView extends ItemView {
 			if (vault.getAbstractFileByPath(originalPath)) throw new Error('A note already exists at the original path');
 			if (originalFolder && !vault.getAbstractFileByPath(originalFolder)) await vault.createFolder(originalFolder);
 			await fileManager.renameFile(file, originalPath);
-			this.plugin.reminderCount.uncountHandled();
+			uncountHandled(this.plugin);
 		} catch {
 			new Notice(this.strings().undoArchiveFailed);
 		}
@@ -469,17 +476,16 @@ export class ReminderView extends ItemView {
 	// 휴지통으로 보냅니다(Obsidian의 "삭제한 파일" 설정을 따름). 휴지통에서 되살리는 공개 API가 없어서 이렇게 미룹니다.
 	// 그 전에 Obsidian을 끄거나 플러그인을 끄면 노트는 지워지지 않고 남습니다(지우는 쪽보다 남기는 쪽이 안전).
 	private trash(file: TFile): void {
-		const { reminderCount } = this.plugin;
 		const strings = this.strings();
 		pendingTrash.add(file);
-		reminderCount.countHandled();
+		countHandled(this.plugin);
 		refreshReminderViews(this.plugin);
 
 		const timer = window.setTimeout(() => {
 			pendingTrash.delete(file);
 			this.app.fileManager.trashFile(file).catch(() => {
 				new Notice(strings.deleteFailed);
-				reminderCount.uncountHandled();
+				uncountHandled(this.plugin);
 				refreshReminderViews(this.plugin);
 			});
 		}, this.plugin.settings.reminder.undoSeconds * 1000);
@@ -492,7 +498,7 @@ export class ReminderView extends ItemView {
 				return;
 			}
 			window.clearTimeout(timer);
-			reminderCount.uncountHandled();
+			uncountHandled(this.plugin);
 			refreshReminderViews(this.plugin);
 		});
 	}

@@ -32,21 +32,6 @@ export interface VaultContext {
 	info: AttachedInfo;
 }
 
-export function isChatTarget(value: unknown): value is ChatTarget {
-	if (!value || typeof value !== 'object') return false;
-	const { kind, path } = value as Record<string, unknown>;
-	return (kind === 'folder' || kind === 'note') && typeof path === 'string' && path !== '';
-}
-
-export function isAttachedInfo(value: unknown): value is AttachedInfo {
-	if (!value || typeof value !== 'object') return false;
-	const { notes, chars, truncated, paths } = value as Record<string, unknown>;
-	if (typeof notes !== 'number' || typeof chars !== 'number' || typeof truncated !== 'boolean') {
-		return false;
-	}
-	return paths === undefined || (Array.isArray(paths) && paths.every((p) => typeof p === 'string'));
-}
-
 export function sameTarget(a: ChatTarget, b: ChatTarget): boolean {
 	return a.kind === b.kind && a.path === b.path;
 }

@@ -3,7 +3,7 @@ import { listLlmModels } from '../../llm/client';
 import { describeConnectorError } from '../../i18n';
 import { AUTO_SYNC_CHOICES, DEFAULT_SETTINGS, type LinkedNotesMode, MAX_VECTORS_PER_NOTE } from '../../settings';
 import { addIndexButton, describeIndexState, indexLight } from '../connector-view';
-import { createStatusLight, setStatusLight } from '../status-light';
+import { createStatusLight } from '../status-light';
 import type { SettingsContext } from './context';
 import { addAdvancedSection, addNumberSetting, parseLimit } from './llm-section';
 import { addListSetting, cleanFolder } from './reminder-section';
@@ -81,7 +81,7 @@ export function renderConnectorServerSection(containerEl: HTMLElement, ctx: Sett
 	model.setting.addButton((button) =>
 		button.setButtonText(strings.modelListButton).onClick(async () => {
 			if (!connector.baseUrl) {
-				setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.fillFirst);
+				modelStatus.set('idle', strings.fillFirst);
 				return;
 			}
 			const key = serverKey();
@@ -91,19 +91,14 @@ export function renderConnectorServerSection(containerEl: HTMLElement, ctx: Sett
 			if (key !== serverKey()) return;
 			if (!result.ok) {
 				const { summary, detail } = describeConnectorError(language, result);
-				setStatusLight(modelStatus.dot, modelStatus.text, 'error', summary, detail);
+				modelStatus.set('error', summary, detail);
 				return;
 			}
 			modelIds = [...result.models].sort((a, b) => a.localeCompare(b));
 			if (result.models.length === 0) {
-				setStatusLight(modelStatus.dot, modelStatus.text, 'error', strings.noModels);
+				modelStatus.set('error', strings.noModels);
 			} else {
-				setStatusLight(
-					modelStatus.dot,
-					modelStatus.text,
-					'ok',
-					strings.modelsLoaded.replace('{count}', String(result.models.length)),
-				);
+				modelStatus.set('ok', strings.modelsLoaded.replace('{count}', String(result.models.length)));
 			}
 		}),
 	);
@@ -116,7 +111,7 @@ export function renderConnectorServerSection(containerEl: HTMLElement, ctx: Sett
 	test.addButton((button) => {
 		testButton = button.onClick(() => {
 			if (!connector.baseUrl || !connector.model) {
-				setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.fillFirst);
+				testStatus.set('idle', strings.fillFirst);
 				return;
 			}
 			void ctx.plugin.connectorIndex.checkServer();
@@ -128,16 +123,16 @@ export function renderConnectorServerSection(containerEl: HTMLElement, ctx: Sett
 		testButton.setButtonText(checking ? strings.testing : strings.testButton).setDisabled(checking);
 		const status = index.serverStatus();
 		if (!status) {
-			setStatusLight(testStatus.dot, testStatus.text, 'idle', strings.statusIdle);
+			testStatus.set('idle', strings.statusIdle);
 			return;
 		}
 		const time = `${ctx.strings.llm.lastVerifiedPrefix}${status.checkedAt.toLocaleString()}`;
 		if (status.failure) {
 			const { summary, detail } = describeConnectorError(language, status.failure);
-			setStatusLight(testStatus.dot, testStatus.text, 'error', summary, detail ? `${detail}\n${time}` : time);
+			testStatus.set('error', summary, detail ? `${detail}\n${time}` : time);
 		} else {
 			const text = status.dims ? strings.testOk.replace('{dims}', String(status.dims)) : ctx.strings.chat.statusLabelOk;
-			setStatusLight(testStatus.dot, testStatus.text, 'ok', text, time);
+			testStatus.set('ok', text, time);
 		}
 	};
 	const unsubscribe = ctx.plugin.connectorIndex.subscribe(() => {
@@ -150,7 +145,7 @@ export function renderConnectorServerSection(containerEl: HTMLElement, ctx: Sett
 	drawTest();
 
 	resetStatus = () => {
-		setStatusLight(modelStatus.dot, modelStatus.text, 'idle', strings.statusIdle);
+		modelStatus.set('idle', strings.statusIdle);
 		drawTest();
 	};
 }
@@ -170,7 +165,7 @@ export function renderConnectorIndexSection(containerEl: HTMLElement, ctx: Setti
 		const state = plugin.connectorIndex.state();
 		const { text, detail } = describeIndexState(plugin, state);
 		const color = indexLight(plugin, state).state;
-		setStatusLight(light.dot, light.text, color, text, detail);
+		light.set(color, text, detail);
 		// 버튼은 상태 종류가 바뀔 때만 다시 만듭니다(진행 숫자가 바뀔 때마다 만들면 한 번 눌러 둔 확인이 풀림).
 		if (state.kind === drawnKind) return;
 		drawnKind = state.kind;

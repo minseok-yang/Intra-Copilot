@@ -46,7 +46,6 @@ const ko = {
 	// (처음 화면의 카드, 기능 설정의 머리말)와 창 제목에 함께 반영됩니다.
 	features: {
 		available: '사용 가능',
-		upcoming: '준비 중',
 		// 사이드바 창 머리말의 톱니 버튼 툴팁
 		openSettings: '{name} 설정 열기',
 		chatbot: {
@@ -102,7 +101,6 @@ const ko = {
 		toc: '목차',
 		prev: '이전',
 		next: '다음',
-		upcoming: '준비 중',
 	},
 	llm: {
 		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
@@ -731,7 +729,6 @@ const en: Dictionary = {
 	},
 	features: {
 		available: 'Available',
-		upcoming: 'Coming soon',
 		openSettings: 'Open {name} settings',
 		chatbot: {
 			name: 'Chatbot',
@@ -782,7 +779,6 @@ const en: Dictionary = {
 		toc: 'Contents',
 		prev: 'Previous',
 		next: 'Next',
-		upcoming: 'Coming soon',
 	},
 	llm: {
 		privacyNote:

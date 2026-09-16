@@ -1,5 +1,4 @@
 import IntraCopilotPlugin from '../main';
-import { pluginDir } from '../plugin-paths';
 
 // [적용]을 누르기 직전의 노트 원본을 보관합니다.
 //
@@ -18,7 +17,7 @@ import { pluginDir } from '../plugin-paths';
 const MAX_BACKUPS = 200;
 
 function backupsDir(plugin: IntraCopilotPlugin): string {
-	return `${pluginDir(plugin)}/backups`;
+	return `${plugin.pluginDir()}/backups`;
 }
 
 // 노트 경로를 파일 이름으로 씁니다. 폴더 구분선(/)까지 남겨서(-로 바꿔서) 같은 이름의 노트가 여러
