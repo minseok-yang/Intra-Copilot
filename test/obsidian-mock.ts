@@ -15,6 +15,14 @@ export class TFile {
 	}
 }
 
+// 알림은 화면이 없는 테스트에서는 할 일이 없습니다. 무엇을 알렸는지 보고 싶으면 messages를 읽으세요.
+export const notices: string[] = [];
+export class Notice {
+	constructor(message: string) {
+		notices.push(message);
+	}
+}
+
 export function normalizePath(path: string): string {
 	return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/|\/$/g, '') || '/';
 }

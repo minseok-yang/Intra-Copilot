@@ -51,8 +51,10 @@ export function registerGenerator(plugin: IntraCopilotPlugin): void {
 export class GeneratorView extends ItemView {
 	// 입력칸의 글. 화면을 다시 그려도 남고, 어디에도 저장하지 않습니다.
 	private draft = '';
-	// 고른 양식 이름. 화면을 다시 그리거나 양식이 늘어도 고른 것을 그대로 둡니다.
-	private templateName = '';
+	// 고른 양식의 파일 경로. 화면을 다시 그리거나 양식이 늘어도 고른 것을 그대로 둡니다.
+	// 이름이 아니라 경로로 기억합니다 — 하위 폴더에 이름이 같은 양식이 둘 있으면 이름만으로는
+	// 어느 것을 골랐는지 가릴 수 없어, 엉뚱한 양식으로 노트가 만들어집니다.
+	private templatePath = '';
 	// 만드는 중이면 그 요청을 끊을 수 있는 손잡이([중지] 버튼). null이면 한가한 상태입니다.
 	private running: AbortController | null = null;
 	// 입력칸 아래에 보여 줄 마지막 안내(만든 노트 경로, 실패 이유 등)
@@ -177,8 +179,8 @@ export class GeneratorView extends ItemView {
 		// ③ 양식 고르기 — 처음에는 고르지 않은 상태입니다. 아무 양식이나 자동으로 고르면 엉뚱한 모양의
 		// 노트가 만들어지고도 왜 그런지 알기 어려워서, 사용자가 한 번은 직접 고르게 합니다.
 		const templates = listTemplates(this.plugin);
-		const selected = templates.find((template) => template.name === this.templateName);
-		if (!selected) this.templateName = '';
+		const selected = templates.find((template) => template.file.path === this.templatePath);
+		if (!selected) this.templatePath = '';
 		if (templates.length === 0) {
 			contentEl.createEl('p', { cls: 'intra-copilot-generator-empty', text: strings.templateEmpty });
 		} else {
@@ -188,14 +190,14 @@ export class GeneratorView extends ItemView {
 			const row = block.createDiv({ cls: 'intra-copilot-generator-template-row' });
 			const dropdown = new DropdownComponent(row);
 			dropdown.addOption('', strings.templatePlaceholder);
-			for (const template of templates) dropdown.addOption(template.name, template.name);
-			dropdown.setValue(this.templateName);
+			for (const template of templates) dropdown.addOption(template.file.path, template.name);
+			dropdown.setValue(this.templatePath);
 			dropdown.setDisabled(this.running !== null);
 			dropdown.selectEl.addClass('intra-copilot-generator-template-select');
 			// 고른 양식의 개요와 [양식 노트 열기]를 바로 보여 주려면 화면을 다시 그립니다
 			// (입력칸의 텍스트는 this.draft에 있어 그대로 남습니다).
 			dropdown.onChange((value) => {
-				this.templateName = value;
+				this.templatePath = value;
 				this.render();
 			});
 
@@ -373,7 +375,7 @@ export class GeneratorView extends ItemView {
 
 	// "같은 것을 또 만들려는지" 판단하는 열쇠입니다(고른 양식 + 입력칸 텍스트).
 	private signature(): string {
-		return `${this.templateName}\n${this.draft.trim()}`;
+		return `${this.templatePath}\n${this.draft.trim()}`;
 	}
 
 	private async create(template: GeneratorTemplate | undefined): Promise<void> {

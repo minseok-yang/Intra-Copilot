@@ -11,8 +11,9 @@ import type IntraCopilotPlugin from '../main';
 // 쓰입니다(generator/note-build.ts의 filterFrontmatter).
 
 export interface GeneratorTemplate {
+	// 어느 양식인지는 늘 이 파일 경로로 가립니다. 화면에 보이는 이름(name)은 같을 수 있기 때문입니다.
 	file: TFile;
-	name: string; // 파일 이름(확장자 제외)
+	name: string; // 목록에 보일 이름(파일 이름). 같은 이름이 둘 있으면 양식 폴더 아래 경로를 보여 줍니다.
 }
 
 // 설정값을 볼트 기준 경로로 맞춥니다. 비었거나 '/'면 ''(볼트 맨 위)입니다.
@@ -26,13 +27,31 @@ export function templateFolder(plugin: IntraCopilotPlugin): string {
 }
 
 // 양식 폴더 안의 .md 노트를 이름 순으로 돌려줍니다(하위 폴더도 포함). 폴더가 없으면 빈 목록입니다.
+//
+// 저장 폴더가 양식 폴더 안에 있으면 만든 노트가 다음부터 양식으로 보이므로 목록에서 뺍니다(설정에서
+// 두 폴더를 같게 두는 것은 막지만, 예전 설정 파일에는 같은 값이 남아 있을 수 있습니다).
+// 하위 폴더에 이름이 같은 양식이 둘 있으면 목록에서 구분할 수 없으므로, 그 이름만 폴더까지 보여 줍니다.
 export function listTemplates(plugin: IntraCopilotPlugin): GeneratorTemplate[] {
 	const folder = templateFolder(plugin);
 	const prefix = folder ? `${folder}/` : '';
-	return plugin.app.vault
+	const output = cleanVaultFolder(plugin.settings.generator.outputFolder);
+	const outputPrefix = output && output !== folder ? `${output}/` : '';
+	const files = plugin.app.vault
 		.getMarkdownFiles()
-		.filter((file) => (prefix ? file.path.startsWith(prefix) : true))
-		.map((file) => ({ file, name: file.basename }))
+		.filter((file) => file.path.startsWith(prefix))
+		.filter((file) => !outputPrefix || !file.path.startsWith(outputPrefix));
+
+	const seen = new Set<string>();
+	const repeated = new Set<string>();
+	for (const file of files) {
+		if (seen.has(file.basename)) repeated.add(file.basename);
+		seen.add(file.basename);
+	}
+	return files
+		.map((file) => ({
+			file,
+			name: repeated.has(file.basename) ? file.path.slice(prefix.length).replace(/\.md$/, '') : file.basename,
+		}))
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 

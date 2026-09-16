@@ -1,7 +1,9 @@
 // 제너레이터가 모델 답변을 새 노트로 바꾸는 규칙(src/generator/note-build.ts) 테스트입니다.
 // 실제 파일을 만들지 않고 글자만 다루는 부분이라 Obsidian 없이 그대로 돌아갑니다(npm test).
 import assert from 'node:assert/strict';
+import { TFile } from 'obsidian';
 import { buildNote, filterFrontmatter, frontmatterKeys, safeFileName, splitFrontmatter } from '../src/generator/note-build';
+import { listTemplates } from '../src/generator/templates';
 
 let passed = 0;
 function test(name: string, run: () => void): void {
@@ -92,6 +94,39 @@ test('파일 이름에 쓸 수 없는 글자를 뺀다', () => {
 	assert.equal(safeFileName('   ', '대체'), '대체');
 	assert.equal(safeFileName('...숨김', '대체'), '숨김');
 	assert.equal(safeFileName('가'.repeat(100), '대체').length, 80);
+});
+
+// ─── 양식 목록(src/generator/templates.ts) ────────────────────────────
+// 볼트에서 노트 목록만 읽는 부분이라, 파일 목록을 돌려주는 가짜 볼트 하나로 확인할 수 있습니다.
+const templateList = (paths: string[], folders: { templateFolder: string; outputFolder: string }) => {
+	const files = paths.map((path) => new TFile(path, 0));
+	const plugin = {
+		app: { vault: { getMarkdownFiles: () => files } },
+		settings: { generator: folders },
+	} as unknown as Parameters<typeof listTemplates>[0];
+	return listTemplates(plugin);
+};
+
+test('양식 목록은 양식 폴더 안만 보고, 저장 폴더가 그 안에 있으면 뺀다', () => {
+	const list = templateList(
+		['Generator/회의록.md', 'Generator/보고/주간.md', 'Generator/받은 노트/만든 노트.md', '다른 폴더/메모.md'],
+		{ templateFolder: 'Generator', outputFolder: 'Generator/받은 노트' },
+	);
+	assert.deepEqual(
+		list.map((template) => template.file.path),
+		['Generator/보고/주간.md', 'Generator/회의록.md'],
+	);
+});
+
+test('하위 폴더에 이름이 같은 양식이 둘 있으면 폴더까지 보여 준다', () => {
+	const list = templateList(['Generator/회의록.md', 'Generator/영업/회의록.md', 'Generator/주간.md'], {
+		templateFolder: 'Generator',
+		outputFolder: 'Generator-inbox',
+	});
+	assert.deepEqual(
+		list.map((template) => template.name),
+		['영업/회의록', '주간', '회의록'],
+	);
 });
 
 console.log(`\n${passed} passed`);
