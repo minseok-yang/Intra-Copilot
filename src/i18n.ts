@@ -598,6 +598,9 @@ const ko = {
 		instructionsSaved: '공통 지시문을 저장했습니다.',
 		// 챗봇 안내문(llm.errors)이 제너레이터에는 맞지 않는 원인만 따로 둡니다.
 		errors: {
+			// [중지]를 눌렀을 때. 챗봇 문구("답변 기다리기를 중지했습니다")는 노트를 만들었는지 아닌지를
+			// 알려 주지 않아서, 제너레이터에서는 만들지 않았다는 것까지 적습니다.
+			cancelled: '만들기를 중지했습니다. 노트를 만들지 않았습니다.',
 			'context-length':
 				'텍스트가 모델이 한 번에 처리할 수 있는 길이를 넘었습니다. 입력칸에서 필요 없는 부분을 지우거나, 텍스트를 나눠 여러 노트로 만드세요.',
 		},
@@ -1257,6 +1260,7 @@ const en: Dictionary = {
 		instructionsCancel: 'Cancel',
 		instructionsSaved: 'Saved the shared instructions.',
 		errors: {
+			cancelled: 'Creating was stopped. No note was created.',
 			'context-length':
 				'The source text is longer than the model can handle at once. Remove what you do not need, or split the text into several notes.',
 		},

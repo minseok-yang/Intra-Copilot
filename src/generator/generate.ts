@@ -1,6 +1,6 @@
 import { normalizePath, TFile } from 'obsidian';
 import type IntraCopilotPlugin from '../main';
-import { sendChatMessage } from '../llm/client';
+import { type LlmErrorKind, sendChatMessage } from '../llm/client';
 import { describeGeneratorError } from '../i18n';
 import { buildNote } from './note-build';
 import { cleanVaultFolder, ensureFolder, type GeneratorTemplate } from './templates';
@@ -28,7 +28,9 @@ const FRAME = [
 
 export type GenerateOutcome =
 	| { ok: true; file: TFile; droppedKeys: string[]; titleFromModel: boolean; renamed: boolean }
-	| { ok: false; message: string; detail?: string };
+	// kind는 서버 요청이 실패한 원인입니다. 화면에서 [중지](cancelled)를 오류와 다르게 보여 주려고
+	// 그대로 넘깁니다. 노트를 만드는 도중(파일 쓰기)에 실패하면 원인이 없어 kind가 없습니다.
+	| { ok: false; kind?: LlmErrorKind; message: string; detail?: string };
 
 // 노트 이름은 모델이 지은 제목이라, 이미 있는 노트와 겹칠 수 있습니다(같은 메일을 두 번 정리하는 등).
 // 그때 덮어쓰는 일은 절대 없고, 이름을 다르게 지어 새 노트를 만듭니다.
@@ -74,7 +76,7 @@ export async function generateNote(
 	const result = await sendChatMessage(llm, [{ role: 'user', content: prompt }], options.cancelSignal);
 	if (!result.ok) {
 		const described = describeGeneratorError(plugin.settings.general.language, result);
-		return { ok: false, message: described.summary, detail: described.detail };
+		return { ok: false, kind: result.kind, message: described.summary, detail: described.detail };
 	}
 	if (!result.reply.trim()) return { ok: false, message: strings.emptyReply };
 

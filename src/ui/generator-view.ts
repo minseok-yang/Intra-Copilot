@@ -409,6 +409,12 @@ export class GeneratorView extends ItemView {
 		this.running = null;
 
 		if (!outcome.ok) {
+			// [중지]는 사용자가 한 일이라 실패로 보여주지 않습니다(붉은 글자·알림 없이 안내만).
+			// 챗봇도 중지한 질문을 오류로 표시하지 않습니다 — 고칠 것이 없기 때문입니다.
+			if (outcome.kind === 'cancelled') {
+				this.showStatus(outcome.message, false);
+				return;
+			}
 			this.showStatus(strings.createFailed.replace('{reason}', outcome.message), true, outcome.detail);
 			return;
 		}
