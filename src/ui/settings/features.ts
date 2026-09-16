@@ -5,8 +5,9 @@ import { t } from '../../i18n';
 // Intra Copilot이 묶고 있는 기능 네 가지와, 각 기능을 지금 쓸 수 있는지입니다.
 // 설정 처음 화면의 기능별 설정 카드가 이 목록을 따릅니다.
 //
-// 기능을 완성하면: FEATURE_STATUS에서 그 기능을 'available'로 바꾸고, settings-tab.ts의 그 기능
-// 섹션을 준비 중 양식(upcoming-section.ts) 대신 실제 설정 화면으로 바꾸면 됩니다.
+// 기능을 완성하면: FEATURE_STATUS에서 그 기능을 'available'로 바꾸고, settings-tab.ts의 sectionsFor()에
+// 그 기능의 설정 섹션을 넣으면 됩니다. 네 기능이 모두 완성되어 지금은 'upcoming'인 기능이 없지만,
+// 새 기능을 계획할 때 다시 쓸 수 있게 상태 값과 배지는 남겨 둡니다.
 // (화면에 보이는 기능 이름은 i18n.ts의 features에 있고, 코드 id·설정 키·파일 이름도 같은 이름을 씁니다.)
 
 export type FeatureId = 'chatbot' | 'connector' | 'generator' | 'reminder';
@@ -21,7 +22,7 @@ export type FeatureStatus = 'available' | 'upcoming';
 export const FEATURE_STATUS: Record<FeatureId, FeatureStatus> = {
 	chatbot: 'available',
 	connector: 'available',
-	generator: 'upcoming',
+	generator: 'available',
 	reminder: 'available',
 };
 
@@ -46,7 +47,7 @@ export function featureIcon(id: FeatureId): string {
 	return `intra-copilot-${id}`;
 }
 
-// 오른쪽 사이드바 창(챗봇·커넥터·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
+// 오른쪽 사이드바 창(챗봇·커넥터·제너레이터·리마인더) 맨 위의 "Intra Copilot: 기능" 제목과 한 줄 소개.
 // 내용과 버튼만 있으면 처음 연 사람이 무슨 창인지 알기 어려워서 둡니다.
 export function renderViewHeading(containerEl: HTMLElement, plugin: IntraCopilotPlugin, id: FeatureId): void {
 	const feature = t(plugin.settings.general.language).features[id];

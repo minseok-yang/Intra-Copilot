@@ -1545,3 +1545,116 @@ button.intra-copilot-doc-card:hover {
 .intra-copilot-reminder-action.mod-warning.intra-copilot-delete-armed {
 	color: var(--text-on-accent);
 }
+
+/* ─── 제너레이터 창(오른쪽 사이드바) ─────────────────────────────────
+   세로 한 줄 흐름: 전송 안내 → 가져오기 버튼 → 자료 입력칸(+크게 보기) → 양식 → [만들기] */
+.intra-copilot-generator-view {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-bottom: 12px;
+}
+
+.intra-copilot-generator-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+/* 사이드바가 좁아 일부만 보이고, 필요하면 아래 [크게 보기]로 큰 창에서 봅니다. */
+.intra-copilot-generator-source {
+	width: 100%;
+	resize: vertical;
+	font-size: var(--font-ui-small);
+}
+
+.intra-copilot-generator-meta {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* 글자 수 옆의 [크게 보기]·[지우기] — 버튼 모양 대신 글자 링크로 둡니다(좁은 폭 절약). */
+.intra-copilot-generator-link {
+	padding: 0;
+	background: none;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.intra-copilot-generator-status {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	overflow-wrap: anywhere;
+}
+
+.intra-copilot-generator-status.is-error {
+	color: var(--text-error);
+}
+
+.intra-copilot-generator-empty {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* 설정 화면용 항목(Setting)을 좁은 사이드바에 넣은 것이라 칸을 세로로 쌓습니다. */
+.intra-copilot-generator-view .setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	border-top: none;
+	padding: 4px 0 0;
+}
+
+/* 자료 크게 보기 창 */
+.intra-copilot-generator-zoom-modal {
+	width: min(900px, 90vw);
+}
+
+.intra-copilot-generator-zoom-text {
+	width: 100%;
+	resize: vertical;
+	font-size: var(--font-ui-small);
+}
+
+/* 열린 문서 고르기 창 */
+.intra-copilot-generator-picker-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.intra-copilot-generator-picker-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	height: auto;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	box-shadow: none;
+	text-align: left;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.intra-copilot-generator-picker-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.intra-copilot-generator-picker-app {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.intra-copilot-generator-picker-name {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	overflow-wrap: anywhere;
+}

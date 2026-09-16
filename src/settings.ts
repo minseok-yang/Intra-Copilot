@@ -82,6 +82,26 @@ export const DEFAULT_DOCUMENT_FORMAT = '{title}\n\n{text}';
 // 노트당 벡터 수의 최대값. 검색 때 두 노트의 벡터를 모든 쌍으로 비교하므로(수의 제곱), 크게 두면 느려집니다.
 export const MAX_VECTORS_PER_NOTE = 5;
 
+// 제너레이터 설정입니다. 통신은 챗봇과 같은 LLM 서버 하나만 씁니다(임베딩 서버·MCP를 쓰지 않음).
+// 붙여넣거나 가져온 원문은 어디에도 저장하지 않습니다 — 창을 닫으면 사라집니다(generator/office-import.ts).
+export interface GeneratorSettings {
+	templateFolder: string; // 양식 노트(.md)를 모아 둔 볼트 기준 폴더
+	outputFolder: string; // 만든 노트를 저장할 볼트 기준 폴더. 비면 볼트 맨 위
+	instructions: string; // 모든 생성에 함께 보내는 공통 지시문. 비우면 DEFAULT_GENERATOR_INSTRUCTIONS로 돌아갑니다
+	openAfterCreate: boolean; // 만든 노트를 바로 열지(여러 건을 연달아 만들 때는 끄면 편합니다)
+}
+
+// 공통 지시문의 처음 값입니다. 모델에게 보내는 글이라 화면 언어와 상관없이 한국어입니다.
+// 사내에서 설정 화면으로 고칠 수 있습니다(고치면 data.json에 저장되고, 비우면 이 문장으로 돌아옵니다).
+export const DEFAULT_GENERATOR_INSTRUCTIONS = [
+	'받은 자료를 아래 양식에 맞춰 Obsidian 노트로 정리하세요.',
+	'- 자료에 있는 내용만 쓰고, 없는 것은 지어내지 마세요. 양식에 있지만 자료에 없는 항목은 비워 두세요.',
+	'- 양식의 괄호 ( ) 안 글은 무엇을 채우라는 안내입니다. 내용을 채우고 괄호와 안내는 지우세요.',
+	'- 양식의 제목 순서와 속성(맨 위 --- 사이)을 그대로 지키고, 양식에 없는 속성은 넣지 마세요.',
+	'- 원문을 그대로 베끼지 말고, 요점을 정리해 쓰세요. 숫자·날짜·사람 이름은 자료에 적힌 대로 옮기세요.',
+	'- 표·목록은 Obsidian 마크다운으로 쓰세요.',
+].join('\n');
+
 // 리마인더의 하루 단위 값입니다. 설정이 아니라 상태지만 노트와 상관없어 data.json에 함께 둡니다(reminder/daily-count.ts).
 export interface ReminderDaily {
 	day: string; // handled·extra를 센 날(YYYY-MM-DD). 날짜가 바뀌면 0부터 다시 셉니다.
@@ -94,6 +114,7 @@ export interface IntraCopilotSettings {
 	general: GeneralSettings;
 	llm: LlmSettings;
 	connector: ConnectorSettings;
+	generator: GeneratorSettings;
 	reminder: ReminderSettings;
 	reminderDaily: ReminderDaily;
 }
@@ -131,6 +152,13 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 		documentFormat: DEFAULT_DOCUMENT_FORMAT,
 		linkedNotes: 'show',
 		autoSyncSeconds: 15,
+	},
+	generator: {
+		// 양식은 노트라서 볼트 안에 둡니다(사내에서 Obsidian으로 바로 고치고 동료와 나눌 수 있게).
+		templateFolder: 'Generator',
+		outputFolder: 'Inbox',
+		instructions: DEFAULT_GENERATOR_INSTRUCTIONS,
+		openAfterCreate: true,
 	},
 	reminder: {
 		excludedFolders: [],

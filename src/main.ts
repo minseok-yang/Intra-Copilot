@@ -12,9 +12,10 @@ import { CHAT_VIEW_TYPE, ChatView, refreshChatViews, revealChatView } from './ui
 import { GUIDE_VIEW_TYPE, GuideView } from './ui/guide-view';
 import { refreshReminderViews, registerReminder, revealReminderView } from './ui/reminder-view';
 import { refreshConnectorViews, registerConnector, revealConnectorView } from './ui/connector-view';
+import { refreshGeneratorViews, registerGenerator, revealGeneratorView } from './ui/generator-view';
 import { ConnectorIndex } from './connector/connector-index';
 import { DailyCount } from './reminder/daily-count';
-import { t } from './i18n';
+import { type Dictionary, t } from './i18n';
 import { ConnectionSource, ConnectionStatusStore } from './llm/connection-status';
 import type { StatusState } from './ui/status-light';
 import { featureIcon, registerFeatureIcons } from './ui/settings/features';
@@ -38,7 +39,13 @@ export default class IntraCopilotPlugin extends Plugin {
 	readonly connectorIndex = new ConnectorIndex(this);
 	private chatRibbonEl!: HTMLElement;
 	private connectorRibbonEl!: HTMLElement;
+	private generatorRibbonEl!: HTMLElement;
 	private reminderRibbonEl!: HTMLElement;
+
+	// 지금 표시 언어의 화면 문구 묶음입니다. 화면마다 t(...)를 부르는 대신 이걸 씁니다.
+	strings(): Dictionary {
+		return t(this.settings.general.language);
+	}
 
 	async onload() {
 		await this.loadSettings();
@@ -49,6 +56,7 @@ export default class IntraCopilotPlugin extends Plugin {
 		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 		this.registerView(GUIDE_VIEW_TYPE, (leaf) => new GuideView(leaf, this));
 		registerConnector(this);
+		registerGenerator(this);
 		registerReminder(this);
 
 		const strings = t(this.settings.general.language);
@@ -58,6 +66,13 @@ export default class IntraCopilotPlugin extends Plugin {
 		this.connectorRibbonEl = this.addRibbonIcon(featureIcon('connector'), this.ribbonTooltip(strings.connector.ribbonTooltip), () => {
 			void revealConnectorView(this);
 		});
+		this.generatorRibbonEl = this.addRibbonIcon(
+			featureIcon('generator'),
+			this.ribbonTooltip(strings.generator.ribbonTooltip),
+			() => {
+				void revealGeneratorView(this);
+			},
+		);
 		this.reminderRibbonEl = this.addRibbonIcon(
 			featureIcon('reminder'),
 			this.ribbonTooltip(strings.reminder.ribbonTooltip),
@@ -82,6 +97,13 @@ export default class IntraCopilotPlugin extends Plugin {
 			},
 		});
 		this.addCommand({
+			id: 'open-generator',
+			name: strings.generator.ribbonTooltip,
+			callback: () => {
+				void revealGeneratorView(this);
+			},
+		});
+		this.addCommand({
 			id: 'open-reminder',
 			name: strings.reminder.ribbonTooltip,
 			callback: () => {
@@ -96,9 +118,11 @@ export default class IntraCopilotPlugin extends Plugin {
 		const strings = t(this.settings.general.language);
 		setTooltip(this.chatRibbonEl, this.ribbonTooltip(strings.chat.ribbonTooltip));
 		setTooltip(this.connectorRibbonEl, this.ribbonTooltip(strings.connector.ribbonTooltip));
+		setTooltip(this.generatorRibbonEl, this.ribbonTooltip(strings.generator.ribbonTooltip));
 		setTooltip(this.reminderRibbonEl, this.ribbonTooltip(strings.reminder.ribbonTooltip));
 		refreshChatViews(this);
 		refreshConnectorViews(this);
+		refreshGeneratorViews(this);
 		refreshReminderViews(this);
 		// 제외 폴더 등이 바뀌었을 수 있으니 자동 갱신 주기에 맞춰 색인 맞추기를 예약합니다(끄기면 커넥터 창 [업데이트]로 맞춤).
 		this.connectorIndex.requestSync();
@@ -147,6 +171,7 @@ export default class IntraCopilotPlugin extends Plugin {
 			general: { ...DEFAULT_SETTINGS.general, ...loaded?.general },
 			llm: { ...DEFAULT_SETTINGS.llm, ...loaded?.llm },
 			connector: { ...DEFAULT_SETTINGS.connector, ...loaded?.link, ...loaded?.connector },
+			generator: { ...DEFAULT_SETTINGS.generator, ...loaded?.generator },
 			reminder: { ...DEFAULT_SETTINGS.reminder, ...loaded?.reminder },
 			reminderDaily: { ...DEFAULT_SETTINGS.reminderDaily, ...loaded?.reminderDaily },
 		};
@@ -184,6 +209,22 @@ export default class IntraCopilotPlugin extends Plugin {
 		if (!LINKED_NOTES_MODES.includes(connector.linkedNotes)) connector.linkedNotes = connectorDefaults.linkedNotes;
 		if (typeof connector.documentFormat !== 'string' || !connector.documentFormat.includes('{text}')) {
 			connector.documentFormat = connectorDefaults.documentFormat;
+		}
+
+		const { generator } = this.settings;
+		const generatorDefaults = DEFAULT_SETTINGS.generator;
+		for (const key of ['templateFolder', 'outputFolder'] as const) {
+			if (typeof generator[key] !== 'string') generator[key] = generatorDefaults[key];
+		}
+		// 양식 폴더가 비면 볼트의 모든 노트가 양식 목록에 올라오므로 처음 폴더로 되돌립니다
+		// (저장 폴더는 비어도 됩니다 — 그때는 볼트 맨 위에 만듭니다).
+		if (!generator.templateFolder.trim()) generator.templateFolder = generatorDefaults.templateFolder;
+		// 지시문이 비면 양식만 보내게 되어 결과가 크게 나빠지므로 처음 지시문으로 되돌립니다.
+		if (typeof generator.instructions !== 'string' || !generator.instructions.trim()) {
+			generator.instructions = generatorDefaults.instructions;
+		}
+		if (typeof generator.openAfterCreate !== 'boolean') {
+			generator.openAfterCreate = generatorDefaults.openAfterCreate;
 		}
 
 		const reminderDefaults = DEFAULT_SETTINGS.reminder;

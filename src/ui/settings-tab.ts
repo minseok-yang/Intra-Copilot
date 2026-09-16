@@ -12,7 +12,10 @@ import {
 	renderReminderScheduleSection,
 	renderReminderTargetsSection,
 } from './settings/reminder-section';
-import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-section';
+import {
+	renderGeneratorPromptSection,
+	renderGeneratorTemplatesSection,
+} from './settings/generator-section';
 
 // 설정 화면의 틀입니다.
 //
@@ -28,8 +31,7 @@ import { renderUpcomingSection, UpcomingSectionId } from './settings/upcoming-se
 //
 // 기능으로 가는 길은 처음 화면의 카드 하나뿐입니다(예전에는 맨 위 탭도 있어 같은 역할이 둘이었습니다).
 // 섹션이 실제로 무엇을 그리는지는 ui/settings/ 폴더에 나눠 두었고, 여기서는 화면 전환·저장·다시 그리기만
-// 맡습니다. 기능을 만들면 sectionsFor()에서 그 기능의 준비 중 양식을 실제 설정으로 바꾸고,
-// features.ts에서 상태를 'available'로 바꿉니다.
+// 맡습니다. 새 기능을 만들면 sectionsFor()에 그 기능의 섹션을 넣고, features.ts에 기능과 상태를 더합니다.
 
 interface SectionDefinition {
 	id: string;
@@ -132,14 +134,9 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 		active.render(containerEl.createDiv({ cls: 'intra-copilot-section-content' }), ctx);
 	}
 
-	// 기능마다 어떤 섹션이 있는지입니다. 기능을 만들면 upcoming(...) 자리를 실제 설정 섹션으로 바꿉니다.
+	// 기능마다 어떤 섹션이 있는지입니다. 새 기능을 만들면 여기에 그 기능의 섹션을 넣습니다.
 	private sectionsFor(feature: FeatureId, ctx: SettingsContext): SectionDefinition[] {
 		const labels = ctx.strings.sections;
-		const upcoming = (id: UpcomingSectionId): SectionDefinition => ({
-			id,
-			label: labels[id],
-			render: (el, sectionCtx) => renderUpcomingSection(el, sectionCtx, id),
-		});
 
 		switch (feature) {
 			case 'chatbot':
@@ -158,7 +155,10 @@ export class IntraCopilotSettingTab extends PluginSettingTab {
 					{ id: 'index', label: labels.index, render: renderConnectorIndexSection },
 				];
 			case 'generator':
-				return [upcoming('templates'), upcoming('prompts'), upcoming('mcp')];
+				return [
+					{ id: 'templates', label: labels.templates, render: renderGeneratorTemplatesSection },
+					{ id: 'prompts', label: labels.prompts, render: renderGeneratorPromptSection },
+				];
 			case 'reminder':
 				return [
 					{ id: 'targets', label: labels.reminderTargets, render: renderReminderTargetsSection },

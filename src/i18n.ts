@@ -40,8 +40,8 @@ const ko = {
 		languageDesc:
 			'플러그인 화면(설정·챗봇)에 쓰이는 언어를 바꿉니다. 사용자 가이드와 라이선스 문서는 한국어로만 제공됩니다.',
 	},
-	// Intra Copilot이 묶은 기능 네 가지(ui/settings/features.ts). 이름은 아직 가칭이라 여기서만 고치면
-	// 설정 화면 전체(처음 화면의 카드, 기능 설정의 머리말)에 반영됩니다.
+	// Intra Copilot이 묶은 기능 네 가지(ui/settings/features.ts). 여기서 이름을 고치면 설정 화면 전체
+	// (처음 화면의 카드, 기능 설정의 머리말)와 창 제목에 함께 반영됩니다.
 	features: {
 		available: '사용 가능',
 		upcoming: '준비 중',
@@ -76,23 +76,9 @@ const ko = {
 		index: '인덱스',
 		templates: '양식',
 		prompts: '프롬프트',
-		mcp: 'MCP 연결',
 		reminderTargets: '대상 노트',
 		schedule: '주기·알림',
 		reminderProperties: '노트 속성',
-	},
-	// 준비 중인 기능의 설정 자리(ui/settings/upcoming-section.ts). 모두 잠겨 있고 아무것도 저장하지 않습니다.
-	// 항목은 지금 계획한 것일 뿐이라, 기능을 실제로 만들 때 바뀔 수 있습니다.
-	upcoming: {
-		notice: '이 기능은 아직 만드는 중입니다. 아래는 앞으로 들어갈 설정의 자리이며, 지금은 바꿀 수 없습니다.',
-		templatesIntro: '붙여 넣은 글로 새 노트를 만들 때 따를 양식 노트를 관리합니다.',
-		templatesFolder: { name: '폴더', desc: '양식 노트를 모아 둔 폴더' },
-		templatesDefault: { name: '기본 양식', desc: '따로 고르지 않을 때 쓸 양식' },
-		promptsIntro: '새 노트를 만들 때 모델에게 줄 지시문을 관리합니다.',
-		promptsInstructions: { name: '노트 생성 지시문', desc: '양식을 채울 때 모델이 따를 규칙' },
-		mcpIntro: '새 노트를 만들 때 쓸 외부 도구(MCP 서버) 연결을 관리합니다.',
-		mcpServers: { name: '서버', desc: '연결할 MCP 서버 목록' },
-		buttonAdd: '추가',
 	},
 	// 사용자 가이드·라이선스 창(ui/guide-view.ts)의 이동 버튼
 	docs: {
@@ -104,7 +90,7 @@ const ko = {
 	llm: {
 		// 연결 화면 맨 위에 자물쇠와 함께 보이는 전송 안내. 통신 대상이 늘어나는 기능을 만들면 이 문장도 고쳐야 합니다.
 		privacyNote:
-			'챗봇은 노트 내용을 여기서 설정한 LLM 서버로만 보내며, 입력칸 위에 칩으로 올라온 것만 전송합니다. 커넥터 기능은 커넥터 설정의 임베딩 서버를 따로 씁니다.',
+			'챗봇은 노트 내용을 여기서 설정한 LLM 서버로만 보내며, 입력칸 위에 칩으로 올라온 것만 전송합니다. 제너레이터도 이 서버를 함께 씁니다. 커넥터 기능은 커넥터 설정의 임베딩 서버를 따로 씁니다.',
 		intro:
 			'OpenAI 호환 API(예: vLLM으로 운영하는 사내 서버)를 지원합니다. ' +
 			'연결을 확인할 때는 노트 내용을 보내지 않고, 정해진 테스트 문장만 보냅니다.',
@@ -498,6 +484,89 @@ const ko = {
 				'서버가 임베딩 API 형식이 아닌 응답을 보냈거나, 받은 벡터의 개수·크기가 맞지 않습니다. 서버 주소가 API 주소(보통 /v1로 끝남)인지 확인하고, 서버의 모델이 바뀌었다면 [다시 만들기]를 누르세요.',
 		},
 	},
+	// 제너레이터 화면(ui/generator-view.ts)·팝업(ui/generator-modals.ts)과 설정(ui/settings/generator-section.ts)
+	generator: {
+		title: '제너레이터',
+		ribbonTooltip: '제너레이터 열기',
+		privacyNote:
+			'[만들기]를 누를 때 입력칸의 글과 고른 양식이 챗봇과 같은 LLM 서버로 전송됩니다. 가져온 원문은 파일이나 설정에 저장하지 않으며, Obsidian을 끄면 사라집니다.',
+		importOpenButton: '열린 문서 가져오기',
+		importOpenTooltip:
+			'Word·Excel·PowerPoint에 지금 열려 있는 문서와 Outlook에서 고른 메일 중에서 골라 본문을 입력칸에 채웁니다. 프로그램을 새로 띄우지는 않습니다.',
+		importFileButton: '파일 선택해서 가져오기',
+		importFileTooltip:
+			'파일 선택 창에서 Word·Excel·PowerPoint 문서를 고르면 화면에 보이지 않게 열어 본문만 가져온 뒤 바로 닫습니다. PDF는 지원하지 않습니다.',
+		importing: '가져오는 중...',
+		imported: '{name}에서 {count}자를 가져왔습니다.',
+		pastePlaceholder: '여기에 글을 붙여넣으세요. PDF는 뷰어에서 글을 복사해 붙여넣으세요.',
+		charCount: '{count}자',
+		zoomButton: '크게 보기',
+		zoomTooltip: '입력칸을 큰 창으로 엽니다. 큰 창에서 고친 내용은 그대로 남습니다.',
+		zoomTitle: '자료 크게 보기',
+		zoomClose: '닫기',
+		clearButton: '지우기',
+		clearTooltip: '입력칸을 비웁니다.',
+		templateLabel: '양식',
+		templateDesc: '새 노트를 어떤 모양으로 쓸지 정해 둔 노트입니다. 설정 → 제너레이터 → 양식에서 폴더를 정합니다.',
+		templateEmpty:
+			'양식이 없습니다. 설정 → Intra Copilot → 제너레이터 → 양식에서 폴더를 확인하고, 그 폴더에 양식 노트(.md)를 만드세요.',
+		createButton: '만들기',
+		createTooltip: '입력칸의 글과 고른 양식을 LLM 서버로 보내 새 노트를 만들고 저장합니다.',
+		creating: '만드는 중...',
+		stopButton: '중지',
+		needText: '먼저 자료를 붙여넣거나 가져오세요.',
+		needTemplate: '먼저 양식을 고르세요.',
+		notConfigured: '설정 → Intra Copilot → 챗봇 → LLM 연결에서 서버 주소와 모델을 먼저 설정하세요.',
+		created: '노트를 만들었습니다: {path}',
+		createFailed: '노트를 만들지 못했습니다: {reason}',
+		emptyReply: '서버가 빈 답변을 보내 노트를 만들지 못했습니다. 다시 시도하세요.',
+		titleFallback: '제목 없는 노트',
+		titleGuessed: '모델이 제목을 주지 않아 노트 안의 첫 제목으로 파일 이름을 정했습니다.',
+		droppedKeys: '양식에 없는 속성은 뺐습니다: {keys}',
+		exampleCreated: '예시 양식을 만들었습니다: {path}',
+		// 열린 문서 고르기 창
+		pickerTitle: '열린 문서 고르기',
+		pickerIntro: '지금 열려 있는 문서와 Outlook에서 고른 메일입니다. 하나를 누르면 그 문서의 본문만 가져옵니다.',
+		pickerEmpty:
+			'열려 있는 문서가 없습니다. Word·Excel·PowerPoint에서 문서를 열거나 Outlook에서 메일을 고른 뒤 다시 누르세요.',
+		appWord: 'Word',
+		appExcel: 'Excel',
+		appPowerpoint: 'PowerPoint',
+		appOutlook: 'Outlook 메일',
+		// 가져오기 실패 원인별 안내(generator/office-import.ts의 ImportErrorKind와 이름이 같아야 합니다)
+		importErrors: {
+			'no-app': '그 프로그램이 켜져 있지 않습니다. 문서를 열어 둔 뒤 다시 시도하세요.',
+			cancelled: '가져오기를 취소했습니다.',
+			pdf: 'PDF는 가져올 수 없습니다. PDF 뷰어에서 글을 선택해 복사한 뒤 입력칸에 붙여넣으세요.',
+			unsupported: '문서 가져오기는 Windows에서만 됩니다. 글을 복사해 입력칸에 붙여넣으세요.',
+			timeout:
+				'문서를 읽는 데 너무 오래 걸려 멈췄습니다. 문서에 확인 창이 떠 있는지 보고 닫은 뒤 다시 시도하세요.',
+			failed: '문서를 가져오지 못했습니다. 문서가 열려 있는지 확인하고 다시 시도하세요.',
+		},
+		// 설정 → 제너레이터 → 양식
+		templatesIntro:
+			'붙여넣거나 가져온 글로 새 노트를 만들 때 따를 양식과, 만든 노트를 저장할 곳을 정합니다. 양식은 볼트 안의 평범한 노트(.md)라서 Obsidian에서 바로 고칠 수 있습니다. 양식 안의 괄호 ( ) 설명을 모델이 읽고 채우며, 새로 배울 문법은 없습니다.',
+		folderName: '양식 폴더',
+		folderDesc:
+			'양식 노트를 모아 둔 볼트 기준 폴더입니다(하위 폴더도 함께 봅니다). 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다. 비워두면 기본값(Generator)으로 돌아갑니다.',
+		outputFolderName: '새 노트 저장 폴더',
+		outputFolderDesc:
+			'만든 노트를 저장할 볼트 기준 폴더입니다. 폴더가 없으면 만듭니다. 같은 이름의 노트가 있으면 뒤에 번호를 붙입니다. 비워두면 볼트 맨 위에 만듭니다.',
+		openAfterName: '만든 뒤 노트 열기',
+		openAfterDesc:
+			'노트를 만들면 바로 열어 보여 줍니다. 여러 건을 연달아 만들 때는 끄면 화면이 바뀌지 않아 편합니다(만든 노트 경로는 제너레이터 창에 표시됩니다).',
+		// 설정 → 제너레이터 → 프롬프트
+		instructionsIntro:
+			'양식과 자료를 보낼 때 함께 보내는 공통 지시문입니다. 모델에게 보내는 글이라 한국어로 적습니다. 고친 내용은 [저장]을 눌러야 반영되고, [취소]를 누르면 마지막으로 저장한 내용으로 돌아갑니다. 비우고 저장하면 처음 지시문으로 돌아갑니다.',
+		instructionsSave: '저장',
+		instructionsCancel: '취소',
+		instructionsSaved: '공통 지시문을 저장했습니다.',
+		// 챗봇 안내문(llm.errors)이 제너레이터에는 맞지 않는 원인만 따로 둡니다.
+		errors: {
+			'context-length':
+				'자료가 모델이 한 번에 처리할 수 있는 길이를 넘었습니다. 입력칸에서 필요 없는 부분을 지우거나, 자료를 나눠 여러 노트로 만드세요.',
+		},
+	},
 	// 리마인더 화면(ui/reminder-view.ts)과 설정(ui/settings/reminder-section.ts)
 	reminder: {
 		title: '리마인더',
@@ -598,6 +667,7 @@ export type Dictionary = typeof ko;
 export type ChatStrings = Dictionary['chat'];
 export type ReminderStrings = Dictionary['reminder'];
 export type ConnectorStrings = Dictionary['connector'];
+export type GeneratorStrings = Dictionary['generator'];
 
 const en: Dictionary = {
 	general: {
@@ -653,21 +723,9 @@ const en: Dictionary = {
 		index: 'Index',
 		templates: 'Templates',
 		prompts: 'Prompts',
-		mcp: 'MCP connections',
 		reminderTargets: 'Target notes',
 		schedule: 'Schedule & alerts',
 		reminderProperties: 'Note properties',
-	},
-	upcoming: {
-		notice: 'This feature is still being built. Below are placeholders for its future settings, which cannot be changed yet.',
-		templatesIntro: 'Manage the template notes to follow when creating a new note from pasted text.',
-		templatesFolder: { name: 'Folder', desc: 'Folder that holds template notes' },
-		templatesDefault: { name: 'Default', desc: 'Template used when none is chosen' },
-		promptsIntro: 'Manage the instructions given to the model when creating a new note.',
-		promptsInstructions: { name: 'Note creation instructions', desc: 'Rules the model follows when filling in a template' },
-		mcpIntro: 'Manage connections to external tools (MCP servers) used when creating new notes.',
-		mcpServers: { name: 'Servers', desc: 'List of MCP servers to connect to' },
-		buttonAdd: 'Add',
 	},
 	docs: {
 		toc: 'Contents',
@@ -677,7 +735,7 @@ const en: Dictionary = {
 	},
 	llm: {
 		privacyNote:
-			'The chatbot sends note content only to the LLM server you configure here, and only what is shown as a chip above the chat box. The Connector uses its own embedding server from the Connector settings.',
+			'The chatbot sends note content only to the LLM server you configure here, and only what is shown as a chip above the chat box. The Generator uses this same server. The Connector uses its own embedding server from the Connector settings.',
 		intro:
 			'Supports OpenAI-compatible APIs ' +
 			'(e.g. an internal server running vLLM). Checking the connection never sends ' +
@@ -1060,6 +1118,84 @@ const en: Dictionary = {
 				'The server sent something that is not an embedding API response, or the number or size of the vectors does not match. Make sure the address is the API address (usually ending in /v1), and click [Rebuild] if the server’s model changed.',
 		},
 	},
+	generator: {
+		title: 'Generator',
+		ribbonTooltip: 'Open generator',
+		privacyNote:
+			'When you select [Create], the text in the box and the chosen template are sent to the same LLM server the chatbot uses. Imported source text is never saved to a file or to settings, and is gone when Obsidian closes.',
+		importOpenButton: 'Import open document',
+		importOpenTooltip:
+			'Choose from the documents currently open in Word, Excel, or PowerPoint, or the mail selected in Outlook, and fill the box with its text. No application is started for you.',
+		importFileButton: 'Choose a file to import',
+		importFileTooltip:
+			'Pick a Word, Excel, or PowerPoint file; it is opened invisibly, its text is read, and it is closed again. PDF is not supported.',
+		importing: 'Importing...',
+		imported: 'Imported {count} characters from {name}.',
+		pastePlaceholder: 'Paste your text here. For a PDF, copy the text in your viewer and paste it here.',
+		charCount: '{count} characters',
+		zoomButton: 'Open larger',
+		zoomTooltip: 'Open the box in a large window. Edits there are kept.',
+		zoomTitle: 'Source text',
+		zoomClose: 'Close',
+		clearButton: 'Clear',
+		clearTooltip: 'Empty the box.',
+		templateLabel: 'Template',
+		templateDesc:
+			'A note that defines the shape of the new note. Set the folder under Settings → Generator → Templates.',
+		templateEmpty:
+			'No templates yet. Check the folder under Settings → Intra Copilot → Generator → Templates and add a template note (.md) there.',
+		createButton: 'Create',
+		createTooltip: 'Send the text and the chosen template to the LLM server, then save the new note.',
+		creating: 'Creating...',
+		stopButton: 'Stop',
+		needText: 'Paste or import some source text first.',
+		needTemplate: 'Choose a template first.',
+		notConfigured:
+			'Set the server address and model first under Settings → Intra Copilot → Chatbot → LLM connection.',
+		created: 'Created the note: {path}',
+		createFailed: 'Could not create the note: {reason}',
+		emptyReply: 'The server returned an empty reply, so no note was created. Please try again.',
+		titleFallback: 'Untitled note',
+		titleGuessed: 'The model gave no title, so the first heading in the note was used as the file name.',
+		droppedKeys: 'Properties not in the template were removed: {keys}',
+		exampleCreated: 'Created an example template: {path}',
+		pickerTitle: 'Choose an open document',
+		pickerIntro: 'Documents currently open, and the mail selected in Outlook. Select one to import its text.',
+		pickerEmpty:
+			'No open documents. Open a document in Word, Excel, or PowerPoint, or select a mail in Outlook, then try again.',
+		appWord: 'Word',
+		appExcel: 'Excel',
+		appPowerpoint: 'PowerPoint',
+		appOutlook: 'Outlook mail',
+		importErrors: {
+			'no-app': 'That application is not running. Open the document first, then try again.',
+			cancelled: 'Import cancelled.',
+			pdf: 'PDF cannot be imported. Select and copy the text in your PDF viewer, then paste it into the box.',
+			unsupported: 'Document import works on Windows only. Copy the text and paste it into the box instead.',
+			timeout: 'Reading the document took too long and was stopped. Check for a dialog on the document, close it, and try again.',
+			failed: 'Could not import the document. Make sure it is open, then try again.',
+		},
+		templatesIntro:
+			'Choose the templates used to write a new note from pasted or imported text, and where the new notes are saved. Templates are ordinary vault notes (.md), so you can edit them right in Obsidian. The model reads the notes in parentheses ( ) and fills them in — there is no new syntax to learn.',
+		folderName: 'Template folder',
+		folderDesc:
+			'Vault folder holding the template notes (subfolders included). If it has no notes, an example template is created when you open the generator. Leave empty to restore the default (Generator).',
+		outputFolderName: 'Folder for new notes',
+		outputFolderDesc:
+			'Vault folder where new notes are saved. It is created if missing, and a number is appended when a note of the same name exists. Leave empty to save at the vault root.',
+		openAfterName: 'Open the note after creating',
+		openAfterDesc:
+			'Open each new note right away. Turn this off when creating several notes in a row (the path of each new note is shown in the generator pane).',
+		instructionsIntro:
+			'Instructions sent along with the template and the source text. They are written in Korean because they go to the model. Select [Save] to apply your changes, or [Cancel] to go back to the last saved version. Saving an empty box restores the original instructions.',
+		instructionsSave: 'Save',
+		instructionsCancel: 'Cancel',
+		instructionsSaved: 'Saved the shared instructions.',
+		errors: {
+			'context-length':
+				'The source text is longer than the model can handle at once. Remove what you do not need, or split the text into several notes.',
+		},
+	},
 	reminder: {
 		title: 'Reminder',
 		ribbonTooltip: 'Open reminder',
@@ -1171,6 +1307,16 @@ export function describeLlmError(
 		summary: template.replace('{seconds}', String(failure.timeoutSeconds ?? '')),
 		detail: failure.detail,
 	};
+}
+
+// 제너레이터 요청 실패. 챗봇 안내문이 맞지 않는 원인만 generator.errors로 바꿉니다
+// (예: 길이 초과는 "대화 기록을 줄이라"가 아니라 "자료를 줄이라"가 맞습니다).
+export function describeGeneratorError(
+	language: UiLanguage,
+	failure: { kind: LlmErrorKind; detail: string; timeoutSeconds?: number },
+): { summary: string; detail: string } {
+	const override = (t(language).generator.errors as Partial<Record<LlmErrorKind, string>>)[failure.kind];
+	return override ? { summary: override, detail: failure.detail } : describeLlmError(language, failure);
 }
 
 // 커넥터(임베딩 서버) 요청 실패. 챗봇 안내문이 맞지 않는 원인만 connector.errors로 바꿉니다.
