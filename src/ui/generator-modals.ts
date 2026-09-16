@@ -3,7 +3,7 @@ import type { GeneratorStrings } from '../i18n';
 import type { OfficeApp, OpenDocument } from '../generator/office-import';
 
 // 제너레이터의 두 팝업 창입니다.
-// - SourceZoomModal: 좁은 사이드바에서 텍스트를 크게 보고 고치는 창
+// - SourceZoomModal: 좁은 사이드바에서 텍스트를 크게 보고 고치는 창([새 창에서 텍스트 보기])
 // - OpenDocumentModal: 지금 열려 있는 Office 문서·Outlook 메일 중에서 텍스트를 가져올 하나를 고르는 창
 
 export class SourceZoomModal extends Modal {
