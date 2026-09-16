@@ -1,5 +1,5 @@
 import { ButtonComponent, Notice, Setting, TextAreaComponent } from 'obsidian';
-import { DEFAULT_GENERATOR_INSTRUCTIONS, DEFAULT_SETTINGS } from '../../settings';
+import { DEFAULT_GENERATOR_INSTRUCTIONS } from '../../settings';
 import { cleanVaultFolder, ensureFolder } from '../../generator/templates';
 import { FolderPickerModal } from '../folder-picker';
 import type { SettingsContext } from './context';
@@ -8,8 +8,6 @@ import { openFolder } from './skills-section';
 // 제너레이터 → 양식 / 프롬프트.
 // 양식은 볼트 안의 노트라서 사내에서도 Obsidian으로 바로 고칠 수 있고, 공통 지시문은 여기서 고칠 수
 // 있습니다(둘 다 재빌드가 필요 없습니다 — 사내에서 손댈 수 있는 것을 늘리려는 선택입니다).
-
-const defaults = DEFAULT_SETTINGS.generator;
 
 // 볼트 폴더를 고르는 설정 한 줄: 지금 폴더 + [찾기](폴더 고르기 창) + [폴더 열기].
 // 경로를 손으로 적게 하지 않는 이유: 오타 하나로 엉뚱한 폴더가 새로 생기고, 그때는 양식이 없는 것처럼
@@ -23,6 +21,9 @@ export function addFolderSetting(
 		get: () => string;
 		set: (value: string) => void;
 		openFailed: string;
+		// 고른 폴더를 쓸 수 없으면 그 이유를 돌려줍니다(쓸 수 있으면 null). 이유는 알림으로 보여 주고
+		// 설정은 그대로 둡니다 — 조용히 다른 폴더로 바꿔 두면 고른 것이 왜 안 먹히는지 알 수 없습니다.
+		reject?: (path: string) => string | null;
 	},
 ): void {
 	const folders = ctx.strings.folders;
@@ -40,7 +41,13 @@ export function addFolderSetting(
 					strings: folders,
 					current: options.get(),
 					onChoose: (path) => {
-						options.set(cleanVaultFolder(path));
+						const folder = cleanVaultFolder(path);
+						const why = options.reject?.(folder);
+						if (why) {
+							new Notice(why);
+							return;
+						}
+						options.set(folder);
 						showPath();
 						ctx.saveSoon();
 					},
@@ -64,23 +71,32 @@ export function renderGeneratorTemplatesSection(containerEl: HTMLElement, ctx: S
 	containerEl.createEl('p', { text: strings.templatesIntro });
 	containerEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
 
-	// 양식 폴더를 볼트 맨 위로 두면 볼트의 모든 노트가 양식 목록에 올라와 버리므로 처음 폴더로 되돌립니다.
+	// 양식 폴더를 볼트 맨 위로 두면 볼트의 모든 노트가 양식 목록에 올라와 버리므로 받지 않습니다.
 	addFolderSetting(containerEl, ctx, {
 		name: strings.folderName,
 		desc: strings.folderDesc,
 		get: () => generator.templateFolder,
-		set: (value) => (generator.templateFolder = value || defaults.templateFolder),
+		set: (value) => {
+			generator.templateFolder = value;
+		},
 		openFailed: strings.openFolderFailed,
+		reject: (path) => (path ? null : strings.folderRootRejected),
 	});
 
-	// 저장 폴더도 같은 방식으로 고릅니다. 볼트 맨 위로 두면 만든 노트가 볼트 맨 위에 쌓이므로
-	// 처음 폴더(Generator-inbox)로 되돌립니다.
+	// 저장 폴더도 같은 방식으로 고릅니다. 볼트 맨 위는 만든 노트가 볼트 맨 위에 쌓여서, 양식 폴더와
+	// 같은 폴더는 만든 노트가 다음부터 양식으로 보여서 받지 않습니다.
 	addFolderSetting(containerEl, ctx, {
 		name: strings.outputFolderName,
 		desc: strings.outputFolderDesc,
 		get: () => generator.outputFolder,
-		set: (value) => (generator.outputFolder = value || defaults.outputFolder),
+		set: (value) => {
+			generator.outputFolder = value;
+		},
 		openFailed: strings.openFolderFailed,
+		reject: (path) => {
+			if (!path) return strings.outputRootRejected;
+			return path === cleanVaultFolder(generator.templateFolder) ? strings.outputSameRejected : null;
+		},
 	});
 
 	new Setting(containerEl)

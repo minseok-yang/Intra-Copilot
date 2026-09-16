@@ -577,6 +577,13 @@ const ko = {
 		folderDesc:
 			'양식 노트를 모아 둔 이 볼트의 폴더입니다(하위 폴더의 양식도 함께 보여 줍니다). [찾기]로 폴더를 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 따로 고르지 않으면 Generator 폴더를 만들어 쓰며, 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다.',
 		openFolderFailed: '폴더를 열지 못했습니다.',
+		// 고른 폴더를 쓸 수 없을 때. 조용히 다른 폴더로 바꿔 두면 왜 그런지 알 수 없으므로 이유를 알립니다.
+		folderRootRejected:
+			'양식 폴더는 볼트 맨 위로 둘 수 없습니다. 볼트의 모든 노트가 양식 목록에 올라오기 때문입니다. 폴더를 하나 고르세요.',
+		outputRootRejected:
+			'새 노트 저장 폴더는 볼트 맨 위로 둘 수 없습니다. 만든 노트가 볼트 맨 위에 쌓이기 때문입니다. 폴더를 하나 고르세요.',
+		outputSameRejected:
+			'새 노트 저장 폴더는 양식 폴더와 같게 둘 수 없습니다. 만든 노트가 양식 목록에 섞이기 때문입니다. 다른 폴더를 고르세요.',
 		outputFolderName: '새 노트 저장 폴더',
 		outputFolderDesc:
 			'만든 노트를 저장할 이 볼트의 폴더입니다. [찾기]로 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 폴더가 없으면 만들면서 알리고, 따로 고르지 않으면 Generator-inbox 폴더를 씁니다. 같은 이름의 노트가 이미 있으면 덮어쓰지 않고 제목 뒤에 날짜를(그래도 겹치면 번호를) 붙여 저장하고 알려 줍니다.',
@@ -1232,6 +1239,12 @@ const en: Dictionary = {
 		folderDesc:
 			'The vault folder holding your template notes (templates in subfolders are listed too). Select [Browse] to pick a folder, or [Open folder] to show it in your file manager. If you pick nothing, a Generator folder is created and used; if that folder has no notes, an example template is created when you open the generator.',
 		openFolderFailed: 'Could not open the folder.',
+		folderRootRejected:
+			'The template folder cannot be the vault root: every note in the vault would be listed as a template. Pick a folder.',
+		outputRootRejected:
+			'The folder for new notes cannot be the vault root: new notes would pile up at the top of the vault. Pick a folder.',
+		outputSameRejected:
+			'The folder for new notes cannot be the same as the template folder: the notes it creates would be listed as templates. Pick a different folder.',
 		outputFolderName: 'Folder for new notes',
 		outputFolderDesc:
 			'The vault folder where new notes are saved. Select [Browse] to pick it, or [Open folder] to show it in your file manager. A missing folder is created and you are told about it; if you pick nothing, a Generator-inbox folder is used. If a note of the same name already exists, nothing is overwritten: the date (and then a number) is added to the title and you are told about it.',
