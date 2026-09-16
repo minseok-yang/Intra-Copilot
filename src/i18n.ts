@@ -548,6 +548,7 @@ const ko = {
 		emptyReply: '서버가 빈 답변을 보내 노트를 만들지 못했습니다. 다시 시도하세요.',
 		titleFallback: '제목 없는 노트',
 		titleGuessed: '모델이 제목을 주지 않아 노트 안의 첫 제목으로 파일 이름을 정했습니다.',
+		renamedNotice: '같은 이름의 노트가 이미 있어 "{name}"으로 저장했습니다. 기존 노트는 그대로 있습니다.',
 		droppedKeys: '양식에 없는 속성은 뺐습니다: {keys}',
 		exampleCreated: '예시 양식을 만들었습니다: {path}',
 		// 열린 문서 고르기 창
@@ -578,7 +579,7 @@ const ko = {
 		openFolderFailed: '폴더를 열지 못했습니다.',
 		outputFolderName: '새 노트 저장 폴더',
 		outputFolderDesc:
-			'만든 노트를 저장할 이 볼트의 폴더입니다. [찾기]로 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 폴더가 없으면 만들면서 알리고, 따로 고르지 않으면 Generator-inbox 폴더를 씁니다. 같은 이름의 노트가 있으면 뒤에 번호를 붙입니다.',
+			'만든 노트를 저장할 이 볼트의 폴더입니다. [찾기]로 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 폴더가 없으면 만들면서 알리고, 따로 고르지 않으면 Generator-inbox 폴더를 씁니다. 같은 이름의 노트가 이미 있으면 덮어쓰지 않고 제목 뒤에 날짜를(그래도 겹치면 번호를) 붙여 저장하고 알려 줍니다.',
 		openAfterName: '만든 뒤 노트 열기',
 		openAfterDesc:
 			'노트를 만들면 바로 열어 보여 줍니다. 여러 건을 연달아 만들 때는 끄면 화면이 바뀌지 않아 편합니다(만든 노트 경로는 제너레이터 창에 표시됩니다).',
@@ -1206,6 +1207,7 @@ const en: Dictionary = {
 		emptyReply: 'The server returned an empty reply, so no note was created. Please try again.',
 		titleFallback: 'Untitled note',
 		titleGuessed: 'The model gave no title, so the first heading in the note was used as the file name.',
+		renamedNotice: 'A note of that name already existed, so this one was saved as "{name}". The existing note is untouched.',
 		droppedKeys: 'Properties not in the template were removed: {keys}',
 		exampleCreated: 'Created an example template: {path}',
 		pickerTitle: 'Choose a document to get text from',
@@ -1232,7 +1234,7 @@ const en: Dictionary = {
 		openFolderFailed: 'Could not open the folder.',
 		outputFolderName: 'Folder for new notes',
 		outputFolderDesc:
-			'The vault folder where new notes are saved. Select [Browse] to pick it, or [Open folder] to show it in your file manager. A missing folder is created and you are told about it; if you pick nothing, a Generator-inbox folder is used. A number is appended when a note of the same name exists.',
+			'The vault folder where new notes are saved. Select [Browse] to pick it, or [Open folder] to show it in your file manager. A missing folder is created and you are told about it; if you pick nothing, a Generator-inbox folder is used. If a note of the same name already exists, nothing is overwritten: the date (and then a number) is added to the title and you are told about it.',
 		openAfterName: 'Open the note after creating',
 		openAfterDesc:
 			'Open each new note right away. Turn this off when creating several notes in a row (the path of each new note is shown in the generator pane).',

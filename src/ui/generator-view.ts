@@ -410,6 +410,8 @@ export class GeneratorView extends ItemView {
 			new Notice(strings.droppedKeys.replace('{keys}', outcome.droppedKeys.join(', ')));
 		}
 		if (!outcome.titleFromModel) new Notice(strings.titleGuessed);
+		// 모델이 지은 제목이 이미 있는 노트와 겹쳐 다른 이름으로 저장됐으면 알립니다(덮어쓰지는 않습니다).
+		if (outcome.renamed) new Notice(strings.renamedNotice.replace('{name}', outcome.file.basename));
 		// 같은 텍스트·양식으로 또 누르면 한 번 더 확인하게 기억해 둡니다.
 		this.lastCreated = signature;
 		this.showStatus(strings.created.replace('{path}', outcome.file.path), false);

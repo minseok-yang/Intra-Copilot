@@ -27,17 +27,31 @@ const FRAME = [
 ].join('\n');
 
 export type GenerateOutcome =
-	| { ok: true; file: TFile; droppedKeys: string[]; titleFromModel: boolean }
+	| { ok: true; file: TFile; droppedKeys: string[]; titleFromModel: boolean; renamed: boolean }
 	| { ok: false; message: string; detail?: string };
 
-// 같은 이름의 노트가 있으면 뒤에 2, 3…을 붙입니다.
-function uniquePath(plugin: IntraCopilotPlugin, folder: string, title: string): string {
+// 노트 이름은 모델이 지은 제목이라, 이미 있는 노트와 겹칠 수 있습니다(같은 메일을 두 번 정리하는 등).
+// 그때 덮어쓰는 일은 절대 없고, 이름을 다르게 지어 새 노트를 만듭니다.
+//   "제목" → "제목 (2026-09-16)" → "제목 (2026-09-16) 2" → …
+// 번호만 붙이면 "제목 2"가 무엇인지 나중에 알 수 없지만, 날짜가 있으면 언제 만든 것인지 보입니다.
+// 이름이 바뀌었으면 renamed로 알려 화면에서 사용자에게 알립니다(다른 이름으로 조용히 저장되지 않게).
+function uniquePath(
+	plugin: IntraCopilotPlugin,
+	folder: string,
+	title: string,
+): { path: string; renamed: boolean } {
 	const dir = folder ? `${folder}/` : '';
-	let path = normalizePath(`${dir}${title}.md`);
-	for (let n = 2; plugin.app.vault.getAbstractFileByPath(path); n++) {
-		path = normalizePath(`${dir}${title} ${n}.md`);
+	const pathFor = (name: string) => normalizePath(`${dir}${name}.md`);
+	const taken = (name: string) => plugin.app.vault.getAbstractFileByPath(pathFor(name)) !== null;
+
+	if (!taken(title)) return { path: pathFor(title), renamed: false };
+	const dated = `${title} (${formatDate(Date.now())})`;
+	if (!taken(dated)) return { path: pathFor(dated), renamed: true };
+	for (let n = 2; n < 1000; n++) {
+		if (!taken(`${dated} ${n}`)) return { path: pathFor(`${dated} ${n}`), renamed: true };
 	}
-	return path;
+	// 같은 날 1000개까지 겹치는 일은 없겠지만, 그래도 겹치면 시각을 붙여 반드시 다른 이름을 만듭니다.
+	return { path: pathFor(`${dated} ${Date.now()}`), renamed: true };
 }
 
 export async function generateNote(
@@ -76,8 +90,15 @@ export async function generateNote(
 	try {
 		// 저장 폴더가 아직 없으면 만들고 알립니다(설정에서 [찾기]로 고르지 않고 기본 폴더를 쓰는 경우).
 		await ensureFolder(plugin, folder);
-		const file = await plugin.app.vault.create(uniquePath(plugin, folder, built.title), built.content);
-		return { ok: true, file, droppedKeys: built.droppedKeys, titleFromModel: built.titleFromModel };
+		const { path, renamed } = uniquePath(plugin, folder, built.title);
+		const file = await plugin.app.vault.create(path, built.content);
+		return {
+			ok: true,
+			file,
+			droppedKeys: built.droppedKeys,
+			titleFromModel: built.titleFromModel,
+			renamed,
+		};
 	} catch (error) {
 		return { ok: false, message: error instanceof Error ? error.message : String(error) };
 	}
