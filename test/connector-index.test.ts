@@ -93,6 +93,10 @@ class FakeVault {
 		if (!f) throw new Error('ENOENT');
 		return f.content;
 	}
+	getFileByPath(path: string) {
+		const f = this.files.get(path);
+		return f ? new TFile(path, f.mtime) : null;
+	}
 	adapter = {
 		exists: async (p: string) => this.store.has(p),
 		read: async (p: string) => {
@@ -676,6 +680,27 @@ async function main() {
 			const state = index.state();
 			assert.ok(state.kind === 'ready', `${action}: ${JSON.stringify(state)}`);
 		}
+	});
+
+	await test('T49b a note deleted while it is being read is not sent', async () => {
+		const { vault, index } = await setup(false);
+		vault.files.clear();
+		vault.put('ghost.md', 'zebra ghost');
+		vault.put('car1.md', 'car car engine');
+		const read = vault.cachedRead.bind(vault);
+		vault.cachedRead = async (file: TFile) => {
+			const content = await read(file);
+			// 읽기가 끝난 직후, 아직 inFlight에 넣기 전에 지움
+			if (file.path === 'ghost.md') {
+				vault.files.delete('ghost.md');
+				index.remove('ghost.md');
+			}
+			return content;
+		};
+		reset();
+		await index.rebuild();
+		assert.ok(!sentTexts.some((t) => t.includes('zebra')), 'deleted note was sent');
+		assert.deepStrictEqual(index.state(), { kind: 'ready', count: 1 });
 	});
 
 	await test('T50 document format fills {title}/{text} in one pass: a title with "{text}", {title} used twice', async () => {

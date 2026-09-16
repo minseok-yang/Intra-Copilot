@@ -535,11 +535,14 @@ export class ConnectorIndex {
 		const queue: { note: Pending; text: string }[] = [];
 		let lastSave = Date.now();
 
-		// 보내기 직전에 줄 선 노트를 다시 확인해, 그사이 지웠거나(inFlight에서 빠짐) 제외 대상이 된 노트(제외 폴더로 옮김,
-		// 제외 폴더를 새로 넣음)의 남은 조각을 빼고 그 노트는 끝난 것으로 셉니다. 이미 서버에 가 있는 요청은 되돌릴 수 없습니다.
+		// 보내기 직전에 줄 선 노트를 다시 확인해, 그사이 지웠거나(inFlight에서 빠짐, 또는 볼트에 파일이 없음) 제외 대상이
+		// 된 노트(제외 폴더로 옮김, 제외 폴더를 새로 넣음)의 남은 조각을 빼고 그 노트는 끝난 것으로 셉니다.
+		// 볼트에 파일이 있는지도 보는 까닭: 노트를 읽는 사이에 지우면 아직 inFlight에 넣기 전이라 remove()가 뺄 것이 없습니다.
+		// 이미 서버에 가 있는 요청은 되돌릴 수 없습니다.
 		const dropUnsendable = () => {
 			const skip = this.skipFolders();
-			const dropped = new Set([...new Set(queue.map((item) => item.note))].filter((note) => !this.inFlight.has(note) || this.isExcluded(note.path, skip)));
+			const unsendable = (note: Pending) => !this.inFlight.has(note) || !vault.getFileByPath(note.path) || this.isExcluded(note.path, skip);
+			const dropped = new Set([...new Set(queue.map((item) => item.note))].filter(unsendable));
 			if (dropped.size === 0) return;
 			for (const note of dropped) {
 				this.inFlight.delete(note);
