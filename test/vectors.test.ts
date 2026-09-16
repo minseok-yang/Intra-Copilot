@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { splitChunks, noteVectors, noteSimilarity } from '../src/connector/vectors';
+import { splitChunks, noteVectors, noteSimilarity, meanVector, centered, similarity } from '../src/connector/vectors';
 
 const texts = (text: string, max: number, chunks: number) => splitChunks(text, max, chunks).map((c) => c.text);
 
@@ -60,6 +60,19 @@ assert.ok(noteSimilarity(one.map((t) => t.vector), axis1).score < 0.8, 'mean blu
 // 결정적
 assert.deepStrictEqual(noteVectors([[1, 0], [0, 1], [1, 1]], 2), noteVectors([[1, 0], [0, 1], [1, 1]], 2));
 assert.strictEqual(noteSimilarity([], axis0).score, -Infinity);
+
+// 모든 벡터가 한쪽(3번째 숫자)으로 기울어 있으면 뜻이 반대인 둘도 0.96으로 붙어 나옴. 평균을 빼면 갈라짐
+const unit = (v: number[]) => Float32Array.from(v, (x) => x / Math.hypot(...v));
+const tilted = [Float32Array.from([1, 0, 5]), Float32Array.from([0, 1, 5])];
+const tiltMean = meanVector(tilted)!;
+const raw = similarity(unit([1, 0, 5]), unit([0, 1, 5]));
+const fixed = similarity(centered(tilted[0]!, tiltMean)!, centered(tilted[1]!, tiltMean)!);
+assert.ok(raw > 0.95 && fixed < 0, `raw=${raw} fixed=${fixed}`);
+// 원본은 그대로 둠(색인 파일에는 서버에서 받은 그대로 저장)
+assert.deepStrictEqual([...tilted[0]!], [1, 0, 5]);
+// 차원이 섞이면 평균도 빼기도 하지 않음
+assert.strictEqual(meanVector([Float32Array.from([1, 0]), Float32Array.from([1, 0, 0])]), null);
+assert.strictEqual(centered(Float32Array.from([1, 0]), tiltMean), null);
 
 console.log('vectors ok');
 

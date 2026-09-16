@@ -1446,7 +1446,8 @@ button.intra-copilot-doc-card:hover {
 	align-items: center;
 	gap: 5px;
 	margin-left: auto;
-	color: var(--text-accent);
+	/* 테마 강조색(기본 보라)은 카드 안의 다른 글자와 섞여 잘 안 보여서, 점수만 하늘색으로 따로 씁니다. */
+	color: var(--color-cyan, #2ea8c9);
 	font-size: var(--font-ui-smaller);
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
@@ -1465,7 +1466,7 @@ button.intra-copilot-doc-card:hover {
 	display: block;
 	width: var(--intra-copilot-score);
 	height: 100%;
-	background: var(--interactive-accent);
+	background: var(--color-cyan, #2ea8c9);
 }
 
 .intra-copilot-connector-card.is-linked .intra-copilot-connector-score {

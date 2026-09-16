@@ -69,11 +69,40 @@ export function splitChunks(text: string, maxChars: number, maxChunks: number): 
 }
 
 // 길이를 1로 맞춥니다. 길이가 1이면 코사인 유사도가 곱의 합(dot)과 같아 검색 계산이 가벼워집니다.
+// 검색할 때마다 노트 수만큼 부르므로 Math.hypot(...vector)을 쓰지 않습니다. 벡터 하나가 수천 개 숫자라
+// 그만큼을 인자로 펼치는 셈이고, 오버플로를 막는 계산까지 더해 눈에 띄게 느립니다.
 function normalize(vector: Float32Array): Float32Array | null {
-	const norm = Math.hypot(...vector);
+	let square = 0;
+	for (let i = 0; i < vector.length; i++) square += vector[i]! * vector[i]!;
+	const norm = Math.sqrt(square);
 	if (!norm) return null;
 	for (let i = 0; i < vector.length; i++) vector[i]! /= norm;
 	return vector;
+}
+
+// 벡터들의 평균입니다. 길이를 1로 맞추지 않습니다 — 빼는 양이 달라지기 때문입니다.
+// 차원이 섞여 있으면(모델을 바꾼 뒤 아직 다시 만들지 않은 색인) 평균이 뜻을 잃으므로 만들지 않습니다.
+export function meanVector(vectors: Float32Array[]): Float32Array | null {
+	const dims = vectors[0]?.length ?? 0;
+	if (!dims || vectors.some((vector) => vector.length !== dims)) return null;
+	const sum = new Float32Array(dims);
+	for (const vector of vectors) {
+		for (let i = 0; i < dims; i++) sum[i]! += vector[i]!;
+	}
+	for (let i = 0; i < dims; i++) sum[i]! /= vectors.length;
+	return sum;
+}
+
+// 평균을 뺀 벡터를 새로 만들어 돌려줍니다(원본은 그대로 둡니다 — 색인 파일에는 서버에서 받은 그대로 저장합니다).
+//
+// 임베딩 벡터는 뜻과 상관없이 모두 한쪽으로 기울어 있습니다. 그래서 내용이 전혀 다른 노트끼리도 코사인 유사도가
+// 0.9 가까이 나오고, 점수가 높은 구간에 뭉쳐 순위 말고는 읽을 것이 없어집니다. 전체 평균을 빼면 그 공통된
+// 기울기가 사라지고 노트마다 다른 부분만 남아, 상관없는 노트는 낮게 비슷한 노트는 높게 갈라집니다.
+export function centered(vector: Float32Array, mean: Float32Array): Float32Array | null {
+	if (vector.length !== mean.length) return null;
+	const result = new Float32Array(vector.length);
+	for (let i = 0; i < vector.length; i++) result[i] = vector[i]! - mean[i]!;
+	return normalize(result);
 }
 
 export function similarity(a: Float32Array, b: Float32Array): number {

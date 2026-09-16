@@ -865,6 +865,20 @@ async function main() {
 		assert.strictEqual(index.state().kind, 'ready');
 	});
 
+	await test('T56 the vector average is stored once there are enough notes, and reused after loading', async () => {
+		const { vault, plugin, index } = await setup();
+		const meanOf = () => (indexHeader(vault) as { mean?: number[] }).mean;
+		assert.strictEqual(meanOf(), undefined, '노트가 적은데 평균을 저장함');
+		for (let i = 0; i < 10; i++) vault.put(`extra${i}.md`, `music car apple ${i}`);
+		await index.sync();
+		assert.ok((meanOf()?.length ?? 0) > 0, '노트가 늘었는데 평균을 저장하지 않음');
+		// 파일에서 읽은 평균으로도 같은 순위가 나와야 합니다(저장·복원이 검색에 그대로 이어지는지).
+		const before = index.search('Fruit/apple1.md', 10)!.map((r) => r.path);
+		const again = new ConnectorIndex(plugin as never);
+		await again.load();
+		assert.deepStrictEqual(again.search('Fruit/apple1.md', 10)!.map((r) => r.path), before);
+	});
+
 	await test('T55 the 1.0.0 index file name is renamed and read instead of re-sending the vault', async () => {
 		const { vault, plugin, index } = await setup();
 		const before = index.search('Fruit/apple1.md', 10);

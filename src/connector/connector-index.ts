@@ -6,7 +6,7 @@ import { pluginDir } from '../plugin-paths';
 import { DEFAULT_DOCUMENT_FORMAT } from '../settings';
 import { inFolder } from '../reminder/due-notes';
 import { templateFolders } from '../template-folders';
-import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors';
+import { centered, type Chunk, meanVector, noteSimilarity, noteVectors, splitChunks } from './vectors';
 
 // 커넥터 색인입니다. 노트마다 벡터를(설정한 수만큼) 플러그인 폴더의 connector-index.bin에 저장하고, 비슷한 노트를 찾아 줍니다.
 //
@@ -32,6 +32,8 @@ const LEGACY_INDEX_FILE = 'link-index.bin';
 const INDEX_VERSION = 3;
 // ponytail: 아주 긴 노트는 앞부분 조각만 씁니다(공용 서버 보호). 뒷부분까지 필요하면 이 값을 설정으로 빼세요.
 const MAX_CHUNKS_PER_NOTE = 20;
+// 벡터 평균을 빼기 시작하는 노트 수. 이보다 적으면 평균이 한두 노트를 따라가 점수를 흔듭니다.
+const MIN_NOTES_FOR_MEAN = 10;
 // 색인하는 동안 받은 벡터를 파일에 적는 간격. 파일은 노트가 많으면 수십 MB라 요청마다 쓰면 디스크가 바빠지고,
 // 너무 드물면 도중에 끄면 받은 벡터를 잃어 다시 보내야 합니다.
 const SAVE_INTERVAL_MS = 30_000;
@@ -61,6 +63,9 @@ interface StoredIndex {
 	model: string;
 	// 색인을 만든 고급 설정(currentOptions). 이 값이 생기기 전에 만든 파일에는 없고, 그때는 지금 설정으로 만든 것으로 봅니다.
 	options?: string;
+	// 저장된 벡터 전체의 평균. 검색할 때 빼서 점수가 높은 쪽에 뭉치는 것을 풉니다(vectors.ts의 centered).
+	// 이 값이 없는 색인은 예전처럼 빼지 않고 비교합니다. 다시 만들 필요는 없고, 다음 저장 때 생깁니다.
+	mean?: number[];
 	notes: Record<string, StoredNote>;
 }
 
@@ -110,6 +115,8 @@ function unknownFailure(error: unknown): LlmFailure {
 export class ConnectorIndex {
 	private owner: Owner | null = null;
 	private notes = new Map<string, NoteEntry>();
+	// 저장된 벡터 전체의 평균(검색할 때 빼는 값). 노트가 적어 평균을 믿을 수 없으면 null입니다.
+	private mean: Float32Array | null = null;
 	private running: Promise<void> | null = null;
 	private runAgain = false;
 	private progress = { done: 0, total: 0, waiting: false };
@@ -269,11 +276,18 @@ export class ConnectorIndex {
 				options: typeof data.options === 'string' ? data.options : this.currentOptions(),
 			};
 			this.notes = notes;
+			this.mean = Array.isArray(data.mean) && data.mean.length > 0 ? Float32Array.from(data.mean) : null;
 		} catch {
 			// 깨진 파일: 색인 없음으로 둡니다.
 		} finally {
 			this.emit();
 		}
+	}
+
+	// 저장된 벡터 전체의 평균입니다. 노트가 적으면 평균이 한두 노트를 따라가 점수를 흔드므로 만들지 않습니다.
+	private computeMean(): Float32Array | null {
+		if (this.notes.size < MIN_NOTES_FOR_MEAN) return null;
+		return meanVector([...this.notes.values()].flatMap((note) => note.vectors));
 	}
 
 	private save(): Promise<void> {
@@ -293,7 +307,14 @@ export class ConnectorIndex {
 			notes[path] = { mtime: note.mtime, hash: note.hash, offset: total, count: note.vectors.length, dims, sections: note.sections };
 			total += note.vectors.length * dims;
 		}
-		const data: StoredIndex = { version: INDEX_VERSION, ...this.owner, notes };
+		this.mean = this.computeMean();
+		const data: StoredIndex = {
+			version: INDEX_VERSION,
+			...this.owner,
+			// 소수점을 줄여 머리말(JSON)이 커지지 않게 합니다. 빼는 값이라 이만큼이면 충분합니다.
+			...(this.mean ? { mean: Array.from(this.mean, (value) => Number(value.toFixed(6))) } : {}),
+			notes,
+		};
 		const header = new TextEncoder().encode(JSON.stringify(data));
 		const start = Math.ceil((4 + header.length) / 4) * 4;
 		const buffer = new ArrayBuffer(start + total * 4);
@@ -321,6 +342,7 @@ export class ConnectorIndex {
 		if (!baseUrl || !model) return;
 		this.owner = { baseUrl: sameServerUrl(baseUrl), model, options: this.currentOptions() };
 		this.notes.clear();
+		this.mean = null;
 		this.failure = null;
 		// 색인 파일을 쓸 수 없으면 받은 벡터를 남길 수 없으므로 보내지 않고 이유를 보여 줍니다.
 		try {
@@ -441,10 +463,16 @@ export class ConnectorIndex {
 		const skip = this.skipFolders();
 		if (!current?.length || !this.matchesSettings() || this.isExcluded(path, skip)) return null;
 		const results: SimilarNote[] = [];
+		// 평균을 뺀 벡터로 비교합니다. 평균이 없거나 차원이 맞지 않는 벡터는 받은 그대로 써서, 돌려주는 벡터 수와
+		// 순서를 지킵니다(noteSimilarity가 알려 준 번호로 섹션 제목을 찾기 때문입니다).
+		const { mean } = this;
+		const forSearch = (vectors: Float32Array[]) =>
+			mean ? vectors.map((vector) => centered(vector, mean) ?? vector) : vectors;
+		const currentVectors = forSearch(current);
 		for (const [otherPath, note] of this.notes) {
 			// 제외 폴더로 옮겼지만 아직 맞추기 전이라 기록이 남은 노트도 추천하지 않습니다.
 			if (otherPath === path || this.isExcluded(otherPath, skip)) continue;
-			const best = noteSimilarity(current, note.vectors);
+			const best = noteSimilarity(currentVectors, forSearch(note.vectors));
 			if (best.score > -Infinity) results.push({ path: otherPath, score: best.score, section: note.sections[best.b] ?? '' });
 		}
 		return results.sort((a, b) => b.score - a.score).slice(0, limit);
