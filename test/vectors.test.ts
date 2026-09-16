@@ -31,6 +31,9 @@ for (const block of ['~~~md\n```js\n# inside\n```\n~~~', '````\n```\n# inside\n`
 // 들여쓴 코드 블록: 문단은 첫 줄만 앞 빈칸이 지워지므로, 닫는 줄에는 들여쓰기가 남아 있어도 알아봐야 함
 const indented = splitChunks('# A\n\n\t```js\n\t# inside\n\t```\n\n## B\n\nbody', 20, 20);
 assert.deepStrictEqual(indented.map((c) => c.heading), ['A', 'A', 'B'], JSON.stringify(indented));
+// 줄 첫머리의 인라인 코드는 코드 블록 여는 줄이 아님(` 로 여는 줄 뒤에는 ` 를 쓸 수 없음)
+const inline = splitChunks('# Top\n\n```sh``` 로 실행합니다\n\n## Second\n\nbody', 20, 20);
+assert.deepStrictEqual(inline.map((c) => c.heading), ['Top', 'Top', 'Second'], JSON.stringify(inline));
 // 끝의 #은 앞에 빈칸이 있을 때만 닫는 표시
 assert.deepStrictEqual(
 	['# C#\nx', '## F# notes ##\nx', '# Title #tag\nx'].map((t) => splitChunks(t, 100, 5)[0]!.heading),

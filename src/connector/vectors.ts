@@ -14,7 +14,9 @@ const HEADING_LINE = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*\r?$/;
 // 닫는 줄은 여는 줄과 같은 기호로 같거나 더 길게, 뒤에 글자 없이 써야 합니다(~~~ 안의 ```, ```` 안의 ```는 코드 내용).
 // 들여쓰기는 얼마든 허용합니다. 문단은 첫 줄만 앞 빈칸이 지워지므로(리스트 안의 코드 블록 등), 여는 줄만
 // 알아보고 닫는 줄을 놓치면 그 뒤 노트 끝까지 코드 블록 안으로 잘못 봅니다.
-const FENCE_LINE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
+// ` 로 여는 줄은 뒤에 ` 를 쓸 수 없습니다. 줄 첫머리에 온 인라인 코드("```sh``` 로 실행합니다")를 코드 블록으로
+// 잘못 보면 그 뒤 노트 끝까지 제목을 놓치기 때문에, 이 경우는 코드 블록 표시로 보지 않습니다.
+const FENCE_LINE = /^[ \t]*(?:(`{3,})([^`]*)|(~{3,})(.*))$/;
 
 // 노트를 문단(빈 줄) 단위로 모아 maxChars 이하의 조각으로 나눕니다. 서버와 모델이 한 번에 받는 길이에 한계가
 // 있어서입니다. 한 문단이 maxChars보다 길면 글자 수로 자릅니다. 조각은 maxChunks개까지만 만듭니다.
@@ -33,9 +35,10 @@ export function splitChunks(text: string, maxChars: number, maxChunks: number): 
 		paragraph.split('\n').forEach((line, i) => {
 			const fenceMatch = FENCE_LINE.exec(line);
 			if (fenceMatch) {
-				const marker = fenceMatch[1]!;
+				const marker = fenceMatch[1] ?? fenceMatch[3]!;
+				const rest = fenceMatch[2] ?? fenceMatch[4]!;
 				if (!fence) fence = marker;
-				else if (marker[0] === fence[0] && marker.length >= fence.length && !fenceMatch[2]!.trim()) fence = '';
+				else if (marker[0] === fence[0] && marker.length >= fence.length && !rest.trim()) fence = '';
 				return;
 			}
 			const match = fence ? null : HEADING_LINE.exec(line);

@@ -25,6 +25,9 @@ import { type Chunk, noteSimilarity, noteVectors, splitChunks } from './vectors'
 // 벡터를 글자(base64)로 바꾸지 않아 파일이 약 25% 작고, 불러올 때 벡터를 복사·변환하지 않고 파일 버퍼를 그대로 씁니다.
 // (숫자는 이 PC의 바이트 순서로 적습니다. Windows·Mac·Linux 데스크톱은 모두 같은 순서라 볼트를 옮겨도 읽힙니다.)
 const INDEX_FILE = 'connector-index.bin';
+// 1.0.0에서 같은 형식을 저장하던 이름입니다. 이름만 바꿔 끼우면 그대로 읽힙니다. 그냥 두면 볼트 전체를 임베딩
+// 서버로 다시 보내고, 쓰지 않는 옛 파일이 수십 MB 그대로 남습니다.
+const LEGACY_INDEX_FILE = 'link-index.bin';
 // 3: 이진 파일. 이전 형식(link-index.json)은 읽지 않으며 [색인 만들기]로 다시 만듭니다.
 const INDEX_VERSION = 3;
 // ponytail: 아주 긴 노트는 앞부분 조각만 씁니다(공용 서버 보호). 뒷부분까지 필요하면 이 값을 설정으로 빼세요.
@@ -225,6 +228,13 @@ export class ConnectorIndex {
 		const { adapter } = this.plugin.app.vault;
 		const ownerBefore = this.owner;
 		try {
+			// 옛 이름으로 저장된 색인(임시 파일 포함)을 새 이름으로 옮깁니다. 새 이름이 이미 있으면 그쪽이 맞는 색인입니다.
+			for (const suffix of ['', '.tmp']) {
+				const legacy = `${pluginDir(this.plugin)}/${LEGACY_INDEX_FILE}${suffix}`;
+				if ((await adapter.exists(legacy)) && !(await adapter.exists(`${this.path}${suffix}`))) {
+					await adapter.rename(legacy, `${this.path}${suffix}`);
+				}
+			}
 			const path = (await adapter.exists(this.path)) ? this.path : `${this.path}.tmp`;
 			if (!(await adapter.exists(path))) return;
 			const buffer = await adapter.readBinary(path);

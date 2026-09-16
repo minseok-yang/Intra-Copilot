@@ -26,6 +26,9 @@ import { setStatusDot, type StatusState } from './status-light';
 // 비슷한 노트를 찾는 계산은 이 PC 안에서 하며, 이 화면을 여는 것만으로는 아무것도 보내지 않습니다.
 
 export const CONNECTOR_VIEW_TYPE = 'intra-copilot-connector-view';
+// 1.0.0에서 쓰던 이름입니다. 그때 열어 둔 창이 Obsidian의 workspace.json에 이 이름으로 남아 있어, 등록해 두지
+// 않으면 켤 때 그 창이 복원되지 않습니다. 복원한 뒤에는 아래에서 새 이름으로 바꿔 끼웁니다.
+const LEGACY_VIEW_TYPE = 'intra-copilot-link-view';
 
 export async function revealConnectorView(plugin: IntraCopilotPlugin): Promise<void> {
 	await plugin.app.workspace.ensureSideLeaf(CONNECTOR_VIEW_TYPE, 'right', { active: true, reveal: true });
@@ -41,10 +44,15 @@ export function registerConnector(plugin: IntraCopilotPlugin): void {
 	const { vault, workspace } = plugin.app;
 	const index = plugin.connectorIndex;
 	plugin.registerView(CONNECTOR_VIEW_TYPE, (leaf) => new ConnectorView(leaf, plugin));
+	plugin.registerView(LEGACY_VIEW_TYPE, (leaf) => new ConnectorView(leaf, plugin));
 
 	// 켤 때 Obsidian이 파일마다 보내는 create 이벤트는 무시하고, 다 불러온 뒤 색인을 읽고 자동 갱신 주기에 맞춰 바뀐 노트를 맞춥니다.
 	// 새 노트는 modify 없이 create만 오는 경우가 있어(플러그인이 내용을 채워 만든 노트, 밖에서 복사해 넣은 파일) 둘 다 받습니다.
 	workspace.onLayoutReady(() => {
+		// 옛 이름으로 복원된 창은 새 이름으로 바꿔 끼웁니다. 그대로 두면 getLeavesOfType으로 찾지 못해 갱신되지 않습니다.
+		for (const leaf of workspace.getLeavesOfType(LEGACY_VIEW_TYPE)) {
+			void leaf.setViewState({ type: CONNECTOR_VIEW_TYPE });
+		}
 		void index.load().then(() => index.requestSync());
 		const onChanged = (file: unknown) => {
 			if (file instanceof TFile && file.extension === 'md') index.requestSync();

@@ -865,6 +865,18 @@ async function main() {
 		assert.strictEqual(index.state().kind, 'ready');
 	});
 
+	await test('T55 the 1.0.0 index file name is renamed and read instead of re-sending the vault', async () => {
+		const { vault, plugin, index } = await setup();
+		const before = index.search('Fruit/apple1.md', 10);
+		vault.store.set('plug/link-index.bin', vault.store.get('plug/connector-index.bin')!);
+		vault.store.delete('plug/connector-index.bin');
+		const again = new ConnectorIndex(plugin as never);
+		await again.load();
+		assert.deepStrictEqual(again.search('Fruit/apple1.md', 10), before);
+		assert.ok(vault.store.has('plug/connector-index.bin'), '옛 이름이 새 이름으로 옮겨지지 않음');
+		assert.ok(!vault.store.has('plug/link-index.bin'), '옛 파일이 그대로 남음');
+	});
+
 	server.close();
 	for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.error ? `\n     → ${r.error}` : ''}`);
 	console.log(`${results.filter((r) => r.ok).length}/${results.length} passed`);

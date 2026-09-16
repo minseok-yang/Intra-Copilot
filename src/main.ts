@@ -1,6 +1,7 @@
 import { Plugin, setTooltip } from 'obsidian';
 import {
 	clampChatTimeout,
+	type ConnectorSettings,
 	DEFAULT_SETTINGS,
 	IntraCopilotSettings,
 	LINKED_NOTES_MODES,
@@ -137,13 +138,15 @@ export default class IntraCopilotPlugin extends Plugin {
 	}
 
 	async loadSettings() {
+		// link는 1.0.0에서 커넥터 설정을 저장하던 이름입니다. 그대로 두면 업그레이드한 사용자의 주소·키·모델과
+		// 제외 폴더가 모두 기본값으로 돌아가, 예전에 빼 둔 폴더가 임베딩 서버로 나갑니다. 새 이름이 있으면 그쪽이 이깁니다.
 		const loaded = (await this.loadData()) as
-			| Partial<IntraCopilotSettings>
+			| (Partial<IntraCopilotSettings> & { link?: Partial<ConnectorSettings> })
 			| null;
 		this.settings = {
 			general: { ...DEFAULT_SETTINGS.general, ...loaded?.general },
 			llm: { ...DEFAULT_SETTINGS.llm, ...loaded?.llm },
-			connector: { ...DEFAULT_SETTINGS.connector, ...loaded?.connector },
+			connector: { ...DEFAULT_SETTINGS.connector, ...loaded?.link, ...loaded?.connector },
 			reminder: { ...DEFAULT_SETTINGS.reminder, ...loaded?.reminder },
 			reminderDaily: { ...DEFAULT_SETTINGS.reminderDaily, ...loaded?.reminderDaily },
 		};
