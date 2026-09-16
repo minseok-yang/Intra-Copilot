@@ -70,6 +70,11 @@ test('양식에 속성이 없으면 모델이 붙인 속성을 모두 뺀다', (
 	assert.deepEqual(note.droppedKeys, ['status']);
 });
 
+test('속성 키의 대소문자가 달라도 빈 값을 채운다', () => {
+	const filled = filterFrontmatter('Created:', ['created'], { created: '2026-09-16' });
+	assert.equal(filled.text, 'Created: 2026-09-16');
+});
+
 test('여러 줄로 적힌 속성 값은 그 키의 결정을 함께 따른다', () => {
 	const kept = filterFrontmatter('tags:\n  - 회의\n  - 예산\nstatus:\n  - draft', ['tags']);
 	assert.equal(kept.text, 'tags:\n  - 회의\n  - 예산');

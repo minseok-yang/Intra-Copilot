@@ -47,6 +47,9 @@ export function filterFrontmatter(
 	fills: Readonly<Record<string, string>> = {},
 ): FilteredFrontmatter {
 	const allowed = new Set(allowedKeys.map((key) => key.toLowerCase()));
+	// 남길 키는 대소문자를 가리지 않으므로, 채울 값도 같은 기준으로 찾습니다(양식은 Created:, 모델은
+	// created:로 쓰는 식으로 달라도 빈 값이 채워지게). 줄에 적힌 키 이름은 모델이 쓴 그대로 둡니다.
+	const fillFor = new Map(Object.entries(fills).map(([key, value]) => [key.toLowerCase(), value]));
 	const kept: string[] = [];
 	const dropped: string[] = [];
 	// 키 줄을 만나면 그 키를 남길지 정하고, 뒤따르는 들여쓴 줄·'- ' 줄은 그 결정을 함께 따릅니다.
@@ -64,7 +67,7 @@ export function filterFrontmatter(
 			dropped.push(key);
 			continue;
 		}
-		const fill = fills[key];
+		const fill = fillFor.get(key.toLowerCase());
 		kept.push(!value && fill ? `${key}: ${fill}` : line);
 	}
 	// 값이 딸린 줄만 남고 키가 다 빠지면 빈 속성이 되므로, 그때는 아예 넣지 않습니다.
