@@ -575,7 +575,7 @@ const ko = {
 			'붙여넣거나 가져온 텍스트로 새 노트를 만들 때 따를 양식과, 만든 노트를 저장할 곳을 정합니다. 양식은 볼트 안의 평범한 노트(.md)라서 Obsidian에서 바로 고칠 수 있습니다. 양식 안의 괄호 ( ) 설명을 모델이 읽고 채우며, 새로 배울 문법은 없습니다.',
 		folderName: '양식 폴더',
 		folderDesc:
-			'양식 노트를 모아 둔 이 볼트의 폴더입니다(하위 폴더의 양식도 함께 보여 줍니다). [찾기]로 폴더를 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 따로 고르지 않으면 Generator 폴더를 만들어 쓰며, 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다.',
+			'양식 노트를 모아 둔 이 볼트의 폴더입니다(하위 폴더의 양식도 함께 보여 줍니다). [찾기]로 폴더를 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 따로 고르지 않으면 Generator 폴더를 만들어 쓰며, 그 폴더를 처음 만들 때 예시 양식 하나를 넣어 둡니다(지우면 다시 생기지 않습니다).',
 		openFolderFailed: '폴더를 열지 못했습니다.',
 		// 고른 폴더를 쓸 수 없을 때. 조용히 다른 폴더로 바꿔 두면 왜 그런지 알 수 없으므로 이유를 알립니다.
 		folderRootRejected:
@@ -1240,7 +1240,7 @@ const en: Dictionary = {
 			'Choose the templates used to write a new note from pasted or imported text, and where the new notes are saved. Templates are ordinary vault notes (.md), so you can edit them right in Obsidian. The model reads the notes in parentheses ( ) and fills them in — there is no new syntax to learn.',
 		folderName: 'Template folder',
 		folderDesc:
-			'The vault folder holding your template notes (templates in subfolders are listed too). Select [Browse] to pick a folder, or [Open folder] to show it in your file manager. If you pick nothing, a Generator folder is created and used; if that folder has no notes, an example template is created when you open the generator.',
+			'The vault folder holding your template notes (templates in subfolders are listed too). Select [Browse] to pick a folder, or [Open folder] to show it in your file manager. If you pick nothing, a Generator folder is created and used, with one example template in it (delete it and it does not come back).',
 		openFolderFailed: 'Could not open the folder.',
 		folderRootRejected:
 			'The template folder cannot be the vault root: every note in the vault would be listed as a template. Pick a folder.',

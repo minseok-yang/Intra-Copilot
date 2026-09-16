@@ -69,8 +69,8 @@ export async function ensureFolder(plugin: IntraCopilotPlugin, path: string): Pr
 	}
 }
 
-// 폴더를 처음 만들 때 한 번만 넣어 두는 예시입니다(지우면 다시 생기지 않습니다 — 폴더에 .md가 하나도
-// 없을 때만 만듭니다). 괄호 설명이 그대로 "무엇을 채울지"를 모델에게 알려 줍니다.
+// 양식 폴더를 처음 만들 때 한 번만 넣어 두는 예시입니다. 괄호 설명이 그대로 "무엇을 채울지"를
+// 모델에게 알려 줍니다.
 const EXAMPLE_NAME = '회의록';
 const EXAMPLE_TEMPLATE = `---
 created:
@@ -95,16 +95,18 @@ tags: [회의]
 - [ ] (누가 / 무엇을 / 언제까지)
 `;
 
-// 양식 폴더에 .md가 하나도 없으면 예시 양식 하나를 만듭니다(제너레이터 창을 열 때 한 번 확인).
+// 양식 폴더가 아직 없으면 폴더와 예시 양식 하나를 만듭니다(제너레이터 창을 열 때 한 번 확인).
 // 볼트에 파일을 만드는 일이라 조용히 하지 않고 알림으로 알립니다.
+//
+// "폴더에 양식이 하나도 없으면"이 아니라 "폴더가 아직 없으면"인 이유: 예시가 필요 없어 지운 사람에게
+// 제너레이터를 열 때마다 예시가 되살아납니다. 폴더를 만드는 것은 처음 한 번뿐이라 그 일이 없습니다.
 export async function ensureExampleTemplate(plugin: IntraCopilotPlugin): Promise<void> {
-	if (listTemplates(plugin).length > 0) return;
 	const folder = templateFolder(plugin);
+	if (!(await ensureFolder(plugin, folder))) return;
 	const path = normalizePath(folder ? `${folder}/${EXAMPLE_NAME}.md` : `${EXAMPLE_NAME}.md`);
 	const { vault } = plugin.app;
 	if (vault.getAbstractFileByPath(path)) return; // .md가 아닌 것과 이름이 겹치는 드문 경우
 	try {
-		await ensureFolder(plugin, folder);
 		await vault.create(path, EXAMPLE_TEMPLATE);
 		new Notice(plugin.strings().generator.exampleCreated.replace('{path}', path));
 	} catch {

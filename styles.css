@@ -1603,6 +1603,12 @@ button.intra-copilot-doc-card:hover {
 	color: var(--text-error);
 }
 
+/* 만드는 중에는 입력칸과 함께 이 글자 버튼들도 잠깁니다(자리는 그대로, 색만 흐리게). */
+.intra-copilot-generator-link:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
 .intra-copilot-generator-status {
 	margin: 0;
 	color: var(--text-muted);

@@ -175,6 +175,10 @@ export class GeneratorView extends ItemView {
 			source.setValue('');
 			showCount();
 		};
+		// 만드는 중에는 입력칸과 함께 이 두 버튼도 잠급니다. 보낸 텍스트는 이미 떠났으므로, 그 사이
+		// 지우거나 고치면 화면의 글과 실제로 만들어지는 노트가 어긋나 보입니다.
+		zoom.disabled = this.running !== null;
+		clear.disabled = this.running !== null;
 
 		// ③ 양식 고르기 — 처음에는 고르지 않은 상태입니다. 아무 양식이나 자동으로 고르면 엉뚱한 모양의
 		// 노트가 만들어지고도 왜 그런지 알기 어려워서, 사용자가 한 번은 직접 고르게 합니다.
