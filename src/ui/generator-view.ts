@@ -121,7 +121,12 @@ export class GeneratorView extends ItemView {
 			fileButton.setDisabled(true);
 		}
 
-		// ② 텍스트 입력칸 — 사이드바가 좁아 몇 줄만 보이고, 큰 창에서 볼 수 있습니다.
+		// ② 텍스트 입력칸 — 사이드바가 좁아 몇 줄만 보입니다. 입력칸 위 줄 오른쪽에 [새 창에서 텍스트 보기],
+		// 아래 줄에 글자 수와 [모두 지우기]를 둡니다. 두 버튼을 위아래로 떨어뜨린 이유는, 나란히 있으면
+		// 크게 보려다 [모두 지우기]를 눌러 되돌릴 수 없게 텍스트를 잃을 수 있기 때문입니다.
+		const header = contentEl.createDiv({ cls: 'intra-copilot-generator-source-header' });
+		header.createDiv({ cls: 'intra-copilot-generator-label', text: strings.sourceLabel });
+
 		const source = new TextAreaComponent(contentEl)
 			.setValue(this.draft)
 			.setPlaceholder(strings.pastePlaceholder);
@@ -138,7 +143,10 @@ export class GeneratorView extends ItemView {
 		});
 		showCount();
 
-		const zoom = meta.createEl('button', { cls: 'intra-copilot-generator-link', text: strings.zoomButton });
+		const zoom = header.createEl('button', {
+			cls: 'intra-copilot-generator-link intra-copilot-generator-zoom',
+			text: strings.zoomButton,
+		});
 		zoom.title = strings.zoomTooltip;
 		zoom.onclick = () => {
 			new SourceZoomModal(this.app, {

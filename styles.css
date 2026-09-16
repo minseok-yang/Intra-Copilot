@@ -1561,7 +1561,18 @@ button.intra-copilot-doc-card:hover {
 	gap: 6px;
 }
 
-/* 사이드바가 좁아 일부만 보이고, 필요하면 아래 [크게 보기]로 큰 창에서 봅니다. */
+/* 입력칸 위 줄: 왼쪽 "텍스트" 라벨, 오른쪽 [새 창에서 텍스트 보기] */
+.intra-copilot-generator-source-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.intra-copilot-generator-zoom {
+	margin-left: auto;
+}
+
+/* 사이드바가 좁아 일부만 보이고, 필요하면 위 줄의 [새 창에서 텍스트 보기]로 크게 봅니다. */
 .intra-copilot-generator-source {
 	width: 100%;
 	resize: none;
@@ -1588,6 +1599,7 @@ button.intra-copilot-doc-card:hover {
 
 /* [모두 지우기] — 지운 텍스트는 되돌릴 수 없으므로 다른 글자 버튼과 색으로 구분합니다. */
 .intra-copilot-generator-clear {
+	margin-left: auto;
 	color: var(--text-error);
 }
 
