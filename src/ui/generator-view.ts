@@ -4,6 +4,7 @@ import {
 	DropdownComponent,
 	ItemView,
 	Notice,
+	setIcon,
 	setTooltip,
 	TextAreaComponent,
 	WorkspaceLeaf,
@@ -232,9 +233,12 @@ export class GeneratorView extends ItemView {
 		}
 	}
 
-	// 고른 양식의 얼개를 Obsidian 개요 보기처럼 제목(#) 목록으로 보여 줍니다. 노트를 열지 않고도
-	// "이 양식이 무엇을 채우게 하는지" 알 수 있게 하려는 것입니다. 제목을 누르면 그 대목으로 노트를 엽니다.
-	// (제목 목록은 Obsidian이 이미 모아 둔 것을 읽을 뿐이라 노트를 따로 읽지 않습니다.)
+	// 고른 양식의 얼개를 보여 줍니다. 노트를 열지 않고도 "이 양식이 무엇을 채우게 하는지" 알 수 있게 합니다.
+	//
+	// 마크업은 Obsidian 개요 보기와 같은 것(outline · tree-item · tree-item-self · tree-item-children)을
+	// 씁니다. 그래서 들여쓰기·글자색·마우스 올렸을 때 모습·접기 화살표가 쓰는 테마와 똑같이 보입니다
+	// (직접 만든 버튼 목록은 테마와 따로 놀아서 어색했습니다).
+	// 제목 목록은 Obsidian이 이미 모아 둔 것(metadataCache)이라 노트를 따로 읽지 않습니다.
 	private renderOutline(containerEl: HTMLElement, template: GeneratorTemplate): void {
 		const strings = this.strings();
 		const box = containerEl.createDiv({ cls: 'intra-copilot-generator-outline' });
@@ -245,17 +249,38 @@ export class GeneratorView extends ItemView {
 			box.createDiv({ cls: 'intra-copilot-generator-hint', text: strings.outlineEmpty });
 			return;
 		}
-		// 가장 높은 제목 단계를 0칸으로 두고, 그보다 낮은 제목만 들여씁니다(## 로 시작하는 양식도 왼쪽에 붙게).
-		const top = Math.min(...headings.map((heading) => heading.level));
+
+		const tree = box.createDiv({ cls: 'outline' });
+		// 제목 단계(#의 개수)로 부모·자식을 만듭니다. 단계를 건너뛴 양식(# 다음에 ###)도 가장 가까운
+		// 위 제목의 자식이 됩니다. level 0인 맨 처음 칸은 트리 전체를 담는 자리입니다.
+		const stack: Array<{ level: number; item: HTMLElement | null; self: HTMLElement | null; children: HTMLElement }> = [
+			{ level: 0, item: null, self: null, children: tree },
+		];
+
 		for (const heading of headings) {
-			const item = box.createEl('button', {
-				cls: 'intra-copilot-generator-outline-item',
-				text: heading.heading,
-			});
-			item.style.setProperty('--outline-depth', String(heading.level - top));
-			item.onclick = () => {
+			while (stack.length > 1 && heading.level <= stack[stack.length - 1]!.level) stack.pop();
+			const parent = stack[stack.length - 1]!;
+
+			// 자식이 처음 생길 때 부모에 접기 화살표를 붙입니다(Obsidian도 접을 것이 없으면 화살표가 없습니다).
+			if (parent.self && parent.item && !parent.self.hasClass('mod-collapsible')) {
+				parent.self.addClass('mod-collapsible');
+				const collapse = parent.self.createDiv({ cls: 'tree-item-icon collapse-icon' });
+				setIcon(collapse, 'right-triangle');
+				parent.self.prepend(collapse);
+				const { item: parentItem } = parent;
+				collapse.addEventListener('click', (evt) => {
+					evt.stopPropagation(); // 화살표는 접기만, 제목 클릭은 노트 열기만
+					parentItem.toggleClass('is-collapsed', !parentItem.hasClass('is-collapsed'));
+				});
+			}
+
+			const item = parent.children.createDiv({ cls: 'tree-item' });
+			const self = item.createDiv({ cls: 'tree-item-self is-clickable' });
+			self.createDiv({ cls: 'tree-item-inner', text: heading.heading });
+			self.addEventListener('click', () => {
 				void this.app.workspace.openLinkText(`${template.file.path}#${heading.heading}`, '', false);
-			};
+			});
+			stack.push({ level: heading.level, item, self, children: item.createDiv({ cls: 'tree-item-children' }) });
 		}
 	}
 

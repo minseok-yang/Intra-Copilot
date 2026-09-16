@@ -1661,11 +1661,9 @@ button.intra-copilot-doc-card:hover {
 	line-height: 1.4;
 }
 
-/* 고른 양식의 제목(#) 목록 — Obsidian 개요 보기와 같은 얼개를 미리 보여 줍니다. */
+/* 고른 양식의 제목(#) 목록. 안쪽은 Obsidian 개요 보기와 같은 마크업(.outline .tree-item …)이라
+   들여쓰기·색·접기 화살표는 쓰는 테마가 그립니다. 여기서는 상자와 제목 줄만 정합니다. */
 .intra-copilot-generator-outline {
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
 	margin-top: 2px;
 	padding: 6px;
 	border: 1px solid var(--background-modifier-border);
@@ -1674,27 +1672,15 @@ button.intra-copilot-doc-card:hover {
 }
 
 .intra-copilot-generator-outline-title {
+	margin-bottom: 2px;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 }
 
-.intra-copilot-generator-outline-item {
-	height: auto;
-	padding: 2px 4px;
-	padding-left: calc(4px + var(--outline-depth, 0) * 12px);
-	background: none;
-	box-shadow: none;
-	color: var(--text-normal);
-	font-size: var(--font-ui-smaller);
-	text-align: left;
-	white-space: normal;
-	cursor: pointer;
-}
-
-.intra-copilot-generator-outline-item:hover {
-	color: var(--text-accent);
-	text-decoration: underline;
+/* 접힌 항목의 자식은 감춥니다(테마가 처리하지 않는 경우를 위한 안전장치). */
+.intra-copilot-generator-outline .tree-item.is-collapsed > .tree-item-children {
+	display: none;
 }
 
 /* 자료 크게 보기 창 */
