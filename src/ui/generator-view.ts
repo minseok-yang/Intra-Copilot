@@ -21,14 +21,14 @@ import {
 } from '../generator/office-import';
 import { OpenDocumentModal, SourceZoomModal } from './generator-modals';
 
-// 제너레이터 화면(오른쪽 사이드바)입니다. 받은 자료를 내 양식의 새 노트로 만듭니다.
+// 제너레이터 화면(오른쪽 사이드바)입니다. 받은 텍스트를 내 양식의 새 노트로 만듭니다.
 //
-// 화면 순서(세로 한 줄 흐름): 전송 안내 → [열린 문서 가져오기]·[파일 선택해서 가져오기] → 자료 입력칸
-// (사이드바가 좁아서 일부만 보이고, [크게 보기]로 큰 창에서 봅니다) → 양식 고르기 → [만들기].
+// 화면 순서(세로 한 줄 흐름): 전송 안내 → [열린 문서에서 텍스트 가져오기]·[파일에서 텍스트 가져오기]
+// → 텍스트 입력칸(사이드바가 좁아서 일부만 보이고, 큰 창에서 볼 수 있습니다) → 양식 고르기 → [만들기].
 //
-// 자료는 화면에만 있습니다(this.draft). 파일이나 설정에 저장하지 않으므로 Obsidian을 끄면 사라집니다 —
+// 텍스트는 화면에만 있습니다(this.draft). 파일이나 설정에 저장하지 않으므로 Obsidian을 끄면 사라집니다 —
 // DRM 문서의 평문 사본을 남기지 않기 위한 결정 14의 "원문 미저장" 원칙입니다.
-// 서버로 나가는 것은 [만들기]를 누를 때의 입력칸 글과 고른 양식뿐입니다.
+// 서버로 나가는 것은 [만들기]를 누를 때의 입력칸 텍스트와 고른 양식뿐입니다.
 
 export const GENERATOR_VIEW_TYPE = 'intra-copilot-generator-view';
 
@@ -105,7 +105,7 @@ export class GeneratorView extends ItemView {
 		// 무엇이 언제 서버로 나가는지를 버튼 위에 먼저 적어 둡니다(챗봇·커넥터 화면과 같은 원칙).
 		contentEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
 
-		// ① 자료 가져오기
+		// ① 텍스트 가져오기
 		const importRow = contentEl.createDiv({ cls: 'intra-copilot-generator-buttons' });
 		const openButton = new ButtonComponent(importRow)
 			.setButtonText(strings.importOpenButton)
@@ -120,7 +120,7 @@ export class GeneratorView extends ItemView {
 			fileButton.setDisabled(true);
 		}
 
-		// ② 자료 입력칸 — 사이드바가 좁아 몇 줄만 보이고, [크게 보기]로 큰 창에서 봅니다.
+		// ② 텍스트 입력칸 — 사이드바가 좁아 몇 줄만 보이고, 큰 창에서 볼 수 있습니다.
 		const source = new TextAreaComponent(contentEl)
 			.setValue(this.draft)
 			.setPlaceholder(strings.pastePlaceholder);
@@ -195,8 +195,8 @@ export class GeneratorView extends ItemView {
 		}
 	}
 
-	// ─── 자료 가져오기 ─────────────────────────────────────────────
-	// 가져온 글은 곧바로 보내지 않고 입력칸에 채웁니다. 사용자가 보고 [만들기]를 눌러야 전송됩니다.
+	// ─── 텍스트 가져오기 ───────────────────────────────────────────
+	// 가져온 텍스트는 곧바로 보내지 않고 입력칸에 채웁니다. 사용자가 보고 [만들기]를 눌러야 전송됩니다.
 
 	private async importFromOpenDocument(button: ButtonComponent): Promise<void> {
 		const strings = this.strings();
@@ -230,7 +230,7 @@ export class GeneratorView extends ItemView {
 			this.showStatus(strings.importErrors[result.kind], result.kind !== 'cancelled', result.detail);
 			return;
 		}
-		// 이미 붙여넣은 글이 있으면 덮어쓰지 않고 뒤에 잇습니다(문서 여러 개를 모아 한 노트로 만들 수 있게).
+		// 이미 넣어 둔 텍스트가 있으면 덮어쓰지 않고 뒤에 잇습니다(문서 여러 개를 모아 한 노트로 만들 수 있게).
 		this.draft = this.draft.trim() ? `${this.draft.trim()}\n\n${result.text}` : result.text;
 		this.showStatus(
 			strings.imported
@@ -281,7 +281,7 @@ export class GeneratorView extends ItemView {
 			this.showStatus(strings.createFailed.replace('{reason}', outcome.message), true, outcome.detail);
 			return;
 		}
-		// 잘 안 됐을 때 같은 자료로 다른 양식을 다시 써 볼 수 있게 입력칸은 비우지 않습니다([지우기]로 비웁니다).
+		// 잘 안 됐을 때 같은 텍스트로 다른 양식을 다시 써 볼 수 있게 입력칸은 비우지 않습니다(비우기는 버튼으로).
 		if (outcome.droppedKeys.length > 0) {
 			new Notice(strings.droppedKeys.replace('{keys}', outcome.droppedKeys.join(', ')));
 		}

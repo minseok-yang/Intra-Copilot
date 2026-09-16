@@ -9,6 +9,8 @@ import type { LlmErrorKind } from './llm/client';
 // - 답변: 모델이 사용자에게 한 말. "응답"은 서버의 기술적인 응답(HTTP 등)에만 씁니다.
 // - 확인: 연결/모델 점검. "검증"과 섞어 쓰지 않습니다.
 // - 지정: @로 고른 폴더·노트(대화 대상). / 선택: /로 고른 스킬. 둘을 바꿔 쓰지 않습니다.
+// - 텍스트: 제너레이터에 사용자가 넣는 것. "자료·본문·글"로 바꿔 쓰지 않습니다(챗봇의 "[볼트 자료]",
+//   "노트 자료 최대 글자 수"는 챗봇 쪽 용어이므로 그대로 둡니다).
 // - 버튼·설정 이름은 실제 동작 그대로 부르고, 설명문에서 그 이름을 [대괄호]나 "따옴표"로 똑같이 인용합니다.
 // - 이미 누르고 들어온 카드·탭 이름을 그 안의 제목·항목 이름에서 되풀이하지 않습니다(예: [인덱스] 탭 안의 "인덱스 다시 만들기" → "다시 만들기").
 const ko = {
@@ -60,8 +62,8 @@ const ko = {
 		},
 		generator: {
 			name: '제너레이터',
-			desc: '붙여 넣은 글을 정해진 양식에 맞춰 새 노트로 써 줍니다.',
-			tagline: '받은 자료를 내 양식의 노트로 만들어 줍니다.',
+			desc: '문서·메일의 텍스트를 정해진 양식에 맞춰 새 노트로 써 줍니다.',
+			tagline: '받은 텍스트를 내 양식의 노트로 만들어 줍니다.',
 		},
 		reminder: {
 			name: '리마인더',
@@ -504,16 +506,16 @@ const ko = {
 		title: '제너레이터',
 		ribbonTooltip: '제너레이터 열기',
 		privacyNote:
-			'[만들기]를 누를 때 입력칸의 글과 고른 양식이 챗봇과 같은 LLM 서버로 전송됩니다. 가져온 원문은 파일이나 설정에 저장하지 않으며, Obsidian을 끄면 사라집니다.',
-		importOpenButton: '열린 문서 가져오기',
+			'[만들기]를 누를 때 입력칸의 텍스트와 고른 양식이 챗봇과 같은 LLM 서버로 전송됩니다. 가져온 텍스트는 파일이나 설정에 저장하지 않으며, Obsidian을 끄면 사라집니다.',
+		importOpenButton: '열린 문서에서 텍스트 가져오기',
 		importOpenTooltip:
-			'Word·Excel·PowerPoint에 지금 열려 있는 문서와 Outlook에서 고른 메일 중에서 골라 본문을 입력칸에 채웁니다. 프로그램을 새로 띄우지는 않습니다.',
-		importFileButton: '파일 선택해서 가져오기',
+			'Word·Excel·PowerPoint에 지금 열려 있는 문서와 Outlook에서 고른 메일 중에서 골라, 그 텍스트를 아래 입력칸에 채웁니다. 프로그램을 새로 띄우지 않고, 문서를 고치지도 않습니다.',
+		importFileButton: '파일에서 텍스트 가져오기',
 		importFileTooltip:
-			'파일 선택 창에서 Word·Excel·PowerPoint 문서를 고르면 화면에 보이지 않게 열어 본문만 가져온 뒤 바로 닫습니다. PDF는 지원하지 않습니다.',
-		importing: '가져오는 중...',
-		imported: '{name}에서 {count}자를 가져왔습니다.',
-		pastePlaceholder: '여기에 글을 붙여넣으세요. PDF는 뷰어에서 글을 복사해 붙여넣으세요.',
+			'파일 고르기 창에서 Word·Excel·PowerPoint 파일을 고르면 화면에 보이지 않게 열어 텍스트만 읽고 바로 닫습니다. PDF는 지원하지 않습니다.',
+		importing: '텍스트를 가져오는 중...',
+		imported: '{name}에서 텍스트 {count}자를 가져왔습니다.',
+		pastePlaceholder: '여기에 텍스트를 붙여넣으세요. PDF는 뷰어에서 텍스트를 복사해 붙여넣으세요.',
 		charCount: '{count}자',
 		zoomButton: '크게 보기',
 		zoomTooltip: '입력칸을 큰 창으로 엽니다. 큰 창에서 고친 내용은 그대로 남습니다.',
@@ -526,10 +528,10 @@ const ko = {
 		templateEmpty:
 			'양식이 없습니다. 설정 → Intra Copilot → 제너레이터 → 양식에서 폴더를 확인하고, 그 폴더에 양식 노트(.md)를 만드세요.',
 		createButton: '만들기',
-		createTooltip: '입력칸의 글과 고른 양식을 LLM 서버로 보내 새 노트를 만들고 저장합니다.',
+		createTooltip: '입력칸의 텍스트와 고른 양식을 LLM 서버로 보내 새 노트를 만들고 저장합니다.',
 		creating: '만드는 중...',
 		stopButton: '중지',
-		needText: '먼저 자료를 붙여넣거나 가져오세요.',
+		needText: '먼저 텍스트를 붙여넣거나 가져오세요.',
 		needTemplate: '먼저 양식을 고르세요.',
 		notConfigured: '설정 → Intra Copilot → 챗봇 → LLM 연결에서 서버 주소와 모델을 먼저 설정하세요.',
 		created: '노트를 만들었습니다: {path}',
@@ -540,8 +542,8 @@ const ko = {
 		droppedKeys: '양식에 없는 속성은 뺐습니다: {keys}',
 		exampleCreated: '예시 양식을 만들었습니다: {path}',
 		// 열린 문서 고르기 창
-		pickerTitle: '열린 문서 고르기',
-		pickerIntro: '지금 열려 있는 문서와 Outlook에서 고른 메일입니다. 하나를 누르면 그 문서의 본문만 가져옵니다.',
+		pickerTitle: '텍스트를 가져올 문서 고르기',
+		pickerIntro: '지금 열려 있는 문서와 Outlook에서 고른 메일입니다. 하나를 누르면 그 문서의 텍스트만 가져옵니다.',
 		pickerEmpty:
 			'열려 있는 문서가 없습니다. Word·Excel·PowerPoint에서 문서를 열거나 Outlook에서 메일을 고른 뒤 다시 누르세요.',
 		appWord: 'Word',
@@ -552,15 +554,15 @@ const ko = {
 		importErrors: {
 			'no-app': '그 프로그램이 켜져 있지 않습니다. 문서를 열어 둔 뒤 다시 시도하세요.',
 			cancelled: '가져오기를 취소했습니다.',
-			pdf: 'PDF는 가져올 수 없습니다. PDF 뷰어에서 글을 선택해 복사한 뒤 입력칸에 붙여넣으세요.',
-			unsupported: '문서 가져오기는 Windows에서만 됩니다. 글을 복사해 입력칸에 붙여넣으세요.',
+			pdf: 'PDF에서는 텍스트를 가져올 수 없습니다. PDF 뷰어에서 텍스트를 선택해 복사한 뒤 입력칸에 붙여넣으세요.',
+			unsupported: '문서에서 텍스트 가져오기는 Windows에서만 됩니다. 텍스트를 복사해 입력칸에 붙여넣으세요.',
 			timeout:
 				'문서를 읽는 데 너무 오래 걸려 멈췄습니다. 문서에 확인 창이 떠 있는지 보고 닫은 뒤 다시 시도하세요.',
-			failed: '문서를 가져오지 못했습니다. 문서가 열려 있는지 확인하고 다시 시도하세요.',
+			failed: '문서에서 텍스트를 가져오지 못했습니다. 문서가 열려 있는지 확인하고 다시 시도하세요.',
 		},
 		// 설정 → 제너레이터 → 양식
 		templatesIntro:
-			'붙여넣거나 가져온 글로 새 노트를 만들 때 따를 양식과, 만든 노트를 저장할 곳을 정합니다. 양식은 볼트 안의 평범한 노트(.md)라서 Obsidian에서 바로 고칠 수 있습니다. 양식 안의 괄호 ( ) 설명을 모델이 읽고 채우며, 새로 배울 문법은 없습니다.',
+			'붙여넣거나 가져온 텍스트로 새 노트를 만들 때 따를 양식과, 만든 노트를 저장할 곳을 정합니다. 양식은 볼트 안의 평범한 노트(.md)라서 Obsidian에서 바로 고칠 수 있습니다. 양식 안의 괄호 ( ) 설명을 모델이 읽고 채우며, 새로 배울 문법은 없습니다.',
 		folderName: '양식 폴더',
 		folderDesc:
 			'양식 노트를 모아 둔 이 볼트의 폴더입니다(하위 폴더의 양식도 함께 보여 줍니다). [찾기]로 폴더를 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 따로 고르지 않으면 Generator 폴더를 만들어 쓰며, 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다.',
@@ -573,14 +575,14 @@ const ko = {
 			'노트를 만들면 바로 열어 보여 줍니다. 여러 건을 연달아 만들 때는 끄면 화면이 바뀌지 않아 편합니다(만든 노트 경로는 제너레이터 창에 표시됩니다).',
 		// 설정 → 제너레이터 → 프롬프트
 		instructionsIntro:
-			'양식과 자료를 보낼 때 함께 보내는 공통 지시문입니다. 모델에게 보내는 글이라 한국어로 적습니다. 고친 내용은 [저장]을 눌러야 반영되고, [취소]를 누르면 마지막으로 저장한 내용으로 돌아갑니다. 비우고 저장하면 처음 지시문으로 돌아갑니다.',
+			'양식과 텍스트를 보낼 때 함께 보내는 공통 지시문입니다. 모델에게 보내는 글이라 한국어로 적습니다. 고친 내용은 [저장]을 눌러야 반영되고, [취소]를 누르면 마지막으로 저장한 내용으로 돌아갑니다. 비우고 저장하면 처음 지시문으로 돌아갑니다.',
 		instructionsSave: '저장',
 		instructionsCancel: '취소',
 		instructionsSaved: '공통 지시문을 저장했습니다.',
 		// 챗봇 안내문(llm.errors)이 제너레이터에는 맞지 않는 원인만 따로 둡니다.
 		errors: {
 			'context-length':
-				'자료가 모델이 한 번에 처리할 수 있는 길이를 넘었습니다. 입력칸에서 필요 없는 부분을 지우거나, 자료를 나눠 여러 노트로 만드세요.',
+				'텍스트가 모델이 한 번에 처리할 수 있는 길이를 넘었습니다. 입력칸에서 필요 없는 부분을 지우거나, 텍스트를 나눠 여러 노트로 만드세요.',
 		},
 	},
 	// 리마인더 화면(ui/reminder-view.ts)과 설정(ui/settings/reminder-section.ts)
@@ -723,8 +725,8 @@ const en: Dictionary = {
 		},
 		generator: {
 			name: 'Generator',
-			desc: 'Writes a new note from pasted text, following your template.',
-			tagline: 'Turns what you receive into a note in your own format.',
+			desc: 'Writes a new note from the text of a document or mail, following your template.',
+			tagline: 'Turns text you receive into a note in your own format.',
 		},
 		reminder: {
 			name: 'Reminder',
@@ -1152,14 +1154,14 @@ const en: Dictionary = {
 		ribbonTooltip: 'Open generator',
 		privacyNote:
 			'When you select [Create], the text in the box and the chosen template are sent to the same LLM server the chatbot uses. Imported source text is never saved to a file or to settings, and is gone when Obsidian closes.',
-		importOpenButton: 'Import open document',
+		importOpenButton: 'Get text from an open document',
 		importOpenTooltip:
-			'Choose from the documents currently open in Word, Excel, or PowerPoint, or the mail selected in Outlook, and fill the box with its text. No application is started for you.',
-		importFileButton: 'Choose a file to import',
+			'Choose from the documents currently open in Word, Excel, or PowerPoint, or the mail selected in Outlook, and fill the box below with its text. No application is started for you, and the document is not modified.',
+		importFileButton: 'Get text from a file',
 		importFileTooltip:
 			'Pick a Word, Excel, or PowerPoint file; it is opened invisibly, its text is read, and it is closed again. PDF is not supported.',
-		importing: 'Importing...',
-		imported: 'Imported {count} characters from {name}.',
+		importing: 'Getting text...',
+		imported: 'Got {count} characters of text from {name}.',
 		pastePlaceholder: 'Paste your text here. For a PDF, copy the text in your viewer and paste it here.',
 		charCount: '{count} characters',
 		zoomButton: 'Open larger',
@@ -1188,8 +1190,8 @@ const en: Dictionary = {
 		titleGuessed: 'The model gave no title, so the first heading in the note was used as the file name.',
 		droppedKeys: 'Properties not in the template were removed: {keys}',
 		exampleCreated: 'Created an example template: {path}',
-		pickerTitle: 'Choose an open document',
-		pickerIntro: 'Documents currently open, and the mail selected in Outlook. Select one to import its text.',
+		pickerTitle: 'Choose a document to get text from',
+		pickerIntro: 'Documents currently open, and the mail selected in Outlook. Select one to get its text.',
 		pickerEmpty:
 			'No open documents. Open a document in Word, Excel, or PowerPoint, or select a mail in Outlook, then try again.',
 		appWord: 'Word',
@@ -1199,10 +1201,10 @@ const en: Dictionary = {
 		importErrors: {
 			'no-app': 'That application is not running. Open the document first, then try again.',
 			cancelled: 'Import cancelled.',
-			pdf: 'PDF cannot be imported. Select and copy the text in your PDF viewer, then paste it into the box.',
-			unsupported: 'Document import works on Windows only. Copy the text and paste it into the box instead.',
+			pdf: 'Text cannot be taken from a PDF. Select and copy the text in your PDF viewer, then paste it into the box.',
+			unsupported: 'Getting text from a document works on Windows only. Copy the text and paste it into the box instead.',
 			timeout: 'Reading the document took too long and was stopped. Check for a dialog on the document, close it, and try again.',
-			failed: 'Could not import the document. Make sure it is open, then try again.',
+			failed: 'Could not get text from the document. Make sure it is open, then try again.',
 		},
 		templatesIntro:
 			'Choose the templates used to write a new note from pasted or imported text, and where the new notes are saved. Templates are ordinary vault notes (.md), so you can edit them right in Obsidian. The model reads the notes in parentheses ( ) and fills them in — there is no new syntax to learn.',
