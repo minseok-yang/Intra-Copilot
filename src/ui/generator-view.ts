@@ -230,8 +230,14 @@ export class GeneratorView extends ItemView {
 			const onCreate = confirmTwice(
 				create.buttonEl,
 				{
-					arm: () => create.setButtonText(strings.createAgainConfirm),
-					reset: () => create.setButtonText(strings.createButton),
+					// 화살표 축약으로 setButtonText의 반환값을 돌려주면 lint가 "void 자리에 값을 준다"고
+					// 막으므로, 반환값을 버리는 블록으로 씁니다(설정 화면의 blur 처리와 같은 이유).
+					arm: () => {
+						create.setButtonText(strings.createAgainConfirm);
+					},
+					reset: () => {
+						create.setButtonText(strings.createButton);
+					},
 				},
 				() => this.create(selected),
 			);
