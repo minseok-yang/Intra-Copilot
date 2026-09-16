@@ -96,6 +96,9 @@ export class FolderPickerModal extends Modal {
 				else this.expanded.add(path);
 				this.draw();
 			});
+		} else {
+			// 화살표가 없는 폴더도 이름이 같은 자리에서 시작하도록 같은 폭의 빈 칸을 둡니다.
+			title.createDiv({ cls: 'intra-copilot-folder-indent' });
 		}
 		title.createDiv({ cls: 'nav-folder-title-content', text: isRoot ? (rootLabel ?? '/') : folder.name });
 		title.addEventListener('click', () => {

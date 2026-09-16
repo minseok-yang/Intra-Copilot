@@ -1757,8 +1757,52 @@ button.intra-copilot-doc-card:hover {
 	width: min(560px, 90vw);
 }
 
-/* 트리 안쪽은 Obsidian 파일 탐색기와 같은 마크업(nav-folder …)이라 들여쓰기·색·접기 화살표는
-   쓰는 테마가 그립니다. 여기서는 스크롤 상자와 "고른 폴더" 표시만 정합니다. */
+/* 트리 안쪽은 Obsidian 파일 탐색기와 같은 마크업(nav-folder …)입니다. 다만 Obsidian의 기본 배치는
+   파일 탐색기 "뷰" 안에서만 붙기 때문에, 창(모달) 안에서는 줄이 세로로 쌓이고 하위 폴더가 들여쓰이지
+   않습니다. 그래서 줄 배치와 들여쓰기는 여기서 직접 정하고, 색·마우스 올렸을 때 모습은 테마에 맡깁니다. */
+.intra-copilot-folder-tree .nav-folder-title {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 6px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.intra-copilot-folder-tree .nav-folder-title-content {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--font-ui-small);
+	overflow-wrap: anywhere;
+}
+
+/* 하위 폴더는 한 칸 들여쓰고, 왼쪽 선으로 어느 폴더의 자식인지 보이게 합니다. */
+.intra-copilot-folder-tree .nav-folder-children {
+	margin-left: 11px;
+	padding-left: 6px;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+/* 접기 화살표와, 화살표가 없는 폴더의 빈 칸은 같은 폭이라 이름이 한 자리에서 시작합니다.
+   화살표는 펼쳐진 상태에서 아래를, 접힌 상태에서 오른쪽을 가리킵니다(Obsidian과 같은 방식). */
+.intra-copilot-folder-tree .nav-folder-collapse-indicator,
+.intra-copilot-folder-tree .intra-copilot-folder-indent {
+	display: flex;
+	flex-shrink: 0;
+	width: 16px;
+	color: var(--text-muted);
+	--icon-size: var(--icon-xs);
+}
+
+.intra-copilot-folder-tree .nav-folder-collapse-indicator {
+	transform: rotate(90deg);
+	transition: transform 100ms ease-in-out;
+}
+
+.intra-copilot-folder-tree .nav-folder.is-collapsed > .nav-folder-title .nav-folder-collapse-indicator {
+	transform: rotate(0deg);
+}
+
 .intra-copilot-folder-tree {
 	max-height: 50vh;
 	overflow-y: auto;
