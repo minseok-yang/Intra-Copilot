@@ -82,6 +82,19 @@ const ko = {
 		schedule: '주기·알림',
 		reminderProperties: '노트 속성',
 	},
+	// 볼트 폴더를 고르는 창(ui/folder-picker.ts)과 그 창을 여는 버튼. 여러 설정 화면이 함께 씁니다.
+	folders: {
+		browse: '찾기',
+		browseTooltip: '이 볼트의 폴더를 펼쳐 보고 고릅니다.',
+		openFolder: '폴더 열기',
+		pickTitle: '폴더 고르기',
+		pickIntro: '이 볼트의 폴더입니다. 폴더를 누르고 [열기]를 누르세요. 화살표로 하위 폴더를 펼칩니다.',
+		root: '볼트 맨 위',
+		chosen: '고른 폴더:',
+		open: '열기',
+		cancel: '취소',
+		created: '폴더가 없어 만들었습니다: {path}',
+	},
 	// 사용자 가이드·라이선스 창(ui/guide-view.ts)의 이동 버튼
 	docs: {
 		toc: '목차',
@@ -550,7 +563,8 @@ const ko = {
 			'붙여넣거나 가져온 글로 새 노트를 만들 때 따를 양식과, 만든 노트를 저장할 곳을 정합니다. 양식은 볼트 안의 평범한 노트(.md)라서 Obsidian에서 바로 고칠 수 있습니다. 양식 안의 괄호 ( ) 설명을 모델이 읽고 채우며, 새로 배울 문법은 없습니다.',
 		folderName: '양식 폴더',
 		folderDesc:
-			'양식 노트를 모아 둔 볼트 기준 폴더입니다(하위 폴더도 함께 봅니다). 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다. 비워두면 기본값(Generator)으로 돌아갑니다.',
+			'양식 노트를 모아 둔 이 볼트의 폴더입니다(하위 폴더의 양식도 함께 보여 줍니다). [찾기]로 폴더를 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 따로 고르지 않으면 Generator 폴더를 만들어 쓰며, 폴더에 노트가 하나도 없으면 제너레이터를 열 때 예시 양식 하나를 만들어 둡니다.',
+		openFolderFailed: '폴더를 열지 못했습니다.',
 		outputFolderName: '새 노트 저장 폴더',
 		outputFolderDesc:
 			'만든 노트를 저장할 볼트 기준 폴더입니다. 폴더가 없으면 만듭니다. 같은 이름의 노트가 있으면 뒤에 번호를 붙입니다. 비워두면 볼트 맨 위에 만듭니다.',
@@ -729,6 +743,18 @@ const en: Dictionary = {
 		reminderTargets: 'Target notes',
 		schedule: 'Schedule & alerts',
 		reminderProperties: 'Note properties',
+	},
+	folders: {
+		browse: 'Browse',
+		browseTooltip: 'Browse the folders in this vault and pick one.',
+		openFolder: 'Open folder',
+		pickTitle: 'Pick a folder',
+		pickIntro: 'Folders in this vault. Select a folder, then select [Open]. Use the arrows to expand subfolders.',
+		root: 'Vault root',
+		chosen: 'Selected:',
+		open: 'Open',
+		cancel: 'Cancel',
+		created: 'The folder did not exist, so it was created: {path}',
 	},
 	docs: {
 		toc: 'Contents',
@@ -1182,7 +1208,8 @@ const en: Dictionary = {
 			'Choose the templates used to write a new note from pasted or imported text, and where the new notes are saved. Templates are ordinary vault notes (.md), so you can edit them right in Obsidian. The model reads the notes in parentheses ( ) and fills them in — there is no new syntax to learn.',
 		folderName: 'Template folder',
 		folderDesc:
-			'Vault folder holding the template notes (subfolders included). If it has no notes, an example template is created when you open the generator. Leave empty to restore the default (Generator).',
+			'The vault folder holding your template notes (templates in subfolders are listed too). Select [Browse] to pick a folder, or [Open folder] to show it in your file manager. If you pick nothing, a Generator folder is created and used; if that folder has no notes, an example template is created when you open the generator.',
+		openFolderFailed: 'Could not open the folder.',
 		outputFolderName: 'Folder for new notes',
 		outputFolderDesc:
 			'Vault folder where new notes are saved. It is created if missing, and a number is appended when a note of the same name exists. Leave empty to save at the vault root.',

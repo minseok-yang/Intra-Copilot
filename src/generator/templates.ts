@@ -36,6 +36,20 @@ export function listTemplates(plugin: IntraCopilotPlugin): GeneratorTemplate[] {
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// 폴더가 없으면 만들고 알립니다(만들었으면 true). 양식 폴더·저장 폴더를 지정하지 않았을 때
+// 기본 폴더(Generator·Generator-inbox)가 조용히 생기지 않게, 볼트에 폴더를 만드는 일은 늘 알립니다.
+export async function ensureFolder(plugin: IntraCopilotPlugin, path: string): Promise<boolean> {
+	const { vault } = plugin.app;
+	if (!path || vault.getAbstractFileByPath(path)) return false;
+	try {
+		await vault.createFolder(path);
+		new Notice(plugin.strings().folders.created.replace('{path}', path));
+		return true;
+	} catch {
+		return false; // 같은 이름의 파일이 있는 드문 경우. 부르는 쪽이 이어서 실패를 알립니다.
+	}
+}
+
 // 폴더를 처음 만들 때 한 번만 넣어 두는 예시입니다(지우면 다시 생기지 않습니다 — 폴더에 .md가 하나도
 // 없을 때만 만듭니다). 괄호 설명이 그대로 "무엇을 채울지"를 모델에게 알려 줍니다.
 const EXAMPLE_NAME = '회의록';
@@ -71,7 +85,7 @@ export async function ensureExampleTemplate(plugin: IntraCopilotPlugin): Promise
 	const { vault } = plugin.app;
 	if (vault.getAbstractFileByPath(path)) return; // .md가 아닌 것과 이름이 겹치는 드문 경우
 	try {
-		if (folder && !vault.getAbstractFileByPath(folder)) await vault.createFolder(folder);
+		await ensureFolder(plugin, folder);
 		await vault.create(path, EXAMPLE_TEMPLATE);
 		new Notice(plugin.strings().generator.exampleCreated.replace('{path}', path));
 	} catch {

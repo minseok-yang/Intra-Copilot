@@ -1,13 +1,61 @@
 import { ButtonComponent, Notice, Setting, TextAreaComponent } from 'obsidian';
 import { DEFAULT_GENERATOR_INSTRUCTIONS, DEFAULT_SETTINGS } from '../../settings';
-import { cleanVaultFolder } from '../../generator/templates';
+import { cleanVaultFolder, ensureFolder } from '../../generator/templates';
+import { FolderPickerModal } from '../folder-picker';
 import type { SettingsContext } from './context';
+import { openFolder } from './skills-section';
 
 // 제너레이터 → 양식 / 프롬프트.
 // 양식은 볼트 안의 노트라서 사내에서도 Obsidian으로 바로 고칠 수 있고, 공통 지시문은 여기서 고칠 수
 // 있습니다(둘 다 재빌드가 필요 없습니다 — 사내에서 손댈 수 있는 것을 늘리려는 선택입니다).
 
 const defaults = DEFAULT_SETTINGS.generator;
+
+// 볼트 폴더를 고르는 설정 한 줄: 지금 폴더 + [찾기](폴더 고르기 창) + [폴더 열기].
+// 경로를 손으로 적게 하지 않는 이유: 오타 하나로 엉뚱한 폴더가 새로 생기고, 그때는 양식이 없는 것처럼
+// 보여서 원인을 찾기 어렵습니다. 고를 수 있는 것은 이 볼트 안의 폴더뿐입니다.
+export function addFolderSetting(
+	containerEl: HTMLElement,
+	ctx: SettingsContext,
+	options: {
+		name: string;
+		desc: string;
+		get: () => string;
+		set: (value: string) => void;
+		openFailed: string;
+	},
+): void {
+	const folders = ctx.strings.folders;
+	const setting = new Setting(containerEl).setName(options.name).setDesc(options.desc);
+	const pathEl = setting.controlEl.createSpan({ cls: 'intra-copilot-folder-path' });
+	const showPath = () => pathEl.setText(options.get() || folders.root);
+	showPath();
+
+	setting.addButton((button) =>
+		button
+			.setButtonText(folders.browse)
+			.setTooltip(folders.browseTooltip)
+			.onClick(() => {
+				new FolderPickerModal(ctx.plugin.app, {
+					strings: folders,
+					current: options.get(),
+					onChoose: (path) => {
+						options.set(cleanVaultFolder(path));
+						showPath();
+						ctx.saveSoon();
+					},
+				}).open();
+			}),
+	);
+	// 폴더가 아직 없으면(기본 폴더를 쓰는 경우) 만들고 나서 엽니다.
+	setting.addButton((button) =>
+		button.setButtonText(folders.openFolder).onClick(async () => {
+			const folder = options.get();
+			await ensureFolder(ctx.plugin, folder);
+			await openFolder(ctx, folder, options.openFailed);
+		}),
+	);
+}
 
 export function renderGeneratorTemplatesSection(containerEl: HTMLElement, ctx: SettingsContext): void {
 	const strings = ctx.strings.generator;
@@ -16,19 +64,14 @@ export function renderGeneratorTemplatesSection(containerEl: HTMLElement, ctx: S
 	containerEl.createEl('p', { text: strings.templatesIntro });
 	containerEl.createEl('p', { cls: 'intra-copilot-privacy-note', text: strings.privacyNote });
 
-	// 양식 폴더를 비우면 볼트의 모든 노트가 양식 목록에 올라와 버리므로 처음 폴더로 되돌립니다.
-	new Setting(containerEl)
-		.setName(strings.folderName)
-		.setDesc(strings.folderDesc)
-		.addText((text) => {
-			text.setValue(generator.templateFolder).onChange((value) => {
-				generator.templateFolder = cleanVaultFolder(value) || defaults.templateFolder;
-				ctx.saveSoon();
-			});
-			text.inputEl.addEventListener('blur', () => {
-				text.setValue(generator.templateFolder);
-			});
-		});
+	// 양식 폴더를 볼트 맨 위로 두면 볼트의 모든 노트가 양식 목록에 올라와 버리므로 처음 폴더로 되돌립니다.
+	addFolderSetting(containerEl, ctx, {
+		name: strings.folderName,
+		desc: strings.folderDesc,
+		get: () => generator.templateFolder,
+		set: (value) => (generator.templateFolder = value || defaults.templateFolder),
+		openFailed: strings.openFolderFailed,
+	});
 
 	// 저장 폴더는 비워 둘 수 있습니다(비우면 볼트 맨 위에 만듭니다).
 	new Setting(containerEl)
