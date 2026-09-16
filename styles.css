@@ -1564,7 +1564,7 @@ button.intra-copilot-doc-card:hover {
 /* 사이드바가 좁아 일부만 보이고, 필요하면 아래 [크게 보기]로 큰 창에서 봅니다. */
 .intra-copilot-generator-source {
 	width: 100%;
-	resize: vertical;
+	resize: none;
 	font-size: var(--font-ui-small);
 }
 
