@@ -239,9 +239,10 @@ export default class IntraCopilotPlugin extends Plugin {
 		for (const key of ['templateFolder', 'outputFolder'] as const) {
 			if (typeof generator[key] !== 'string') generator[key] = generatorDefaults[key];
 		}
-		// 양식 폴더가 비면 볼트의 모든 노트가 양식 목록에 올라오므로 처음 폴더로 되돌립니다
-		// (저장 폴더는 비어도 됩니다 — 그때는 볼트 맨 위에 만듭니다).
+		// 폴더가 비면 처음 폴더로 되돌립니다. 양식 폴더가 볼트 맨 위면 볼트의 모든 노트가 양식 목록에
+		// 올라오고, 저장 폴더가 볼트 맨 위면 만든 노트가 볼트 맨 위에 쌓이기 때문입니다.
 		if (!generator.templateFolder.trim()) generator.templateFolder = generatorDefaults.templateFolder;
+		if (!generator.outputFolder.trim()) generator.outputFolder = generatorDefaults.outputFolder;
 		// 지시문이 비면 양식만 보내게 되어 결과가 크게 나빠지므로 처음 지시문으로 되돌립니다.
 		if (typeof generator.instructions !== 'string' || !generator.instructions.trim()) {
 			generator.instructions = generatorDefaults.instructions;

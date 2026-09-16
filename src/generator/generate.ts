@@ -3,7 +3,7 @@ import type IntraCopilotPlugin from '../main';
 import { sendChatMessage } from '../llm/client';
 import { describeGeneratorError } from '../i18n';
 import { buildNote } from './note-build';
-import { cleanVaultFolder, type GeneratorTemplate } from './templates';
+import { cleanVaultFolder, ensureFolder, type GeneratorTemplate } from './templates';
 import { formatDate, propertyNames } from '../reminder/note-properties';
 
 // 자료 + 양식을 LLM 서버로 보내 새 노트를 만드는 곳입니다.
@@ -74,9 +74,9 @@ export async function generateNote(
 
 	const folder = cleanVaultFolder(generator.outputFolder);
 	try {
-		const { vault } = plugin.app;
-		if (folder && !vault.getAbstractFileByPath(folder)) await vault.createFolder(folder);
-		const file = await vault.create(uniquePath(plugin, folder, built.title), built.content);
+		// 저장 폴더가 아직 없으면 만들고 알립니다(설정에서 [찾기]로 고르지 않고 기본 폴더를 쓰는 경우).
+		await ensureFolder(plugin, folder);
+		const file = await plugin.app.vault.create(uniquePath(plugin, folder, built.title), built.content);
 		return { ok: true, file, droppedKeys: built.droppedKeys, titleFromModel: built.titleFromModel };
 	} catch (error) {
 		return { ok: false, message: error instanceof Error ? error.message : String(error) };

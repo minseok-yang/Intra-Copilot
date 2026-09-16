@@ -73,19 +73,15 @@ export function renderGeneratorTemplatesSection(containerEl: HTMLElement, ctx: S
 		openFailed: strings.openFolderFailed,
 	});
 
-	// 저장 폴더는 비워 둘 수 있습니다(비우면 볼트 맨 위에 만듭니다).
-	new Setting(containerEl)
-		.setName(strings.outputFolderName)
-		.setDesc(strings.outputFolderDesc)
-		.addText((text) => {
-			text.setValue(generator.outputFolder).onChange((value) => {
-				generator.outputFolder = cleanVaultFolder(value);
-				ctx.saveSoon();
-			});
-			text.inputEl.addEventListener('blur', () => {
-				text.setValue(generator.outputFolder);
-			});
-		});
+	// 저장 폴더도 같은 방식으로 고릅니다. 볼트 맨 위로 두면 만든 노트가 볼트 맨 위에 쌓이므로
+	// 처음 폴더(Generator-inbox)로 되돌립니다.
+	addFolderSetting(containerEl, ctx, {
+		name: strings.outputFolderName,
+		desc: strings.outputFolderDesc,
+		get: () => generator.outputFolder,
+		set: (value) => (generator.outputFolder = value || defaults.outputFolder),
+		openFailed: strings.openFolderFailed,
+	});
 
 	new Setting(containerEl)
 		.setName(strings.openAfterName)

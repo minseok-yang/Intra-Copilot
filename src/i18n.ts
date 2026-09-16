@@ -567,7 +567,7 @@ const ko = {
 		openFolderFailed: '폴더를 열지 못했습니다.',
 		outputFolderName: '새 노트 저장 폴더',
 		outputFolderDesc:
-			'만든 노트를 저장할 볼트 기준 폴더입니다. 폴더가 없으면 만듭니다. 같은 이름의 노트가 있으면 뒤에 번호를 붙입니다. 비워두면 볼트 맨 위에 만듭니다.',
+			'만든 노트를 저장할 이 볼트의 폴더입니다. [찾기]로 고르고, [폴더 열기]로 그 폴더를 파일 탐색기에서 엽니다. 폴더가 없으면 만들면서 알리고, 따로 고르지 않으면 Generator-inbox 폴더를 씁니다. 같은 이름의 노트가 있으면 뒤에 번호를 붙입니다.',
 		openAfterName: '만든 뒤 노트 열기',
 		openAfterDesc:
 			'노트를 만들면 바로 열어 보여 줍니다. 여러 건을 연달아 만들 때는 끄면 화면이 바뀌지 않아 편합니다(만든 노트 경로는 제너레이터 창에 표시됩니다).',
@@ -1212,7 +1212,7 @@ const en: Dictionary = {
 		openFolderFailed: 'Could not open the folder.',
 		outputFolderName: 'Folder for new notes',
 		outputFolderDesc:
-			'Vault folder where new notes are saved. It is created if missing, and a number is appended when a note of the same name exists. Leave empty to save at the vault root.',
+			'The vault folder where new notes are saved. Select [Browse] to pick it, or [Open folder] to show it in your file manager. A missing folder is created and you are told about it; if you pick nothing, a Generator-inbox folder is used. A number is appended when a note of the same name exists.',
 		openAfterName: 'Open the note after creating',
 		openAfterDesc:
 			'Open each new note right away. Turn this off when creating several notes in a row (the path of each new note is shown in the generator pane).',

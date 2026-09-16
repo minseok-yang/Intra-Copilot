@@ -156,7 +156,7 @@ export const DEFAULT_SETTINGS: IntraCopilotSettings = {
 	generator: {
 		// 양식은 노트라서 볼트 안에 둡니다(사내에서 Obsidian으로 바로 고치고 동료와 나눌 수 있게).
 		templateFolder: 'Generator',
-		outputFolder: 'Inbox',
+		outputFolder: 'Generator-inbox',
 		instructions: DEFAULT_GENERATOR_INSTRUCTIONS,
 		openAfterCreate: true,
 	},
