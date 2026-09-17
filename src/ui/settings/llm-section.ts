@@ -172,7 +172,6 @@ export class LlmSettingsSection {
 			.setDesc(strings.apiKeyDesc)
 			.addText((text) => {
 				text
-					.setPlaceholder('sk-...')
 					.setValue(this.plugin.settings.llm.apiKey)
 					.onChange((value) => {
 						this.plugin.settings.llm.apiKey = value.trim();
