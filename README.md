@@ -131,7 +131,7 @@
 
 ## 환경 준비
 
-1. [Node.js](https://nodejs.org/) 설치 (버전 18 이상 권장). `node --version`으로 확인합니다.
+1. [Node.js](https://nodejs.org/) 설치 (버전 20 이상 — CI가 20·22·24에서 검사합니다). `node --version`으로 확인합니다.
 2. 저장소를 내려받은 뒤 의존성을 설치합니다.
 
 	```
@@ -164,7 +164,21 @@ npm test
 
 커넥터 모듈(색인·조각 나누기·벡터 계산)과 제너레이터의 노트 만들기 규칙(제목 읽기·속성 정리)을 Obsidian 없이 확인합니다. `test/obsidian-mock.ts`가 Obsidian을, 테스트 안의 작은 HTTP 서버가 임베딩 서버를 대신합니다. 이 모듈들을 고친 뒤에는 꼭 돌려 보세요.
 
-`src/llm/client.ts`의 `fetch` 경고 1개는 **의도된 것**입니다 — 답변 스트리밍은 `requestUrl`로 할 수 없어 그 부분만 `fetch`를 씁니다.
+남는 lint 경고 2개는 **의도된 것**입니다.
+- `src/llm/client.ts`의 `fetch` — 답변 스트리밍은 `requestUrl`로 할 수 없어 그 부분만 `fetch`를 씁니다.
+- 설정 검색(`getSettingDefinitions`) 권장 — Obsidian 1.13부터 있는 API라 `minAppVersion`(1.11.4)에서는 쓸 수 없습니다.
+
+GitHub Actions(`.github/workflows/lint.yml`)가 push마다 build·lint·test를 돌립니다.
+
+## 작업 규칙
+
+- **한국어** — 주석·README·릴리즈 노트·화면 문구는 한국어로 씁니다(화면 문구는 `src/i18n.ts`에 영어도 함께).
+- **공개 저장소** — 사내 서버 주소·모델 이름 같은 특정 조직의 정보를 코드·문서·커밋에 넣지 않습니다.
+- **`minAppVersion`은 1.11.4** — API 키 키체인(`app.secretStorage`)에 필요한 버전입니다. 폐쇄망에 설치된 Obsidian 버전까지만 구동을 확인했으므로, 이보다 높은 버전이 필요한 API를 쓰거나 `minAppVersion`을 올리려면 먼저 검토가 필요합니다. `obsidian` 타입 패키지는 1.12.3으로 고정합니다.
+- **API 키** — `data.json`에 쓰지 않고 키체인에 둡니다(`src/main.ts`의 `loadSettings`·`saveSettings`). 메모리의 `settings`에는 키가 그대로 있어 키를 쓰는 코드는 신경 쓰지 않아도 됩니다.
+- **PowerShell 스크립트** — `src/generator/office-import.ts`의 스크립트는 문자열이라 tsc가 검사하지 못합니다. 고치면 파일로 꺼내 PowerShell 파서로 문법을 확인합니다.
+- **id 고정** — 명령 id·설정 키·뷰 id는 발행 뒤 바꾸지 않습니다. 바꿔야 하면 이전 값을 옮기는 코드를 함께 넣습니다.
+- **Obsidian에서 확인하기 전에는 `npm run build`** — `tsc`만 돌리면 `main.js`가 바뀌지 않습니다.
 
 ## 소스 구조
 
@@ -207,13 +221,13 @@ src/
 
 ## 새 버전 릴리즈하기
 
-1. `manifest.json`의 `version`과 `minAppVersion`을 갱신합니다.
-2. `versions.json`에 새 버전과 그에 대응하는 최소 Obsidian 버전을 추가합니다.
-3. 커밋·푸시한 뒤 버전 번호로 태그를 올립니다(`v` 접두사 없이, 예: `git tag 1.0.1 && git push origin 1.0.1`). GitHub Actions가 빌드해서 `main.js`, `manifest.json`, `styles.css`가 첨부된 **초안(draft) 릴리즈**를 만듭니다.
+1. `npm version patch`(또는 `minor`·`major`) — `manifest.json`·`versions.json`·`package.json`의 버전을 올리고 커밋과 태그까지 만듭니다(`.npmrc` 설정으로 태그에 `v` 접두사 없음). `minAppVersion`을 바꿀 때는 먼저 `manifest.json`에서 고쳐 커밋해 두면(작업 폴더가 깨끗해야 `npm version`이 돌아갑니다) `versions.json`에 함께 기록됩니다.
+2. `git push` 후 태그를 push합니다: `git push origin <버전>`.
+3. GitHub Actions(`release.yml`)가 빌드·출처 증명(attestation)과 함께 `main.js`, `manifest.json`, `styles.css`가 첨부된 **초안(draft) 릴리즈**를 만듭니다.
 4. 초안에 한국어 릴리즈 노트를 쓰고 공개합니다. 한 번 공개한 버전 번호(태그)는 다시 쓰지 않습니다.
 5. 라이선스·정책 문서를 고쳤다면 "문서 정보·문의" 쪽의 개정일과 변경 이력도 갱신합니다.
 
-> `npm version patch|minor|major`로 `manifest.json`, `package.json`, `versions.json` 갱신을 한 번에 처리할 수 있습니다.
+> 릴리즈를 GitHub 화면에서 새로 만들지 마세요. 태그가 새로 생기면서 워크플로가 초안을 하나 더 만듭니다.
 
 ## 참고 문서
 
