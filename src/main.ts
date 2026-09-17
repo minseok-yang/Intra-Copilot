@@ -1,4 +1,4 @@
-import { Plugin, setTooltip } from 'obsidian';
+import { Notice, Plugin, setTooltip } from 'obsidian';
 import {
 	clampChatTimeout,
 	type ConnectorSettings,
@@ -28,6 +28,13 @@ function isStringArray(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
+// API 키는 data.json이 아니라 운영체제 키체인(Obsidian SecretStorage, 1.11.4+)에 둡니다.
+// 메모리의 settings에는 키가 그대로 있어서 키를 쓰는 곳은 바뀌지 않고, 파일에 쓸 때 빼고 읽을 때 채웁니다.
+const API_KEY_SECRETS = {
+	llm: 'intra-copilot-llm-api-key',
+	connector: 'intra-copilot-connector-api-key',
+} as const;
+
 export default class IntraCopilotPlugin extends Plugin {
 	settings!: IntraCopilotSettings;
 	// 챗봇 상태등이 보여주는 서버 연결 상태(모든 확인 결과가 여기로 모입니다).
@@ -40,6 +47,8 @@ export default class IntraCopilotPlugin extends Plugin {
 	private reminderRibbonEl!: HTMLElement;
 	// 사이드바 창의 톱니로 설정을 열었을 때, 설정 화면이 처음 그릴 때 보여 줄 기능(한 번 쓰고 비움).
 	private pendingSettingsTab: FeatureId | null = null;
+	// 키체인에 쓰지 못했다는 알림은 켜 있는 동안 한 번만 띄웁니다(설정은 입력할 때마다 저장되기 때문).
+	private keychainFailureNoticed = false;
 
 	// 지금 표시 언어의 화면 문구 묶음입니다. 화면마다 t(...)를 부르는 대신 이걸 씁니다.
 	strings(): Dictionary {
@@ -283,9 +292,46 @@ export default class IntraCopilotPlugin extends Plugin {
 		}
 		daily.handled = nonNegativeInt(daily.handled, dailyDefaults.handled);
 		daily.extra = nonNegativeInt(daily.extra, dailyDefaults.extra);
+
+		// data.json에 키가 남아 있으면(1.0.0에서 넘어왔거나 지난번 키체인 저장이 실패함) 그 키를 키체인으로 옮기고
+		// 파일에서 지웁니다. 없으면 키체인에서 읽습니다.
+		let keyInFile = false;
+		for (const section of ['llm', 'connector'] as const) {
+			if (this.settings[section].apiKey) {
+				keyInFile = true;
+			} else {
+				// 키체인을 읽지 못해도 플러그인은 켜져야 하므로 빈 키로 둡니다(저장할 때 실패를 알림).
+				try {
+					this.settings[section].apiKey = this.app.secretStorage.getSecret(API_KEY_SECRETS[section]) ?? '';
+				} catch (error) {
+					console.error('Intra Copilot: 키체인에서 API 키를 읽지 못했습니다.', error);
+				}
+			}
+		}
+		if (keyInFile) await this.saveSettings();
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
+		const data = {
+			...this.settings,
+			llm: { ...this.settings.llm },
+			connector: { ...this.settings.connector },
+		};
+		for (const section of ['llm', 'connector'] as const) {
+			const id = API_KEY_SECRETS[section];
+			const key = this.settings[section].apiKey;
+			try {
+				if ((this.app.secretStorage.getSecret(id) ?? '') !== key) this.app.secretStorage.setSecret(id, key);
+				data[section].apiKey = '';
+			} catch (error) {
+				// 키체인을 못 쓰면 키를 잃지 않도록 예전처럼 data.json에 남기고 알립니다.
+				console.error('Intra Copilot: API 키를 키체인에 저장하지 못했습니다.', error);
+				if (!this.keychainFailureNoticed) {
+					this.keychainFailureNoticed = true;
+					new Notice(this.strings().general.keychainSaveFailed, 0);
+				}
+			}
+		}
+		await this.saveData(data);
 	}
 }

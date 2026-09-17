@@ -21,7 +21,8 @@ Obsidian 데스크톱 전용 플러그인입니다(`isDesktopOnly: true`). 사�
 
 - 주석·README·릴리즈 노트·화면 문구는 한국어로 씁니다.
 - 저장소는 공개입니다. 사내 서버 주소·모델 이름 같은 사내 정보를 코드·문서·커밋에 넣지 않습니다.
-- `minAppVersion`은 1.7.2입니다. 그보다 새 API는 lint가 막습니다. 올리려면 회사 Obsidian 버전을 먼저 확인합니다. `obsidian` 타입 패키지는 1.12.3으로 고정합니다.
+- `minAppVersion`은 1.11.4입니다(API 키 키체인 `app.secretStorage`). 그보다 새 API는 lint가 막습니다. 회사 Obsidian이 1.12.4라서 그보다 높게 올리면 회사에서 설치되지 않습니다. `obsidian` 타입 패키지는 1.12.3으로 고정합니다.
+- API 키는 `data.json`에 쓰지 않고 키체인에 둡니다(`src/main.ts`의 `loadSettings`·`saveSettings`). 메모리의 `settings`에는 키가 그대로 있습니다.
 - `src/llm/client.ts`의 `fetch`는 답변 스트리밍 때문에 일부러 씁니다(lint 경고 유지).
 - `src/generator/office-import.ts`의 PowerShell 스크립트는 문자열이라 tsc가 검사하지 못합니다. 고치면 스크립트를 파일로 꺼내 PowerShell 파서로 문법을 확인합니다.
 - 명령 id·설정 키·뷰 id는 발행 뒤 바꾸지 않습니다. 바꿔야 하면 이전 값을 옮기는 코드를 함께 넣습니다.

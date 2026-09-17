@@ -30,6 +30,8 @@ const ko = {
 			'외부 인터넷 접속이 제한된 사내 환경에서도 사용할 수 있도록 개발되었으며, 사내 서버 또는 개인 로컬 환경의 AI 모델을 활용할 수 있습니다.\n',
 		guideButton: '사용자 가이드',
 		licenseButton: '라이선스 및 정책',
+		keychainSaveFailed:
+			'Intra Copilot: API 키를 이 컴퓨터의 키체인에 저장하지 못해 예전처럼 설정 파일(data.json)에 암호화 없이 저장했습니다. 개발자 도구(Ctrl+Shift+I) 콘솔에 자세한 오류가 있습니다.',
 		// 기능 네 개로 가는 바로가기 줄의 제목(톱니바퀴 아이콘과 함께)
 		settingsHeading: '설정',
 		// 아직 서버를 설정하지 않았을 때만 보이는 안내
@@ -118,7 +120,7 @@ const ko = {
 			'LLM 서버의 API 주소입니다. 보통 /v1로 끝납니다. 예: http://서버주소:8000/v1',
 		baseUrlPlaceholder: 'http://서버주소:8000/v1',
 		apiKeyName: 'API 키',
-		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 키가 필요 없는 서버라면 비워두세요.',
+		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 설정 파일이 아니라 이 컴퓨터의 키체인에 저장됩니다. 키가 필요 없는 서버라면 비워두세요.',
 		maxHistoryName: '서버로 보낼 대화 기록 수',
 		maxHistoryDesc:
 			'질문할 때 함께 보낼 최근 메시지 개수입니다. 질문과 답변을 각각 1개로 세므로, 20이면 지금 질문을 포함해 최근 약 10번 주고받은 분량입니다. ' +
@@ -432,7 +434,7 @@ const ko = {
 		baseUrlDesc: '임베딩 서버의 API 주소입니다. 보통 /v1로 끝납니다. 예: http://서버주소:8080/v1',
 		baseUrlPlaceholder: 'http://서버주소:8080/v1',
 		apiKeyName: 'API 키',
-		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 키가 필요 없는 서버라면 비워두세요.',
+		apiKeyDesc: '서버에 접속할 때 쓰는 인증 키입니다. 설정 파일이 아니라 이 컴퓨터의 키체인에 저장됩니다. 키가 필요 없는 서버라면 비워두세요.',
 		modelName: '모델',
 		modelDesc:
 			'노트를 벡터로 바꿀 모델 이름입니다. 직접 입력하거나, [모델 목록 불러오기] 뒤 입력칸을 눌러 고릅니다. 모델이나 서버 주소를 바꾸면 색인을 다시 만들어야 합니다.',
@@ -720,6 +722,8 @@ const en: Dictionary = {
 			'Built to work even in company environments with restricted internet access, it can use AI models on your company server or on your own local machine.\n',
 		guideButton: 'User guide',
 		licenseButton: 'License & policy',
+		keychainSaveFailed:
+			"Intra Copilot: Could not save the API key to this computer's keychain, so it was saved unencrypted in the settings file (data.json) as before. See the developer tools console (Ctrl+Shift+I) for details.",
 		settingsHeading: 'Settings',
 		setupHeading: 'Getting started',
 		setupSteps:
@@ -798,7 +802,7 @@ const en: Dictionary = {
 			'The API address of the LLM server, usually ending in /v1. e.g. http://server:8000/v1',
 		baseUrlPlaceholder: 'http://server:8000/v1',
 		apiKeyName: 'API key',
-		apiKeyDesc: 'The key used to authenticate with the server. Leave empty if the server does not require one.',
+		apiKeyDesc: "The key used to authenticate with the server. It is stored in this computer's keychain, not in the settings file. Leave empty if the server does not require one.",
 		maxHistoryName: 'Messages sent as history',
 		maxHistoryDesc:
 			'How many recent messages to send along with each question. Questions and answers count as one each, so 20 is roughly the last 10 exchanges including the current question. ' +
@@ -1101,7 +1105,7 @@ const en: Dictionary = {
 		baseUrlDesc: 'The API address of the embedding server, usually ending in /v1. e.g. http://server:8080/v1',
 		baseUrlPlaceholder: 'http://server:8080/v1',
 		apiKeyName: 'API key',
-		apiKeyDesc: 'The key used to access the server. Leave empty if the server does not need one.',
+		apiKeyDesc: "The key used to access the server. It is stored in this computer's keychain, not in the settings file. Leave empty if the server does not need one.",
 		modelName: 'Model',
 		modelDesc:
 			'The model that turns notes into vectors. Type it, or click [Load model list] and pick one from the input. Changing the model or server address requires rebuilding the index.',
