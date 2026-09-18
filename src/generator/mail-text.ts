@@ -150,12 +150,13 @@ function collect(raw: string, out: Collected, depth: number): void {
 		return;
 	}
 
+	// 본문으로 읽을 수 없는 조각(이름 없이 본문에 끼운 이미지 등)도 있었다는 흔적은 첨부 줄에 남깁니다.
 	const filename = param(disposition, 'filename') ?? param(contentType, 'name');
-	if (/^\s*attachment/i.test(disposition ?? '') || filename !== undefined || type === 'message/rfc822') {
+	const isBody = type === 'text/plain' || type === 'text/html';
+	if (/^\s*attachment/i.test(disposition ?? '') || filename !== undefined || !isBody) {
 		out.attachments.push(filename || type);
 		return;
 	}
-	if (type !== 'text/plain' && type !== 'text/html') return;
 
 	const encoding = headers.get('content-transfer-encoding')?.trim().toLowerCase();
 	const binary = encoding === 'base64' ? fromBase64(body) : encoding === 'quoted-printable' ? fromQuotedPrintable(body) : body;

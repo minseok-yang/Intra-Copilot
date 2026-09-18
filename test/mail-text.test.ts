@@ -94,4 +94,27 @@ test('.eml: HTML의 흔한 이름 개체를 글자로 바꾼다', () => {
 	assert.match(text, /A—B… ©2026 ’&unknown;/);
 });
 
+test('.eml: 이름 없이 본문에 끼운 이미지도 첨부 줄에 형식으로 적는다', () => {
+	const text = emlToText(
+		eml([
+			'Subject: x',
+			'Content-Type: multipart/related; boundary=r',
+			'',
+			'--r',
+			'Content-Type: text/html',
+			'',
+			'<p>본문</p>',
+			'--r',
+			'Content-Type: image/png',
+			'Content-ID: <logo>',
+			'Content-Transfer-Encoding: base64',
+			'',
+			'iVBORw0=',
+			'--r--',
+		]),
+	);
+	assert.match(text, /첨부: image\/png/);
+	assert.match(text, /본문/);
+});
+
 console.log(`\n  ${passed}개 통과`);
