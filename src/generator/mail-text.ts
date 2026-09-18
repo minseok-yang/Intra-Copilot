@@ -99,7 +99,15 @@ function param(value: string | undefined, name: string): string | undefined {
 	return decodeWith(fromBinary(binary), extended[1]);
 }
 
-const ENTITIES: Record<string, string> = { nbsp: ' ', lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+// ponytail: 메일 서명·뉴스레터에 흔한 이름만 둡니다(HTML 전체 표는 2천여 개). 원문 그대로 보이는 이름이 나오면 추가하세요.
+const ENTITIES: Record<string, string> = {
+	nbsp: ' ', lt: '<', gt: '>', amp: '&', quot: '"', apos: "'",
+	mdash: '—', ndash: '–', hellip: '…', middot: '·', bull: '•',
+	lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', laquo: '«', raquo: '»',
+	copy: '©', reg: '®', trade: '™', deg: '°', times: '×', divide: '÷',
+	euro: '€', pound: '£', yen: '¥', cent: '¢', sect: '§', para: '¶',
+	larr: '←', rarr: '→', uarr: '↑', darr: '↓',
+};
 
 // HTML 메일 본문을 읽을 수 있는 텍스트로 바꿉니다. 모양은 버리고 줄바꿈과 표 칸만 남깁니다.
 function htmlToText(html: string): string {

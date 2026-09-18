@@ -89,4 +89,9 @@ test('.eml: 여러 부분이 아닌 메일과 머리말 없는 조각', () => {
 	assert.match(bare, /머리말 없음/);
 });
 
+test('.eml: HTML의 흔한 이름 개체를 글자로 바꾼다', () => {
+	const text = emlToText(eml(['Subject: x', 'Content-Type: text/html', '', '<p>A&mdash;B&hellip; &copy;2026 &rsquo;&unknown;</p>']));
+	assert.match(text, /A—B… ©2026 ’&unknown;/);
+});
+
 console.log(`\n  ${passed}개 통과`);
