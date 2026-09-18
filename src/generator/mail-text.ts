@@ -133,8 +133,7 @@ interface Collected {
 	attachments: string[];
 }
 
-function collect(raw: string, out: Collected, depth: number): void {
-	const { headers, body } = splitPart(raw);
+function collect({ headers, body }: Part, out: Collected, depth: number): void {
 	const contentType = headers.get('content-type');
 	const type = (contentType ?? 'text/plain').split(';')[0]?.trim().toLowerCase() ?? 'text/plain';
 	const disposition = headers.get('content-disposition');
@@ -145,7 +144,7 @@ function collect(raw: string, out: Collected, depth: number): void {
 		// 첫 조각은 경계선 앞 머리글이고, "--"로 시작하는 조각은 끝 표시 뒤라 읽지 않습니다.
 		for (const piece of body.split(`--${boundary}`).slice(1)) {
 			if (piece.startsWith('--')) break;
-			collect(piece.replace(/^[ \t]*\r?\n/, ''), out, depth + 1);
+			collect(splitPart(piece.replace(/^[ \t]*\r?\n/, '')), out, depth + 1);
 		}
 		return;
 	}
@@ -168,10 +167,10 @@ function collect(raw: string, out: Collected, depth: number): void {
 // .eml 파일을 Outlook에서 가져온 메일과 같은 모양(제목·보낸 사람·받는 사람·받은 시각·첨부 + 본문)으로 바꿉니다.
 // 본문은 일반 텍스트가 있으면 그것을, 없으면 HTML에서 글자만 뽑아 씁니다. 첨부는 이름만 적습니다.
 export function emlToText(bytes: Uint8Array): string {
-	const raw = toBinary(bytes);
-	const { headers } = splitPart(raw);
+	const top = splitPart(toBinary(bytes));
+	const { headers } = top;
 	const out: Collected = { plain: [], html: [], attachments: [] };
-	collect(raw, out, 0);
+	collect(top, out, 0);
 
 	const lines = [`제목: ${decodeHeader(headers.get('subject') ?? '')}`];
 	const fields: [string, string][] = [
