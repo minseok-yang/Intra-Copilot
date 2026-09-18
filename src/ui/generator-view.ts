@@ -354,7 +354,13 @@ export class GeneratorView extends ItemView {
 
 	private async runImport(read: () => Promise<ImportResult>): Promise<void> {
 		const strings = this.strings();
-		const result = await read();
+		let result: ImportResult;
+		try {
+			result = await read();
+		} catch (error) {
+			// 받아온 바이트를 푸는 중에 예외가 나도 버튼이 '가져오는 중...'에 멈추지 않게 실패로 바꿉니다.
+			result = { ok: false, kind: 'failed', detail: error instanceof Error ? error.message : String(error) };
+		}
 		if (!result.ok) {
 			// 취소는 사용자가 한 일이라 오류로 보여주지 않습니다.
 			this.showStatus(strings.importErrors[result.kind], result.kind !== 'cancelled', result.detail);
