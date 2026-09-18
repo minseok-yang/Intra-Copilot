@@ -18,6 +18,7 @@ import {
 	type ImportResult,
 	listOpenDocuments,
 	pickAndReadFile,
+	SUPPORTED_EXTENSIONS,
 	readOpenDocument,
 } from '../generator/office-import';
 import { OpenDocumentModal, SourceZoomModal } from './generator-modals';
@@ -122,6 +123,11 @@ export class GeneratorView extends ItemView {
 			openButton.setDisabled(true);
 			fileButton.setDisabled(true);
 		}
+		// 버튼 툴팁은 마우스를 올려야 보이므로, 받는 형식은 버튼 아래에 늘 보이게 적어 둡니다.
+		contentEl.createEl('p', {
+			cls: 'intra-copilot-generator-hint intra-copilot-generator-import-hint',
+			text: strings.importHint.replace('{extensions}', SUPPORTED_EXTENSIONS),
+		});
 
 		// ② 텍스트 입력칸 — 사이드바가 좁아 몇 줄만 보입니다. 입력칸 위 줄 오른쪽에 [새 창에서 텍스트 보기],
 		// 아래 줄에 글자 수와 [모두 지우기]를 둡니다. 두 버튼을 위아래로 떨어뜨린 이유는, 나란히 있으면

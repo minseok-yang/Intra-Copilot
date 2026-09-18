@@ -1624,6 +1624,11 @@ button.intra-copilot-doc-card:hover {
 	line-height: 1.4;
 }
 
+/* 가져오기 버튼 아래 형식 안내: 문구 안의 줄바꿈(\n)을 그대로 보여 줍니다. */
+.intra-copilot-generator-import-hint {
+	white-space: pre-line;
+}
+
 /* 고른 양식의 제목(#) 목록. 안쪽은 Obsidian 개요 보기와 같은 마크업(.outline .tree-item …)이라
    들여쓰기·색·접기 화살표는 쓰는 테마가 그립니다. 여기서는 상자와 제목 줄만 정합니다. */
 .intra-copilot-generator-outline {

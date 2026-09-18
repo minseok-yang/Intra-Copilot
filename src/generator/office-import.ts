@@ -1,8 +1,9 @@
 import { execFile } from 'child_process';
 import { Platform } from 'obsidian';
+import { decodeText, emlToText } from './mail-text';
 
 // 제너레이터의 "문서 가져오기"입니다. Word·Excel·PowerPoint·Outlook을 PowerShell로 조종해 본문 글자만
-// 받아옵니다. 사내 DRM 문서는 파일을 직접 읽으면 암호문이지만, 인증된 앱(Word 등)이 열면 평문이 되므로
+// 받아옵니다(.txt·.eml 파일은 앱 없이 PowerShell이 바이트만 읽어 넘기고 mail-text.ts가 풉니다). 사내 DRM 문서는 파일을 직접 읽으면 암호문이지만, 인증된 앱(Word 등)이 열면 평문이 되므로
 // 그 앱에게 물어보는 방식입니다(2026-09-16 사내 실측으로 확인. 결정 15).
 //
 // 지키는 것
@@ -23,8 +24,8 @@ export interface OpenDocument {
 }
 
 // no-app: 그 앱이 아예 안 켜져 있음 / cancelled: 파일 선택 창에서 취소 / pdf: PDF를 골랐음
-// unsupported: Windows가 아님 / timeout: 시간 초과 / failed: 그 밖(detail에 원문)
-export type ImportErrorKind = 'no-app' | 'cancelled' | 'pdf' | 'unsupported' | 'timeout' | 'failed';
+// too-large: .txt·.eml이 너무 큼 / unsupported: Windows가 아님 / timeout: 시간 초과 / failed: 그 밖(detail에 원문)
+export type ImportErrorKind = 'no-app' | 'cancelled' | 'pdf' | 'too-large' | 'unsupported' | 'timeout' | 'failed';
 
 export type ImportResult =
 	| { ok: true; text: string; name: string }
@@ -69,6 +70,8 @@ interface PsPayload {
 	kind?: string;
 	text?: string;
 	name?: string;
+	bytes?: string; // .txt·.eml 파일 원본(base64)
+	format?: string; // bytes의 형식: 'txt' | 'eml'
 	items?: OpenDocument[] | OpenDocument;
 }
 
@@ -86,12 +89,38 @@ function parsePayload(stdout: string): PsPayload | null {
 
 function failureFrom(payload: PsPayload): { ok: false; kind: ImportErrorKind; detail: string } {
 	const kind: ImportErrorKind =
-		payload.kind === 'no-app' || payload.kind === 'cancelled' || payload.kind === 'pdf' ? payload.kind : 'failed';
+		payload.kind === 'no-app' || payload.kind === 'cancelled' || payload.kind === 'pdf' || payload.kind === 'too-large'
+			? payload.kind
+			: 'failed';
 	return { ok: false, kind, detail: (payload.error ?? '').slice(0, 500) };
 }
 
 function unsupported(): { ok: false; kind: ImportErrorKind; detail: string } {
 	return { ok: false, kind: 'unsupported', detail: process.platform };
+}
+
+// [파일에서 텍스트 가져오기]가 받는 형식. 파일 선택 창의 형식 목록과 제너레이터 창의 안내 문구가 둘 다 이 목록을
+// 쓰므로, 형식을 늘리면 여기와 pickAndReadFile의 분기만 고치면 됩니다.
+const FILE_TYPES: [label: string, extensions: string[]][] = [
+	['Word 문서', ['docx', 'doc', 'docm']],
+	['Excel 통합 문서', ['xlsx', 'xls', 'xlsm']],
+	['PowerPoint 프레젠테이션', ['pptx', 'ppt']],
+	['Outlook 메일', ['msg']],
+	['메일 파일', ['eml']],
+	['텍스트 파일', ['txt']],
+];
+
+// 안내 문구용: ".docx .doc ... .txt"
+export const SUPPORTED_EXTENSIONS = FILE_TYPES.flatMap(([, extensions]) => extensions.map((ext) => `.${ext}`)).join(' ');
+
+// 파일 선택 창의 형식 목록. Windows는 "|" 앞의 이름만 보여 주므로 이름 안에도 확장자를 적어,
+// 드롭다운에서 무엇을 고를 수 있는지 바로 보이게 합니다. 첫 줄은 전부, 그 아래는 종류별입니다.
+function dialogFilter(): string {
+	const pattern = (extensions: string[]) => extensions.map((ext) => `*.${ext}`).join(';');
+	const all = FILE_TYPES.flatMap(([, extensions]) => extensions);
+	return [['지원하는 모든 파일', all] as const, ...FILE_TYPES]
+		.map(([label, extensions]) => `${label} (${pattern(extensions)})|${pattern(extensions)}`)
+		.join('|');
 }
 
 // 앱이 켜져 있으면 그 앱을, 아니면 $null을 주는 함수. GetActiveObject는 앱이 없으면 예외를 냅니다.
@@ -221,24 +250,48 @@ try {
 //   저장 여부를 묻는 창이 떠 멈추는 일이 없게 확실히 못 박습니다.
 // - 프로그램 끄기($app.Quit())는 남은 문서가 하나도 없을 때만 합니다. 그냥 끄면 사용자가 열어 둔
 //   다른 문서까지 함께 닫힙니다.
+// .msg는 Outlook이 파일을 열게 해(OpenSharedItem) Outlook 메일과 같은 방식으로 읽습니다. Outlook에는 문서 수로
+// 판단하는 규칙이 맞지 않으므로(늘 0개) 메일은 버리고 닫고($doc.Close(1), 0은 저장), 우리가 띄운 경우에만 끕니다.
+// .txt·.eml은 앱 없이 바이트만 읽어 넘깁니다(base64라 출력 한도 32MB 안에 들도록 10MB까지만).
+// 파일 선택 창은 Windows 기본 창(OpenFileDialog)입니다. PowerShell은 화면 배율(DPI)을 모르는 프로그램이라
+// 배율이 100%가 아닌 화면에서는 Windows가 창을 늘려 그려 흐릿해지므로, 창을 띄우기 전에 배율을 안다고
+// 알립니다(SetProcessDPIAware). 이 알림이 막힌 환경이어도 창은 그대로 뜨도록 실패는 무시합니다.
 export async function pickAndReadFile(): Promise<ImportResult> {
 	if (!Platform.isWin) return unsupported();
 	const script = `
 ${GET_APP}
 Add-Type -AssemblyName System.Windows.Forms
+try { Add-Type -Namespace IntraCopilot -Name Dpi -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();'; [void][IntraCopilot.Dpi]::SetProcessDPIAware() } catch {}
+[System.Windows.Forms.Application]::EnableVisualStyles()
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
-$dialog.Title = '제너레이터로 가져올 문서를 고르세요'
-$dialog.Filter = 'Word·Excel·PowerPoint 문서|*.docx;*.doc;*.docm;*.xlsx;*.xls;*.xlsm;*.pptx;*.ppt'
+$dialog.Title = '제너레이터로 가져올 파일을 고르세요'
+$dialog.Filter = '${dialogFilter()}'
 $dialog.Multiselect = $false
 if ($dialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { @{ok=$false; kind='cancelled'} | ConvertTo-Json -Compress; exit }
 $path = $dialog.FileName
 $name = [IO.Path]::GetFileName($path)
 $ext = [IO.Path]::GetExtension($path).ToLower()
 if ($ext -eq '.pdf') { @{ok=$false; kind='pdf'} | ConvertTo-Json -Compress; exit }
+if ($ext -eq '.txt' -or $ext -eq '.eml') {
+	try {
+		if ((Get-Item -LiteralPath $path).Length -gt 10MB) { @{ok=$false; kind='too-large'} | ConvertTo-Json -Compress; exit }
+		@{ok=$true; name=$name; format=$ext.Substring(1); bytes=[Convert]::ToBase64String([IO.File]::ReadAllBytes($path))} | ConvertTo-Json -Compress
+	} catch {
+		@{ok=$false; error=$_.Exception.Message} | ConvertTo-Json -Compress
+	}
+	exit
+}
 $app = $null
 $doc = $null
+$isMail = $ext -eq '.msg'
+$started = $false
 try {
-	if ($ext -like '.doc*') {
+	if ($isMail) {
+		$started = -not (Get-OfficeApp 'Outlook.Application')
+		$app = New-Object -ComObject Outlook.Application
+		$doc = $app.Session.OpenSharedItem($path)
+		${EXTRACT.outlook}
+	} elseif ($ext -like '.doc*') {
 		$started = -not (Get-OfficeApp 'Word.Application')
 		$app = New-Object -ComObject Word.Application
 		if ($started) { $app.Visible = $false }
@@ -265,13 +318,18 @@ try {
 } catch {
 	@{ok=$false; error=$_.Exception.Message} | ConvertTo-Json -Compress
 } finally {
-	if ($doc) { try { $doc.Close(0) } catch { try { $doc.Close() } catch {} } }
-	if ($app) {
-		$left = 0
-		try { $left += $app.Documents.Count } catch {}
-		try { $left += $app.Workbooks.Count } catch {}
-		try { $left += $app.Presentations.Count } catch {}
-		if ($left -eq 0) { try { $app.Quit() } catch {} }
+	if ($isMail) {
+		if ($doc) { try { $doc.Close(1) } catch {} }
+		if ($app -and $started) { try { $app.Quit() } catch {} }
+	} else {
+		if ($doc) { try { $doc.Close(0) } catch { try { $doc.Close() } catch {} } }
+		if ($app) {
+			$left = 0
+			try { $left += $app.Documents.Count } catch {}
+			try { $left += $app.Workbooks.Count } catch {}
+			try { $left += $app.Presentations.Count } catch {}
+			if ($left -eq 0) { try { $app.Quit() } catch {} }
+		}
 	}
 }`;
 
@@ -284,7 +342,12 @@ function finish(run: { ok: true; stdout: string } | { ok: false; kind: ImportErr
 	if (!payload?.ok) {
 		return payload ? failureFrom(payload) : { ok: false, kind: 'failed', detail: run.stdout.slice(0, 500) };
 	}
+	let raw = payload.text ?? '';
+	if (payload.bytes !== undefined) {
+		const bytes = Buffer.from(payload.bytes, 'base64');
+		raw = payload.format === 'eml' ? emlToText(bytes) : decodeText(bytes);
+	}
 	// Word는 문단 끝에 \r만 남기므로 줄바꿈을 정리하고, 빈 줄이 셋 이상 이어지면 둘로 줄입니다.
-	const text = (payload.text ?? '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+	const text = raw.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 	return { ok: true, text, name: payload.name ?? '' };
 }

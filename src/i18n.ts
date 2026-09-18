@@ -516,7 +516,9 @@ const ko = {
 			'Word·Excel·PowerPoint에 지금 열려 있는 문서와 Outlook에서 고른 메일 중에서 골라, 그 텍스트를 아래 입력칸에 채웁니다. 프로그램을 새로 띄우지 않고, 문서를 고치지도 않습니다.',
 		importFileButton: '파일에서 텍스트 가져오기',
 		importFileTooltip:
-			'파일 고르기 창에서 Word·Excel·PowerPoint 파일을 고르면 화면에 보이지 않게 열어 텍스트만 읽고 바로 닫습니다. PDF는 지원하지 않습니다.',
+			'파일 고르기 창에서 Word·Excel·PowerPoint 파일, 메일 파일(.msg·.eml), 텍스트 파일(.txt)을 고르면 텍스트만 읽어 옵니다. Office 파일과 .msg는 화면에 보이지 않게 열었다 바로 닫습니다. PDF는 지원하지 않습니다.',
+		importHint:
+			'열린 문서: Word·Excel·PowerPoint 문서, Outlook에서 고른 메일\n파일: {extensions} (PDF는 지원하지 않습니다)',
 		importing: '텍스트를 가져오는 중...',
 		imported: '{name}에서 텍스트 {count}자를 가져왔습니다.',
 		sourceLabel: '텍스트',
@@ -557,9 +559,10 @@ const ko = {
 		exampleCreated: '예시 양식을 만들었습니다: {path}',
 		// 열린 문서 고르기 창
 		pickerTitle: '텍스트를 가져올 문서 고르기',
-		pickerIntro: '지금 열려 있는 문서와 Outlook에서 고른 메일입니다. 하나를 누르면 그 문서의 텍스트만 가져옵니다.',
+		pickerIntro:
+			'지금 열려 있는 문서와 Outlook에서 고른 메일입니다. 하나를 누르면 그 문서의 텍스트만 가져옵니다. 메모장 등에 열어 둔 텍스트 파일(.txt)은 이 목록에 나오지 않으니 [파일에서 텍스트 가져오기]를 쓰세요.',
 		pickerEmpty:
-			'열려 있는 문서가 없습니다. Word·Excel·PowerPoint에서 문서를 열거나 Outlook에서 메일을 고른 뒤 다시 누르세요.',
+			'열려 있는 문서가 없습니다. Word·Excel·PowerPoint에서 문서를 열거나 Outlook에서 메일을 고른 뒤 다시 누르세요. 텍스트 파일(.txt)·메일 파일(.eml·.msg)은 [파일에서 텍스트 가져오기]로 가져옵니다.',
 		appWord: 'Word',
 		appExcel: 'Excel',
 		appPowerpoint: 'PowerPoint',
@@ -569,6 +572,7 @@ const ko = {
 			'no-app': '그 프로그램이 켜져 있지 않습니다. 문서를 열어 둔 뒤 다시 시도하세요.',
 			cancelled: '가져오기를 취소했습니다.',
 			pdf: 'PDF에서는 텍스트를 가져올 수 없습니다. PDF 뷰어에서 텍스트를 선택해 복사한 뒤 입력칸에 붙여넣으세요.',
+			'too-large': '파일이 10MB보다 커서 가져오지 않았습니다. 필요한 부분만 복사해 입력칸에 붙여넣으세요.',
 			unsupported: '문서에서 텍스트 가져오기는 Windows에서만 됩니다. 텍스트를 복사해 입력칸에 붙여넣으세요.',
 			timeout:
 				'문서를 읽는 데 너무 오래 걸려 멈췄습니다. 문서에 확인 창이 떠 있는지 보고 닫은 뒤 다시 시도하세요.',
@@ -1185,7 +1189,9 @@ const en: Dictionary = {
 			'Choose from the documents currently open in Word, Excel, or PowerPoint, or the mail selected in Outlook, and fill the box below with its text. No application is started for you, and the document is not modified.',
 		importFileButton: 'Get text from a file',
 		importFileTooltip:
-			'Pick a Word, Excel, or PowerPoint file; it is opened invisibly, its text is read, and it is closed again. PDF is not supported.',
+			'Pick a Word, Excel, or PowerPoint file, a mail file (.msg, .eml), or a text file (.txt) to read its text. Office files and .msg files are opened invisibly and closed again. PDF is not supported.',
+		importHint:
+			'Open documents: Word, Excel, PowerPoint documents and the mail selected in Outlook\nFiles: {extensions} (PDF is not supported)',
 		importing: 'Getting text...',
 		imported: 'Got {count} characters of text from {name}.',
 		sourceLabel: 'Text',
@@ -1227,9 +1233,10 @@ const en: Dictionary = {
 		droppedKeys: 'Properties not in the template were removed: {keys}',
 		exampleCreated: 'Created an example template: {path}',
 		pickerTitle: 'Choose a document to get text from',
-		pickerIntro: 'Documents currently open, and the mail selected in Outlook. Select one to get its text.',
+		pickerIntro:
+			'Documents currently open, and the mail selected in Outlook. Select one to get its text. Text files (.txt) open in Notepad or other editors are not listed; use [Get text from a file] instead.',
 		pickerEmpty:
-			'No open documents. Open a document in Word, Excel, or PowerPoint, or select a mail in Outlook, then try again.',
+			'No open documents. Open a document in Word, Excel, or PowerPoint, or select a mail in Outlook, then try again. Text files (.txt) and mail files (.eml, .msg) are imported with [Get text from a file].',
 		appWord: 'Word',
 		appExcel: 'Excel',
 		appPowerpoint: 'PowerPoint',
@@ -1238,6 +1245,7 @@ const en: Dictionary = {
 			'no-app': 'That application is not running. Open the document first, then try again.',
 			cancelled: 'Import cancelled.',
 			pdf: 'Text cannot be taken from a PDF. Select and copy the text in your PDF viewer, then paste it into the box.',
+			'too-large': 'The file is larger than 10 MB, so it was not imported. Copy only the part you need and paste it into the box.',
 			unsupported: 'Getting text from a document works on Windows only. Copy the text and paste it into the box instead.',
 			timeout: 'Reading the document took too long and was stopped. Check for a dialog on the document, close it, and try again.',
 			failed: 'Could not get text from the document. Make sure it is open, then try again.',
