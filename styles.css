@@ -1597,6 +1597,23 @@ button.intra-copilot-doc-card:hover {
 	font-weight: var(--font-semibold);
 }
 
+/* "양식 폴더: Generator [찾기]", "저장 위치: Generator-inbox [찾기]" 한 줄. 좁으면 줄을 바꿉니다. */
+.intra-copilot-generator-folder {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+}
+
+.intra-copilot-generator-folder .intra-copilot-folder-path {
+	margin-right: 0;
+}
+
+.intra-copilot-generator-folder button {
+	padding: 4px 8px;
+	font-size: var(--font-ui-smaller);
+}
+
 .intra-copilot-generator-template-row {
 	display: flex;
 	align-items: center;

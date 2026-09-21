@@ -23,6 +23,7 @@ import {
 } from '../generator/office-import';
 import { OpenDocumentModal, SourceZoomModal } from './generator-modals';
 import { confirmTwice } from './delete-confirm';
+import { type GeneratorFolderKey, pickGeneratorFolder } from './settings/generator-section';
 
 // 제너레이터 화면(오른쪽 사이드바)입니다. 받은 텍스트를 내 양식의 새 노트로 만듭니다.
 //
@@ -188,11 +189,13 @@ export class GeneratorView extends ItemView {
 		const templates = listTemplates(this.plugin);
 		const selected = templates.find((template) => template.file.path === this.templatePath);
 		if (!selected) this.templatePath = '';
+		const block = contentEl.createDiv({ cls: 'intra-copilot-generator-template' });
+		block.createDiv({ cls: 'intra-copilot-generator-label', text: strings.templateLabel });
+		// 양식이 없을 때도 폴더를 바로 고칠 수 있게 폴더 줄은 늘 보여 줍니다.
+		this.renderFolderRow(block, 'templateFolder', strings.templateFolderLabel);
 		if (templates.length === 0) {
-			contentEl.createEl('p', { cls: 'intra-copilot-generator-empty', text: strings.templateEmpty });
+			block.createEl('p', { cls: 'intra-copilot-generator-empty', text: strings.templateEmpty });
 		} else {
-			const block = contentEl.createDiv({ cls: 'intra-copilot-generator-template' });
-			block.createDiv({ cls: 'intra-copilot-generator-label', text: strings.templateLabel });
 
 			const row = block.createDiv({ cls: 'intra-copilot-generator-template-row' });
 			const dropdown = new DropdownComponent(row);
@@ -260,6 +263,8 @@ export class GeneratorView extends ItemView {
 				.setButtonText(strings.stopButton)
 				.onClick(() => this.running?.abort());
 		}
+		// 만들기 전에 어디에 저장될지 보이게, 저장 위치를 [만들기] 바로 옆에 둡니다.
+		this.renderFolderRow(actions, 'outputFolder', strings.outputFolderLabel);
 
 		if (this.status) {
 			contentEl.createEl('p', {
@@ -267,6 +272,25 @@ export class GeneratorView extends ItemView {
 				text: this.status,
 			});
 		}
+	}
+
+	// "양식 폴더: Generator [찾기]"처럼 지금 폴더와 [찾기]를 한 줄로 보여 줍니다. [찾기]는 설정 화면과
+	// 같은 함수(pickGeneratorFolder)라서 받는 폴더 규칙도 같습니다. 만드는 중에는 잠급니다.
+	private renderFolderRow(containerEl: HTMLElement, key: GeneratorFolderKey, label: string): void {
+		const folders = this.plugin.strings().folders;
+		const row = containerEl.createDiv({ cls: 'intra-copilot-generator-folder' });
+		row.createSpan({ cls: 'intra-copilot-generator-hint', text: label });
+		row.createSpan({ cls: 'intra-copilot-folder-path', text: this.plugin.settings.generator[key] || folders.root });
+		new ButtonComponent(row)
+			.setButtonText(folders.browse)
+			.setTooltip(folders.browseTooltip)
+			.setDisabled(this.running !== null)
+			.onClick(() =>
+				pickGeneratorFolder(this.plugin, key, () => {
+					void this.plugin.saveSettings();
+					this.render();
+				}),
+			);
 	}
 
 	// 고른 양식의 얼개를 보여 줍니다. 노트를 열지 않고도 "이 양식이 무엇을 채우게 하는지" 알 수 있게 합니다.
